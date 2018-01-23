@@ -13,6 +13,7 @@
 #include <utility.h>
 #include <tun.h>
 #include <dhcp.h>
+#include <subscriber.h>
 
 acc_ctx_t acc_ctx_g;
 
@@ -235,11 +236,14 @@ int32_t acc_main(char *argv[]) {
   nat_init(pAccCtx->ip_addr,
            pAccCtx->dns1,
            pAccCtx->dns2, 
+           pAccCtx->redir_ip,
            /*redir_port*/
            pAccCtx->redir_port,
            pAccCtx->uamS_ip,
            pAccCtx->uamS_port,
            ACC_CACHE_TABLE);
+
+  subscriber_init(ACC_CON_AUTH_STATUS_TABLE);
 
   /* The Flow of message is 
    * DHCP <--> TUN <--> WAN Interface
