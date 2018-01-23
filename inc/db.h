@@ -1,0 +1,52 @@
+#ifndef __DB_H__
+#define __DB_H__
+
+#ifdef DB_SQLITE3
+#define DB_NAME ".dd_s_db"
+#endif /* DB_SQLITE3 */
+
+typedef struct {
+  char server_ip[32];
+  char db_name[32];
+  char user_name[32];
+  char password[32];  
+  unsigned short int server_port;
+}db_cfg_t;
+
+#ifdef DB_MYSQL
+typedef struct {
+  MYSQL     *mysql_conn;
+  MYSQL_RES *mysql_query_result;
+ 
+}db_mysql_handle_t;
+
+#elif DB_SQLITE3
+typedef struct {
+  sqlite3 *dbHandle;
+  char **query_result;
+  int32_t rows;
+  int32_t cols;
+  char  **err_msg;
+  
+}db_sqlite3_handle_t;
+#endif /* DB_MYSQL */
+
+typedef struct {
+  db_cfg_t server_config;
+
+#ifdef DB_MYSQL
+  db_mysql_handle_t server_handle;
+#elif DB_SQLITE3
+  db_sqlite3_handle_t server_handle;
+#endif /* DB_MYSQL */
+
+}db_ctx_t;
+
+int db_init(char *db_conn_info[]);
+int db_connect(void);
+int db_exec_query(char *sql_query);
+int db_process_query_result(int *row_count, 
+                            int *column_count, 
+                            uint8_t  (*result)[16][32]);
+
+#endif /* __DB_H__ */
