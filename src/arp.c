@@ -4,9 +4,8 @@
 #include <common.h>
 #include <transport.h>
 #include <arp.h>
-#include <db.h>
 #include <utility.h>
-#include <dhcp.h>
+#include <net.h>
 
 arp_ctx_t arp_ctx_g;
 
@@ -17,6 +16,7 @@ uint32_t arp_init(uint8_t *mac_addr, uint32_t ip_addr) {
 
   arp_ctx_t *pArpCtx = &arp_ctx_g;
 
+  memset((void *)pNatCtx->mac, 0, ETH_ALEN);
   memcpy((void *)pArpCtx->mac, (const char *)mac_addr, ETH_ALEN);
   pArpCtx->ip_addr = ip_addr;
 
@@ -83,11 +83,11 @@ uint32_t arp_build_ARP_request(uint32_t dest_ip) {
   
 }/*arp_build_ARP_request*/
 
-int arp_process_ARP_request(int32_t fd, char *packet_ptr, unsigned int packet_length) {
+int32_t arp_process_ARP_request(int32_t fd, uint8_t *packet_ptr, uint16_t packet_length) {
 
   arp_ctx_t *pArpCtx = &arp_ctx_g;
   uint8_t  packet[1500];
-  uint8_t mac[6];
+  uint8_t mac[ETH_ALEN];
   
   memset((void *)packet, 0, sizeof(packet));
   memset((void *)mac, 0, sizeof(mac));
@@ -134,8 +134,8 @@ int arp_process_ARP_request(int32_t fd, char *packet_ptr, unsigned int packet_le
 }/*arp_process_ARP_request*/
 
 uint32_t arp_main(int32_t fd, 
-                         char *packet_ptr, 
-                         uint16_t packet_length) {
+                  uint8_t *packet_ptr, 
+                  uint16_t packet_length) {
 
   arp_ctx_t *pArpCtx = &arp_ctx_g;
 
@@ -148,7 +148,7 @@ uint32_t arp_main(int32_t fd,
       /*Prepare ARP Reply*/
       arp_process_ARP_request(fd, packet_ptr, packet_length);
        
-    } else if(!memcmp((void *)arphdr_ptr->ar_sender_ha, (void *)pArpCtx->mac, 6)) {
+    } else if(!memcmp((void *)arphdr_ptr->ar_sender_ha, (void *)pArpCtx->mac, ETH_ALEN)) {
       /*Pass it on*/ 
       fprintf(stderr, "\nSelf Broadcast ARP Packet is Received (Ignore) for other"
                       " IP Addr is 0x%X\n", 
@@ -161,4 +161,4 @@ uint32_t arp_main(int32_t fd,
 
 }/*arp_main*/
 
-#endif
+#endif /* __ARP_C__ */
