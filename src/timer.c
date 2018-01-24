@@ -21,9 +21,6 @@ void timer_expire_callback(int32_t sig_num,
   tid = (timer_t *)info->si_value.sival_ptr;
 
   ctx = timer_get_ctx_data(tid, &pCb);
-  
-  net_set_timer_fd(pCb, ctx);
-
 }/*timer_expire_callback*/
 
 

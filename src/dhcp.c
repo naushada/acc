@@ -10,6 +10,7 @@
 #include <dhcp.h>
 #include <tcp.h>
 #include <dns.h>
+#include <arp.h>
 #include <icmp.h>
 #include <nat.h>
 
@@ -40,7 +41,7 @@ int32_t dhcp_recvfrom(int32_t fd, uint8_t *packet, uint16_t *packet_len) {
                    packet, 
                    max_len, 
                    0, 
-                   (struct sockaddr *)&sa 
+                   (struct sockaddr *)&sa,
                     &addr_len);
 
   }while((ret == -1) && (errno == EINTR));
@@ -380,12 +381,12 @@ int dhcp_init(uint8_t *eth_name,
   pDhcpCtx->ip_addr = ip_addr;
   gethostname(pDhcpCtx->host_name, sizeof(pDhcpCtx->host_name));
 
-  memcpy((void *)pDhcpCtx->dhcpS_param, 
+  memcpy((void *)&pDhcpCtx->dhcpS_param, 
          (const void *)conf_param, 
-         sizeof(dhcp_conf_t));  
+         sizeof(pDhcpCtx->dhcpS_param));  
 
-  memset((void *)ip_allocation_name, 0, sizeof(ip_allocation_name));
-  strncpy(ip_allocation_name, 
+  memset((void *)pDhcpCtx->ip_allocation_table, 0, sizeof(pDhcpCtx->ip_allocation_table));
+  strncpy(pDhcpCtx->ip_allocation_table, 
           ip_allocation_table_name, 
           strlen(ip_allocation_table_name));
 
@@ -580,7 +581,9 @@ int32_t dhcp_RELEASE(int32_t fd, uint8_t *packet_ptr, uint16_t packet_length) {
            "'");
 
   if(db_exec_query(sql_query)) {
-    fprintf(stderr, "\n%s:%d Execution of (%s) Failed\n", __FILE__, __LINE__);
+    fprintf(stderr, "\n%s:%d Execution of (%s) Failed\n", 
+                     __FILE__, __LINE__,
+                     sql_query);
     return(-1);
   }
 
@@ -631,7 +634,7 @@ int32_t dhcp_ACK (int32_t fd, uint8_t *packet_ptr, uint16_t packet_length) {
   
   memset((void *)rsp_buffer, 0, sizeof(rsp_buffer));
 
-  rsp_len = dhcp_build_rsp(dhcp_message_type, 
+  rsp_len = dhcp_build_rsp(message_type, 
                            rsp_buffer, 
                            packet_ptr, 
                            packet_length);
@@ -717,7 +720,7 @@ int32_t dhcp_populate_dhcp_options(uint8_t message_type,
             case DHCP_OPTION_SUBNET_MASK:
               rsp_ptr[offset++] = DHCP_OPTION_SUBNET_MASK;
               rsp_ptr[offset++] = 4;
-              *((uint32_t *)&rsp_ptr[offset]) = htonl(pDhcpCtx->subnet_mask.ip_addr);
+              *((uint32_t *)&rsp_ptr[offset]) = htonl(pDhcpCtx->dhcpS_param.subnet_mask);
               offset += 4;
             break;
 
@@ -744,7 +747,7 @@ int32_t dhcp_populate_dhcp_options(uint8_t message_type,
               memcpy((void *)&rsp_ptr[offset], 
                      (void *)&pDhcpCtx->host_name, 
                      strlen(pDhcpCtx->host_name));
-              dhcp_option_offset += strlen(pDhcpCtx->host_name);
+              offset += strlen(pDhcpCtx->host_name);
             break;
 
             case DHCP_OPTION_DOMAIN_NAME:
@@ -771,7 +774,7 @@ int32_t dhcp_populate_dhcp_options(uint8_t message_type,
             case DHCP_OPTION_NTP_SERVER:
               rsp_ptr[offset++] = DHCP_OPTION_NTP_SERVER;
               rsp_ptr[offset++] = 4;
-              *((uint32_t)&rsp_ptr[offset]) = pDhcpCtx->ip.addr;
+              *((uint32_t *)&rsp_ptr[offset]) = pDhcpCtx->ip_addr;
               offset += 4;
             break;
 
@@ -866,7 +869,7 @@ uint32_t dhcp_is_dhcpc_requested_ip(uint8_t *mac_str, uint32_t *ip_addr_ptr) {
   for(idx = 0; idx < pDhcpCtx->opt_tag.tag_count; idx++) {
 
     if(DHCP_OPTION_REQUESTED_IP_ADDRESS == pDhcpCtx->opt_tag.tag[idx].tag) {
-      ip_addr = (uint32_t *)&pDhcpCtx->opt_tag.tag[idx].value;
+      ip_addr = *((uint32_t *)&pDhcpCtx->opt_tag.tag[idx].value);
       #if 0
       memcpy((void *)ip_addr, 
              (void *)pDhcpCtx->opt_tag.tag[idx].value, 
@@ -964,7 +967,7 @@ uint32_t dhcp_get_client_ip(uint8_t *mac_addr) {
   memset((void *)record, 0, sizeof(record));
   memset((void *)mac_str, 0, sizeof(mac_str));
 
-  utility_mac_int_to_str(mac, mac_str);
+  utility_mac_int_to_str(mac_addr, mac_str);
   memset((void *)ip_str, 0, sizeof(ip_str));
 
   /*check dhcpc - dhcp client has requested for specific IP address*/
@@ -1091,7 +1094,7 @@ int32_t dhcp_build_rsp(uint8_t message_type,
                        uint16_t packet_length) {
 
   dhcp_ctx_t *pDhcpCtx = &dhcp_ctx_g;
-  uint8_t offset = 0;
+  uint16_t offset = 0;
   int32_t rsp_len = -1;
   uint8_t bmac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
   struct eth     *eth_ptr   = (struct eth  *)rsp_ptr;

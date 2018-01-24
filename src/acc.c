@@ -16,6 +16,7 @@
 #include <tcp.h>
 #include <utility.h>
 #include <tun.h>
+#include <arp.h>
 #include <radiusC.h>
 #include <subscriber.h>
 
@@ -230,7 +231,7 @@ int32_t acc_main(char *argv[]) {
   /*Registering the SIGNAL*/
   acc_register_signal(SIGINT);
 
-  acc_init((uint8_t *)&argv[1]);
+  acc_init((uint8_t **)&argv[1]);
 
   dhcp_init(pAccCtx->eth_name,
             pAccCtx->ip_addr,
@@ -329,7 +330,7 @@ int32_t acc_main(char *argv[]) {
  *  @return upon success returns 0 else < 0
  */
 int main(int32_t argc, char *argv[]) {
-  acc_main((char *)&argv[1]); 
+  acc_main((char **)&argv[1]); 
 
 }/*main*/
 
