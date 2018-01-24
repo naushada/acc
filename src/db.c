@@ -11,11 +11,11 @@ int db_init(uint8_t *db_conn_info[]) {
   db_ctx_t *pDbCtx = &mysql_ctx_g;
 
   /*Extracting sql db connection configuration*/
-  memcpy((void *)pDbCtx->server_config.server_ip, (const void *)db_conn_info[0], strlen(db_conn_info[0]));
-  memcpy((void *)pDbCtx->server_config.db_name,   (const void *)db_conn_info[1], strlen(db_conn_info[1]));
-  memcpy((void *)pDbCtx->server_config.user_name, (const void *)db_conn_info[2], strlen(db_conn_info[2]));
-  memcpy((void *)pDbCtx->server_config.password,  (const void *)db_conn_info[3], strlen(db_conn_info[3]));
-  pDbCtx->server_config.server_port = (unsigned short int)atoi(db_conn_info[4]); 
+  strncpy((void *)pDbCtx->server_config.server_ip, (const void *)db_conn_info[0], strlen((const char *)db_conn_info[0]));
+  strncpy((void *)pDbCtx->server_config.db_name,   (const void *)db_conn_info[1], strlen((const char *)db_conn_info[1]));
+  strncpy((void *)pDbCtx->server_config.user_name, (const void *)db_conn_info[2], strlen((const char *)db_conn_info[2]));
+  strncpy((void *)pDbCtx->server_config.password,  (const void *)db_conn_info[3], strlen((const char *)db_conn_info[3]));
+  pDbCtx->server_config.server_port = (uint16_t)atoi(db_conn_info[4]); 
 
 #ifdef DB_MYSQL
   /*mysql_conn will be allocated by mysql_init and will be freed by invoking mysql_close*/

@@ -114,67 +114,69 @@ int32_t acc_preinit(uint8_t *server_ip,
 int32_t acc_init_conf(int32_t row, uint8_t (*record)[16][32]) {
   uint16_t idx;
   acc_ctx_t *pAccCtx = &acc_ctx_g;
+  fprintf(stderr, "\n%s:%d row is %d\n", __FILE__, __LINE__, row);
 
   for(idx = 0; idx < row; idx++) {
 
-    if(!strncmp(record[row][0], "ip_addr", 7)) {
-      pAccCtx->ip_addr = utility_ip_str_to_int(record[row][1]);
+    if(!strncmp(record[idx][0], "ip_addr", 7)) {
+      pAccCtx->ip_addr = utility_ip_str_to_int(record[idx][1]);
       pAccCtx->dhcpS_param.ns1 = pAccCtx->ip_addr;
 
-    } else if(!strncmp(record[row][0], "lan_interface", 13)) {
-      strncpy(pAccCtx->eth_name, record[row][1], strlen((const char *)record[row][1]));
+    } else if(!strncmp(record[idx][0], "lan_interface", 13)) {
+      strncpy(pAccCtx->eth_name, record[idx][1], strlen((const char *)record[idx][1]));
+      fprintf(stderr, "\n%s:%d eth_name %s\n", __FILE__, __LINE__, pAccCtx->eth_name);
 
-    } else if(!strncmp(record[row][0], "network_id", 10)) {
-      pAccCtx->dhcpS_param.network_id = utility_network_id_str_to_int(record[row][1]);
+    } else if(!strncmp(record[idx][0], "network_id", 10)) {
+      pAccCtx->dhcpS_param.network_id = utility_network_id_str_to_int(record[idx][1]);
 
-    } else if(!strncmp(record[row][0], "host_id", 7)) {
-      pAccCtx->dhcpS_param.host_id_start = atoi(record[row][1]);
+    } else if(!strncmp(record[idx][0], "host_id", 7)) {
+      pAccCtx->dhcpS_param.host_id_start = atoi(record[idx][1]);
 
-    } else if(!strncmp(record[row][0], "max_host_id", 11)) {
-      pAccCtx->dhcpS_param.host_id_end = atoi(record[row][1]);
+    } else if(!strncmp(record[idx][0], "max_host_id", 11)) {
+      pAccCtx->dhcpS_param.host_id_end = atoi(record[idx][1]);
 
-    } else if(!strncmp(record[row][0], "cidr", 4)) {
-      pAccCtx->cidr = atoi(record[row][1]);
-      pAccCtx->dhcpS_param.subnet_mask = 0xFFFFFFFF & (1 << (32 - pAccCtx->cidr));
+    } else if(!strncmp(record[idx][0], "cidr", 4)) {
+      pAccCtx->cidr = atoi(record[idx][1]);
+      pAccCtx->dhcpS_param.subnet_mask = 0xFFFFFFFF & ((~0) << (32 - pAccCtx->cidr));
 
-    } else if(!strncmp(record[row][0], "domain_name", 11)) {
-      strncpy(pAccCtx->dhcpS_param.domain_name, record[row][1], strlen((const char *)record[row][1]));
+    } else if(!strncmp(record[idx][0], "domain_name", 11)) {
+      strncpy(pAccCtx->dhcpS_param.domain_name, record[idx][1], strlen((const char *)record[idx][1]));
       
-    } else if(!strncmp(record[row][0], "mtu", 3)) {
-      pAccCtx->dhcpS_param.mtu = atoi(record[row][1]);
+    } else if(!strncmp(record[idx][0], "mtu", 3)) {
+      pAccCtx->dhcpS_param.mtu = atoi(record[idx][1]);
 
-    } else if(!strncmp(record[row][0], "lease", 5)) {
-      pAccCtx->dhcpS_param.lease = atoi(record[row][1]);
+    } else if(!strncmp(record[idx][0], "lease", 5)) {
+      pAccCtx->dhcpS_param.lease = atoi(record[idx][1]);
       
-    } else if(!strncmp(record[row][0], "dns1", 4)) {
-      pAccCtx->dns1 = utility_ip_str_to_int(record[row][1]);
+    } else if(!strncmp(record[idx][0], "dns1", 4)) {
+      pAccCtx->dns1 = utility_ip_str_to_int(record[idx][1]);
 
-    } else if(!strncmp(record[row][0], "dns2", 4)) {
-      pAccCtx->dns2 = utility_ip_str_to_int(record[row][1]);
+    } else if(!strncmp(record[idx][0], "dns2", 4)) {
+      pAccCtx->dns2 = utility_ip_str_to_int(record[idx][1]);
     
-    } else if(!strncmp(record[row][0], "ntp_server", 10)) {
-      pAccCtx->dhcpS_param.ntp_ip = utility_ip_str_to_int(record[row][1]);
+    } else if(!strncmp(record[idx][0], "ntp_server", 10)) {
+      pAccCtx->dhcpS_param.ntp_ip = utility_ip_str_to_int(record[idx][1]);
       
-    } else if(!strncmp(record[row][0], "time_server", 11)) {
-      pAccCtx->dhcpS_param.time_ip = utility_ip_str_to_int(record[row][1]);
+    } else if(!strncmp(record[idx][0], "time_server", 11)) {
+      pAccCtx->dhcpS_param.time_ip = utility_ip_str_to_int(record[idx][1]);
 
-    } else if(!strncmp(record[row][0], "uamS_ip", 7)) {
-      pAccCtx->uamS_ip = utility_ip_str_to_int(record[row][1]);
+    } else if(!strncmp(record[idx][0], "uamS_ip", 7)) {
+      pAccCtx->uamS_ip = utility_ip_str_to_int(record[idx][1]);
    
-    } else if(!strncmp(record[row][0], "uamS_port", 9)) {
-      pAccCtx->uamS_port = atoi(record[row][1]);
+    } else if(!strncmp(record[idx][0], "uamS_port", 9)) {
+      pAccCtx->uamS_port = atoi(record[idx][1]);
    
-    } else if(!strncmp(record[row][0], "radiusC_ip", 10)) {
-      pAccCtx->radiusC_ip = utility_ip_str_to_int(record[row][1]);
+    } else if(!strncmp(record[idx][0], "radiusC_ip", 10)) {
+      pAccCtx->radiusC_ip = utility_ip_str_to_int(record[idx][1]);
    
-    } else if(!strncmp(record[row][0], "radiusC_port", 12)) {
-      pAccCtx->radiusC_port = atoi(record[row][1]);
+    } else if(!strncmp(record[idx][0], "radiusC_port", 12)) {
+      pAccCtx->radiusC_port = atoi(record[idx][1]);
    
-    } else if(!strncmp(record[row][0], "radiusS_ip", 10)) {
-      pAccCtx->radiusS_ip = utility_ip_str_to_int(record[row][1]);
+    } else if(!strncmp(record[idx][0], "radiusS_ip", 10)) {
+      pAccCtx->radiusS_ip = utility_ip_str_to_int(record[idx][1]);
    
-    } else if(!strncmp(record[row][0], "redir_port", 10)) {
-      pAccCtx->redir_port = atoi(record[row][1]);
+    } else if(!strncmp(record[idx][0], "redir_port", 10)) {
+      pAccCtx->redir_port = atoi(record[idx][1]);
    
     }
   }
@@ -196,7 +198,7 @@ int32_t acc_init(uint8_t *argv[]) {
   int32_t col;
   uint8_t record[40][16][32];
 
-  acc_preinit(argv[1], argv[2], argv[3], argv[4], argv[5]);
+  acc_preinit(argv[0], argv[1], argv[2], argv[3], argv[4]);
 
   snprintf(sql_query,
            sizeof(sql_query),
@@ -228,10 +230,11 @@ int32_t acc_main(char *argv[]) {
 
   acc_ctx_t *pAccCtx = &acc_ctx_g;
 
+  uint8_t *db_conf[] = {argv[0], argv[1], argv[2], argv[3], argv[4]};
   /*Registering the SIGNAL*/
   acc_register_signal(SIGINT);
 
-  acc_init((uint8_t **)&argv[1]);
+  acc_init(db_conf);
 
   dhcp_init(pAccCtx->eth_name,
             pAccCtx->ip_addr,
@@ -330,7 +333,16 @@ int32_t acc_main(char *argv[]) {
  *  @return upon success returns 0 else < 0
  */
 int main(int32_t argc, char *argv[]) {
+  uint16_t idx;
+  acc_ctx_t *pAccCtx = &acc_ctx_g;
+  void *tret_id;
+
   acc_main((char **)&argv[1]); 
+
+  for(idx = 0; idx < 5; idx++ ) {
+    pthread_join(pAccCtx->tid[idx], &tret_id);
+  }
+  
 
 }/*main*/
 

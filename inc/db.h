@@ -12,11 +12,11 @@
 #endif /* DB_SQLITE3 */
 
 typedef struct {
-  char server_ip[32];
-  char db_name[32];
-  char user_name[32];
-  char password[32];  
-  unsigned short int server_port;
+  uint8_t server_ip[32];
+  uint8_t db_name[32];
+  uint8_t user_name[32];
+  uint8_t password[32];  
+  uint16_t server_port;
 }db_cfg_t;
 
 #ifdef DB_MYSQL
