@@ -4,6 +4,8 @@
 #include <sys/stat.h>
 #include <type.h>
 #include <common.h>
+#include <db.h>
+#include <utility.h>
 #include <redir.h>
 
 /********************************************************************
@@ -11,16 +13,6 @@
  ********************************************************************/
 redir_ctx_t redir_ctx_g;
 
-/********************************************************************
- *Extern Declaration
- ********************************************************************/
-extern int db_process_query_result(int32_t *row_count, 
-                                   int32_t *column_count, 
-                                   char ***result);
-
-extern int db_exec_query(uint8_t *sql_query);
-
-extern int32_t utility_coe(int32_t fd);
 /********************************************************************
  * Function Definition starts
  ********************************************************************/
@@ -52,7 +44,7 @@ int32_t redir_update_conn_status_ex(uint32_t conn_id,
     if(!db_exec_query(sql_query)) {
       memset((void *)record, 0, sizeof(record));
       row = 0, col = 0;
-      if(!db_process_query_result(&row, &col, (char ***)record)) {
+      if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
         if(row) {
           strncpy((char *)uri_ptr, 
                   (const char *)record[0][2], 
@@ -129,7 +121,7 @@ int32_t redir_update_conn_status(uint32_t conn_id,
 
   if(!db_exec_query(sql_query)) {
     memset((void *)record, 0, sizeof(record));
-    if(!db_process_query_result(&row, &col, (char ***)record)) {
+    if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
       if(row) {
         /*Record Found*/
         if(!strncmp((const char *)session->uri, "/authstate_success", 18)) {
@@ -177,7 +169,7 @@ int32_t redir_update_conn_status(uint32_t conn_id,
         if(!db_exec_query(sql_query)) {
           memset((void *)record, 0, sizeof(record));
 
-          if(!db_process_query_result(&row, &col, (char ***)record)) {
+          if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
             if(row) {
               strncpy((char *)mac_address, (const char *)record[0][1], 17);
               /*Insert New Record*/
@@ -570,6 +562,7 @@ int32_t redir_process_req(uint32_t conn_id,
   uint8_t uri[255];
   uint8_t host_name[255];
   uint8_t location_url[512];
+  uint8_t ip_str[32];
 
   redir_ctx_t *pRedirCtx = &redir_ctx_g;
 
@@ -589,15 +582,19 @@ int32_t redir_process_req(uint32_t conn_id,
              host_name,
              uri);
   } else {
+    memset((void *)ip_str, 0, sizeof(ip_str));
+    utility_ip_int_to_str(pRedirCtx->uam_ip, ip_str);
+
     snprintf((char *)location_url, 
              sizeof(location_url),
              "%s%s%s%d%s",
              "http://",
-             pRedirCtx->uam_ip,
+             ip_str,
              ":",
              pRedirCtx->uam_port,
              "/login.html");
   }
+
   memset((void *)http_redir, 0, sizeof(http_redir));
   redir_process_uri(conn_id, http_redir, &http_len, location_url);
 
@@ -611,7 +608,7 @@ int32_t redir_process_req(uint32_t conn_id,
 
 int32_t redir_init(uint32_t redir_listen_ip, 
                    uint16_t redir_listen_port, 
-                   uint8_t *uam_ip, 
+                   uint32_t uam_ip, 
                    uint16_t uam_port,
                    uint8_t *conn_auth_status_table,
                    uint8_t *ip_allocation_table) {
@@ -649,7 +646,7 @@ int32_t redir_init(uint32_t redir_listen_ip,
 
   pRedirCtx->redir_listen_ip = redir_listen_ip;
   pRedirCtx->redir_listen_port = redir_listen_port;
-  strncpy(pRedirCtx->uam_ip, uam_ip, strlen((const char *)uam_ip));
+  pRedirCtx->uam_ip = uam_ip;
   pRedirCtx->uam_port = uam_port;
   pRedirCtx->redir_fd = fd;
 

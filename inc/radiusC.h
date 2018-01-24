@@ -1,6 +1,8 @@
 #ifndef __RADIUSC_H__
 #define __RADIUSC_H__
 
+#include <uamS_radiusC_interface.h>
+
 typedef struct {
   
   struct sockaddr_in peer_addr;

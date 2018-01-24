@@ -4,21 +4,10 @@
 #include <type.h>
 #include <transport.h>
 #include <common.h>
-
+#include <tun.h>
+#include <utility.h>
+#include <nat.h>
 #include <tcp.h>
-
-/********************************************************************
- *Extern Declaration
- *
- ********************************************************************/
-extern int32_t tun_write(uint8_t *packet_ptr, uint16_t packet_length);
-
-extern int32_t nat_perform_snat(uint8_t  *packet_ptr, 
-                                uint16_t packet_length, 
-                                uint8_t  *snat_ptr, 
-                                uint16_t *snat_length);
-
-extern uint16_t utility_cksum(void *pkt_ptr, size_t pkt_len);
 
 /********************************************************************
  *Global Definition
@@ -31,20 +20,12 @@ tcp_ctx_t tcp_ctx_g;
  *
  ********************************************************************/
 int32_t tcp_init(uint32_t ip_addr, 
-                 uint32_t ip_mask,
-                 uint32_t uam_ip,
-                 uint16_t uam_port,
-                 uint32_t radius_ip,
-                 uint16_t radius_port) {
+                 uint32_t ip_mask) {
 
   tcp_ctx_t *pTcpCtx = &tcp_ctx_g;
 
   pTcpCtx->ip_addr     = ip_addr;
   pTcpCtx->ip_mask     = ip_mask;
-  pTcpCtx->uam_ip      = uam_ip;
-  pTcpCtx->uam_port    = uam_port;
-  pTcpCtx->radius_ip   = radius_ip;
-  pTcpCtx->radius_port = radius_port;
  
   return(0); 
 }/*tcp_init*/

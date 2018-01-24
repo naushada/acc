@@ -6,25 +6,14 @@
 #include <common.h>
 #include <string.h>
 #include <linux/if_tun.h>
-
+#include <utility.h>
+#include <nat.h>
 #include <tun.h>
 
 /********************************************************************
  *  Global Instance Declaration
  ********************************************************************/
 tun_ctx_t tun_ctx_g;
-
-/********************************************************************
- *  Extern Declaration
- ********************************************************************/
-extern int coe(int fd);
-
-extern int32_t nat_perform_dnat(uint8_t *packet_ptr, 
-                                uint16_t packet_length,
-                                uint8_t *dnat_ptr,
-                                uint16_t *dnat_length);
-
-extern int32_t utility_hex_dump(uint8_t *packet, uint16_t packet_len);
 
 /********************************************************************
  * Function Definition starts
@@ -163,8 +152,7 @@ int32_t tun_open_tun(void) {
     return(-1);
   }
   
-  //ndelay_on(pTunCtx->tun_fd);
-  coe(pTunCtx->tun_fd);
+  utility_coe(pTunCtx->tun_fd);
 
   memset((void *)&ifr, 0, sizeof(struct ifreq));
 
@@ -213,15 +201,15 @@ int32_t tun_open_tun(void) {
   }
  
   close(fd);
+
   return(0);
- 
 }/*tun_open_tun*/
 
 int32_t tun_process_response(uint8_t *packet_ptr, uint16_t packet_length) {
 
   uint8_t *buffer_ptr;
   uint16_t buffer_length;
-  uint8_t dst_mac[6];
+  uint8_t dst_mac[ETH_ALEN];
   uint32_t fd;
   struct sockaddr_ll sa;
   int32_t ret = -1;
@@ -246,7 +234,6 @@ int32_t tun_process_response(uint8_t *packet_ptr, uint16_t packet_length) {
                    &buffer_length);
 
   memset((void *)dst_mac, 0, sizeof(dst_mac));
-    
   memcpy((void *)dst_mac, (void *)buffer_ptr, sizeof(dst_mac));
 
   fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));

@@ -12,12 +12,32 @@ arp_ctx_t arp_ctx_g;
 /********************************************************************
  * Function Definition
  ********************************************************************/
-uint32_t arp_init(uint8_t *mac_addr, uint32_t ip_addr) {
+uint32_t arp_init(uint8_t *eth_name, uint32_t ip_addr) {
 
   arp_ctx_t *pArpCtx = &arp_ctx_g;
+  struct ifreq ifr;
+  int32_t fd;
 
-  memset((void *)pNatCtx->mac, 0, ETH_ALEN);
-  memcpy((void *)pArpCtx->mac, (const char *)mac_addr, ETH_ALEN);
+  fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+  if(fd > 0) {
+    
+    memset((void *)&ifr, 0, sizeof(ifr));
+    strncpy(ifr.ifr_name, eth_name, IFNAMSIZ);
+    
+    /*Retrieving MAC Address*/
+    if(ioctl(fd, SIOCGIFHWADDR, &ifr)) {
+      fprintf(stderr, "Getting MAC failed\n");
+      perror("MAC:");
+      close(fd);
+      return(-1);
+    }
+    
+    memset((void *)pArpCtx->mac, 0, ETH_ALEN);
+    memcpy(pArpCtx->mac, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
+  }
+ 
+  close(fd);
   pArpCtx->ip_addr = ip_addr;
 
   return(0);

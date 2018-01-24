@@ -19,7 +19,7 @@ typedef struct redir_session_t redir_session_t;
 typedef struct {
   uint32_t redir_listen_ip;
   uint16_t redir_listen_port;
-  uint8_t uam_ip[18];
+  uint32_t uam_ip;
   uint16_t uam_port;
   int32_t redir_fd;
   /*Holds the Name of connection Status Table*/
@@ -61,7 +61,7 @@ redir_session_t *redir_get_session(uint32_t conn_id);
 
 int32_t redir_init(uint32_t redir_listen_ip, 
                    uint16_t redir_listen_port, 
-                   uint8_t *uam_ip, 
+                   uint32_t uam_ip, 
                    uint16_t uam_port,
                    uint8_t *conn_status_table,
                    uint8_t *ip_allocation_table);

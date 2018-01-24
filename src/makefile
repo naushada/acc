@@ -1,4 +1,4 @@
-BIN = DHCP 
+BIN = ACC 
 #CC = arm-linux-gcc
 CC = gcc
 OBJ_DIR = ./obj

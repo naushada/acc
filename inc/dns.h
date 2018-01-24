@@ -120,26 +120,82 @@ typedef struct {
   uint8_t  rdata[255];
 }dns_andata_t;
 
-typedef union {
-  uint32_t  addr;
-  uint8_t   addr_c[4];
-}dns_ip_addr_t;
-
 typedef struct {
   dns_qddata_t  qdata;
   dns_andata_t  andata;
-  uint8_t       domain_name[255];
-  uint8_t       ns1_ip[32];
-  uint8_t       ns1_name[255];
-  uint8_t       host_name[255];
-  uint8_t       host_ip[32];
-  uint8_t       dns1[32];
-  uint8_t       dns2[32];
-  uint8_t       ip_allocation_table[255];
-  /*Timerid for SNAT Request*/
-  timer_t       snat_tid;
+  uint8_t domain_name[255];
+  uint32_t ns1_ip;
+  uint8_t  ns1_name[128];
+  /*host name for which DHCP Server has allocated the IP address*/
+  uint8_t host_name[255];
+  /*IP Address allocated by DHCP Server*/
+  uint8_t host_ip[64];
+  uint8_t  ip_allocation_table[255];
 
 }dns_ctx_t;
+
+
+/** @brief this function initialises the global param for its subsequent use
+ *
+ *  @param domain_name is the domain name controlled by name server
+ *  @param ip_addr is the ip address of name server
+ *  @param host_name is the name of name server
+ *  @param ip_allocation_table is the name of the database table
+ *
+ *  @return upon success it returns 0 else < 0
+ */
+uint32_t dns_init(uint8_t *domain_name,
+                  uint32_t ip_addr,
+                  uint8_t *ns1_name,
+                  uint8_t *ip_allocation_table);
+
+uint32_t dns_is_dns_query(int16_t fd, 
+                          uint8_t *packet_ptr, 
+                          uint16_t packet_length);
+
+uint32_t dns_get_label(uint8_t *domain_name, uint8_t **label_str);
+
+uint32_t dns_perform_snat(int16_t fd, 
+                          uint8_t *packet_ptr, 
+                          uint16_t packet_length);
+
+uint32_t dns_perform_dnat(int16_t fd, 
+                          uint8_t *packet_ptr, 
+                          uint16_t packet_length);
+
+uint32_t dns_build_rr_reply(int16_t fd, 
+                            uint8_t *packet_ptr, 
+                            uint16_t packet_length);
+
+uint32_t dns_process_dns_query(int16_t fd, 
+                               uint8_t *packet_ptr, 
+                               uint16_t packet_length);
+
+void dns_display_char(uint8_t *label, uint16_t label_len);
+
+uint32_t dns_get_qname_len(void);
+
+uint32_t dns_parse_qdsection(int16_t fd, 
+                             uint8_t *packet_ptr, 
+                             uint16_t packet_length);
+
+uint32_t dns_process_ansection(int16_t   fd, 
+                               uint8_t  *packet_ptr, 
+                               uint16_t  packet_length);
+
+uint32_t dns_process_nssection(int16_t   fd, 
+                               uint8_t *packet_ptr, 
+                               uint16_t  packet_length);
+
+uint32_t dns_process_arsection(int16_t   fd, 
+                               uint8_t *packet_ptr, 
+                               uint16_t  packet_length);
+
+uint32_t dns_main(int16_t fd, 
+                  uint8_t *packet_ptr, 
+                  uint16_t packet_length);
+
+
 
 #endif
 

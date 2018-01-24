@@ -1,6 +1,12 @@
 #ifndef __DB_H__
 #define __DB_H__
 
+#ifdef DB_MYSQL
+#include <mysql.h>
+#elif DB_SQLITE3
+#include <sqlite3.h>
+#endif /* DB_MYSQL */
+
 #ifdef DB_SQLITE3
 #define DB_NAME ".dd_s_db"
 #endif /* DB_SQLITE3 */
@@ -42,9 +48,9 @@ typedef struct {
 
 }db_ctx_t;
 
-int db_init(char *db_conn_info[]);
+int db_init(uint8_t *db_conn_info[]);
 int db_connect(void);
-int db_exec_query(char *sql_query);
+int db_exec_query(uint8_t *sql_query);
 int db_process_query_result(int *row_count, 
                             int *column_count, 
                             uint8_t  (*result)[16][32]);

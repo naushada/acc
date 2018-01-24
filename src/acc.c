@@ -2,17 +2,21 @@
 #define __ACC_C__
 
 #include <common.h>
+#include <signal.h>
+#include <pthread.h>
 #include <type.h>
+#include <dhcp.h>
+#include <dns.h>
 #include <acc.h>
 #include <db.h>
+#include <redir.h>
 #include <http.h>
 #include <icmp.h>
-#include <dns.h>
 #include <nat.h>
 #include <tcp.h>
 #include <utility.h>
 #include <tun.h>
-#include <dhcp.h>
+#include <radiusC.h>
 #include <subscriber.h>
 
 acc_ctx_t acc_ctx_g;
@@ -27,7 +31,7 @@ acc_ctx_t acc_ctx_g;
 void acc_signal_handler(int32_t signo, 
                         siginfo_t *info, 
                         void *context) {
-  accp_ctx_t *pAccCtx = &acc_ctx_g;
+  acc_ctx_t *pAccCtx = &acc_ctx_g;
   uint16_t idx;
 
   if(SIGINT == signo) {
@@ -81,13 +85,13 @@ int32_t acc_preinit(uint8_t *server_ip,
                     uint8_t *user_id, 
                     uint8_t *password) {
 
-  uint8_t *mysql_info[] = {mysql_server_ip, 
-                           db_name, 
-                           user_id, 
-                           password, 
-                           mysql_server_port};
+  uint8_t *db_info[] = {server_ip, 
+                        db_name, 
+                        user_id, 
+                        password, 
+                        server_port};
 
-  if(!db_init(mysql_info)) {
+  if(!db_init(db_info)) {
     /*connecting to mysql server*/
     if(db_connect()) {
       fprintf(stderr, "\n%s:%dconnection to DB failed\n",
@@ -106,7 +110,7 @@ int32_t acc_preinit(uint8_t *server_ip,
  *  @param record is holding the record read from DB
  *  @return upon success returns 0 else < 0
  */
-int32_t acc_init_conf(int32_t row, (uint8_t (*)[16][32])record) {
+int32_t acc_init_conf(int32_t row, uint8_t (*record)[16][32]) {
   uint16_t idx;
   acc_ctx_t *pAccCtx = &acc_ctx_g;
 
@@ -123,10 +127,10 @@ int32_t acc_init_conf(int32_t row, (uint8_t (*)[16][32])record) {
       pAccCtx->dhcpS_param.network_id = utility_network_id_str_to_int(record[row][1]);
 
     } else if(!strncmp(record[row][0], "host_id", 7)) {
-      pAccCtx->dhcpS_param.host_id = atoi(record[row][1]);
+      pAccCtx->dhcpS_param.host_id_start = atoi(record[row][1]);
 
     } else if(!strncmp(record[row][0], "max_host_id", 11)) {
-      pAccCtx->dhcpS_param.max_host_id = atoi(record[row][1]);
+      pAccCtx->dhcpS_param.host_id_end = atoi(record[row][1]);
 
     } else if(!strncmp(record[row][0], "cidr", 4)) {
       pAccCtx->cidr = atoi(record[row][1]);
@@ -195,7 +199,7 @@ int32_t acc_init(uint8_t *argv[]) {
 
   snprintf(sql_query,
            sizeof(sql_query),
-           "",
+           "%s%s",
            "SELECT * FROM ",
            ACC_CONF_TABLE);
 
@@ -204,7 +208,7 @@ int32_t acc_init(uint8_t *argv[]) {
     row = 0, col = 0;
     if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
       if(row) {
-        acc_init_conf(row, col, record);
+        acc_init_conf(row, record);
         return(0); 
       }
     }
@@ -230,7 +234,7 @@ int32_t acc_main(char *argv[]) {
 
   dhcp_init(pAccCtx->eth_name,
             pAccCtx->ip_addr,
-            pAccCtx->dhcpS_param,
+            &pAccCtx->dhcpS_param,
             ACC_IP_ALLOCATION_TABLE); 
 
   nat_init(pAccCtx->ip_addr,
@@ -251,7 +255,7 @@ int32_t acc_main(char *argv[]) {
    */
   tun_init(pAccCtx->ip_addr, 
            pAccCtx->ip_addr, 
-           pAccCtx->subnet_mask,
+           pAccCtx->dhcpS_param.subnet_mask,
            pAccCtx->eth_name);
   
   pthread_create(&pAccCtx->tid[0], 
@@ -264,7 +268,7 @@ int32_t acc_main(char *argv[]) {
              pAccCtx->redir_port,
              pAccCtx->uamS_ip,
              pAccCtx->uamS_port,
-             ACC_CONN_AUTH_STATUS_TABLE,
+             ACC_CON_AUTH_STATUS_TABLE,
              ACC_IP_ALLOCATION_TABLE); 
 
   pthread_create(&pAccCtx->tid[1], 
@@ -272,7 +276,7 @@ int32_t acc_main(char *argv[]) {
                  redir_main, 
                  (void *)&pAccCtx->tid[1]);
 
-  radiusC_init(pAccCtx->radiusC_ip
+  radiusC_init(pAccCtx->radiusC_ip,
                /*radiusC_listen Port*/
                pAccCtx->radiusC_port,
                /*Radius Server IP*/
@@ -297,24 +301,20 @@ int32_t acc_main(char *argv[]) {
                  http_main, 
                  (void *)pAccCtx->tid[3]);
   
-  dns_init(pAccCtx->domain_name,
+  dns_init(pAccCtx->dhcpS_param.domain_name,
            pAccCtx->ip_addr,
-           pAccCtx->dhcpS_param.host_name,
+           /*NULL means it will reads the system's name*/
+           NULL,
            ACC_IP_ALLOCATION_TABLE);
 
-  arp_init(pAccCtx->dhcpS_param.mac_addr, 
-           pDhcpCtx->ip_addr); 
+  arp_init(pAccCtx->eth_name, 
+           pAccCtx->ip_addr); 
 
   icmp_init(pAccCtx->ip_addr, 
             pAccCtx->dhcpS_param.subnet_mask);
 
   tcp_init(pAccCtx->ip_addr, 
-           pAccCtx->dhcpS_param.subnet_mask,
-           pAccCtx->uamS_ip,
-           /*UAM Server IP*/
-           pAccCtx->uamS_port,
-           pAccCtx->radiusC_ip,
-           pAccCtx->radiusC_port);
+           pAccCtx->dhcpS_param.subnet_mask);
 
   pthread_create(&pAccCtx->tid[4], 
                  NULL, 

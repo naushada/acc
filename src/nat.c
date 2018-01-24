@@ -22,6 +22,7 @@
 #include <subscriber.h>
 #include <tun.h>
 #include <tcp.h>
+#include <dhcp.h>
 
 /********************************************************************
  * Global Instance
@@ -61,7 +62,7 @@ int32_t nat_init(uint32_t ip_addr,
   pNatCtx->redir_port = redir_port;
   pNatCtx->dns1 = dns1;
   pNatCtx->dns2 = dns2;
-  pNatCtx->uamS_ip = uams_ip;
+  pNatCtx->uamS_ip = uamS_ip;
   pNatCtx->uamS_port = uamS_port;
 
   strncpy((char *)pNatCtx->cache_table_name, 
@@ -155,7 +156,7 @@ int32_t nat_update_cache(uint32_t ipaddr,
 
     memset((void *)record, 0, sizeof(record));
     row = 0, col = 0;
-    if(!db_process_query_result(&row, &col, (char (*)[16][32])record)) {
+    if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
 
       /*Process The Reqult*/
       if(!row) {
@@ -223,10 +224,10 @@ int32_t nat_query_cache(uint16_t dest_port,
 
   if(!db_exec_query((uint8_t *)sql_query)) {
     
-    memset((void *)&record, 0, 2*16*32);
+    memset((void *)&record, 0, sizeof(record));
     row = 0;
     col = 0;
-    if(!db_process_query_result(&row, &col, (char (*)[16][32])record)) {
+    if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
       if(row) {
         /*MAC Address*/
         utility_mac_str_to_int(record[0][1], mac_addr);

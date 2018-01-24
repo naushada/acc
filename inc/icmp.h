@@ -2,8 +2,8 @@
 #define __ICMP_H__
 
 typedef struct {
-  uint32_t dhcp_ip_addr;
-  uint32_t dhcp_listen_mask;
+  uint32_t ip_addr;
+  uint32_t subnet_mask;
 }icmp_ctx_t;
 
 typedef enum {
@@ -40,4 +40,24 @@ typedef enum {
   ICMP_RESERVED = 255
    
 }icmp_type_t;
+
+
+int32_t icmp_build_common_header(uint8_t *rsp_ptr, 
+                                 uint16_t *len, 
+                                 uint8_t *packet_ptr, 
+                                 uint16_t packet_length);
+
+int32_t icmp_build_echo_reply(int16_t fd, 
+                              uint8_t *packet_ptr, 
+                              uint16_t packet_length);
+
+int32_t icmp_build_response(uint8_t type, 
+                            int16_t fd, 
+                            uint8_t *packet_ptr, 
+                            uint16_t packet_length);
+
+int32_t icmp_init(uint32_t ip_addr, uint32_t subnet_mask);
+
+int32_t icmp_main(int16_t fd, uint8_t *packet_ptr, uint16_t packet_length);
+
 #endif /*__ICMP_H__*/

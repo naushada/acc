@@ -1,8 +1,6 @@
 #ifndef __TRANSPORT_H__
 #define __TRANSPORT_H__
 
-//#include <types.h>
-
 struct arp {
 uint16_t  ar_hrd;          /*Hardware Type*/
 uint16_t  ar_pro;          /*Protocol Type*/

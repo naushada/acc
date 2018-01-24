@@ -2,18 +2,11 @@
 #define __DB_C__
 
 #include <common.h>
-
-#ifdef DB_MYSQL
-#include <mysql.h>
-#elif DB_SQLITE3
-#include <sqlite3.h>
-#endif /* DB_MYSQL */
-
 #include <db.h>
 
 db_ctx_t mysql_ctx_g;
 
-int db_init(char *db_conn_info[]) {
+int db_init(uint8_t *db_conn_info[]) {
   int ret = 0;
   db_ctx_t *pDbCtx = &mysql_ctx_g;
 
@@ -80,7 +73,7 @@ int db_connect(void) {
   return(ret);
 }/*db_connect*/
 
-int db_exec_query(char *sql_query) {
+int db_exec_query(uint8_t *sql_query) {
   int ret = -1;
   db_ctx_t *pDbCtx = &mysql_ctx_g;
  
@@ -124,7 +117,7 @@ int db_exec_query(char *sql_query) {
  
 }/*db_exec_query*/
 
-int db_process_query_result(int *row_count, int *column_count, char (*result)[16][32]) {
+int db_process_query_result(int *row_count, int *column_count, uint8_t (*result)[16][32]) {
   int ret = -1;
   int row = -1;
   int col = -1;
@@ -159,7 +152,7 @@ int db_process_query_result(int *row_count, int *column_count, char (*result)[16
  
   /*In SQLITE3 , first row and col represents the Actual field name*/
   /*(N+1)*M elements in the array. Where N = ROWS and M = Column*/
-  uint16_t tmp_col, uint16_t tmp_row;
+  uint16_t tmp_col; uint16_t tmp_row;
   /*First row is the Table Header in SQLITE3*/
   for(tmp_row = 0, row = 1; row <= *row_count; row++, tmp_row++) {
     for(tmp_col = 0, col = 0; col < *column_count; tmp_col++, col++) {

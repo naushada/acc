@@ -17,6 +17,10 @@ uint32_t utility_mac_str_to_int(uint8_t *record, uint8_t *dst_mac);
 
 int utility_hex_dump(uint8_t *packet, uint16_t packet_len);
 
-unsigned short utility_cksum(void *pkt_ptr, size_t pkt_len);
+uint16_t utility_cksum(void *pkt_ptr, size_t pkt_len);
+
+uint16_t utility_udp_checksum(uint8_t *packet_ptr);
+
+int32_t utility_coe(int32_t fd);
 
 #endif /* __UTILITY_H__ */

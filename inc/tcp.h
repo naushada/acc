@@ -36,11 +36,16 @@ struct tcp {
 typedef struct {
   uint32_t ip_addr;
   uint32_t ip_mask;
-  uint32_t uam_ip;
-  uint16_t uam_port;
-  uint32_t radius_ip;
-  uint16_t radius_port;
 
 }tcp_ctx_t;
+
+int32_t tcp_init(uint32_t ip_addr, 
+                 uint32_t ip_mask);
+
+uint16_t tcp_checksum(uint8_t *packet_ptr);
+
+int32_t tcp_main(uint16_t fd, 
+                 uint8_t *packet_ptr, 
+                 uint16_t packet_length);
 
 #endif /*__TCP_H__*/

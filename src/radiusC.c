@@ -3,12 +3,10 @@
 
 #include <common.h>
 #include <type.h>
-#include <uamS_radiusC_interface.h>
+#include <utility.h>
 #include <radiusC.h>
 #include <md5.h>
 
-extern int32_t utility_coe(int32_t fd);
-extern int32_t utility_hex_dump(uint8_t *packet, uint16_t packet_len);
 radiusC_ctx_t g_radiusC_ctx;
 
 int32_t radiusC_send(uint32_t conn_fd, 

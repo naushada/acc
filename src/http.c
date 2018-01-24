@@ -5,14 +5,9 @@
 #include <signal.h>
 #include <type.h>
 #include <common.h>
+#include <utility.h>
 #include <uamS_radiusC_interface.h>
 #include <http.h>
-
-/********************************************************************
- *Extern Declaration
- ********************************************************************/
-extern uint32_t utility_ip_int_to_str(uint32_t ip_addr, uint8_t *ip_str);
-extern int32_t utility_coe(int32_t fd);
 
 /********************************************************************
  *  Global Instance Declaration
@@ -1151,8 +1146,8 @@ void *http_main(void *argv) {
 
     /*Remove session with conn_id == 0*/
     http_remove_session((uint32_t)0);
-
     http_set_fd(pHttpCtx->session, &rd);
+
     max_fd = http_get_max_fd(pHttpCtx->session);
     max_fd = (max_fd > pHttpCtx->uam_fd) ? max_fd : pHttpCtx->uam_fd;
 
@@ -1165,9 +1160,6 @@ void *http_main(void *argv) {
     }
    
     max_fd += 1;
-    //http_print_session();
-    //http_print_session();
-
     ret = select(max_fd, &rd, NULL, NULL, &to);
     
     if(ret > 0) {

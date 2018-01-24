@@ -15,11 +15,10 @@ typedef struct {
   uint32_t uamS_ip;
   uint16_t uamS_port;
   uint32_t redir_ip;
-  uint32_t redir_port;
+  uint16_t redir_port;
   uint32_t radiusC_ip;
   uint16_t radiusC_port;
   uint32_t radiusS_ip;
-  uint16_t redir_port;
   uint16_t cidr;
   uint32_t dns1;
   uint32_t dns2;

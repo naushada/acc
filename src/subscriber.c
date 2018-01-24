@@ -3,6 +3,8 @@
 
 #include <type.h>
 #include <common.h>
+#include <db.h>
+#include <subscriber.h>
 
 subscriber_ctx_t subscriber_ctx_g;
 
@@ -37,7 +39,7 @@ int32_t subscriber_is_authenticated(uint32_t subscriber_ip, uint16_t src_port) {
            "%s%s%s%s%s"
            "%d%s",
            "SELECT * FROM ",
-           subscriberCtx->conn_auth_status_table,
+           pSubscriberCtx->conn_auth_status_table,
            " WHERE (ip_address ='",
            ip_str,
            "' AND src_port ='",
@@ -109,6 +111,7 @@ int32_t subscriber_add_info(uint32_t ip_address,
 
   uint8_t sql_query[255];
   uint8_t ip_str[32];
+  subscriber_ctx_t *pSubscriberCtx = &subscriber_ctx_g;
 
   memset((void *)ip_str, 0, sizeof(ip_str));
   utility_ip_int_to_str(ip_address, ip_str);
@@ -121,7 +124,7 @@ int32_t subscriber_add_info(uint32_t ip_address,
            "%d%s%s%s%s"
            "%s",
            "INSERT INTO ",
-           DD_S_SUBSCRIBER_AUTH_TABLE,
+           pSubscriberCtx->conn_auth_status_table,
            " (ip_address, dest_port, uri, auth_state) VALUES ('",
            ip_str,
            "', '", 
@@ -149,6 +152,7 @@ int32_t subscriber_get_auth_state(uint32_t ip_address,
   uint32_t row;
   uint32_t col;
   uint8_t record[2][16][32];
+  subscriber_ctx_t *pSubscriberCtx = &subscriber_ctx_g;
 
   memset((void *)ip_str, 0, sizeof(ip_str));
   utility_ip_int_to_str(ip_address, ip_str);
@@ -159,14 +163,14 @@ int32_t subscriber_get_auth_state(uint32_t ip_address,
            sizeof(sql_query),
            "%s%s%s%s%s",
            "SELECT * FROM ",
-           DD_S_SUBSCRIBER_AUTH_TABLE,
+           pSubscriberCtx->conn_auth_status_table,
            " WHERE ip_address='",
            ip_str,
            "'");
 
   if(!db_exec_query(sql_query)) {
     memset((void *)record, 0, 2*16*32);
-    if(!db_process_query_result(&row, &col, (char ***)record)) {
+    if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
       if(row) {
         strncpy(auth_state, record[0][3], strlen((const char *)record[0][3]));
         return(0);
@@ -183,6 +187,7 @@ int32_t subscriber_update_auth_state(uint32_t ip_address,
 
   uint8_t sql_query[255];
   uint8_t ip_str[32];
+  subscriber_ctx_t *pSubscriberCtx = &subscriber_ctx_g;
 
   memset((void *)ip_str, 0, sizeof(ip_str));
   utility_ip_int_to_str(ip_address, ip_str);
@@ -194,7 +199,7 @@ int32_t subscriber_update_auth_state(uint32_t ip_address,
            "%s%s%s%s%s"
            "%s%s",
            "UPDATE ",
-           DD_S_SUBSCRIBER_AUTH_TABLE,
+           pSubscriberCtx->conn_auth_status_table,
            " SET auth_state='",
            auth_state,
            "' WHERE ip_address='",

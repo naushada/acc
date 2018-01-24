@@ -4,30 +4,16 @@
 #include <type.h>
 #include <transport.h>
 #include <common.h>
-
 #include <icmp.h>
+#include <tun.h>
+#include <utility.h>
+#include <nat.h>
+#include <net.h>
 
 /********************************************************************
  *Global Instance Variable
  ********************************************************************/
 icmp_ctx_t icmp_ctx_g;
-
-/*********************************************************************
- * Extern Declaration
- ********************************************************************/
-extern unsigned short utility_cksum(void *pkt_ptr, size_t pkt_len);
-
-extern int write_eth_frame (int fd,
-                            unsigned char *dst_mac,
-                            unsigned char *packet, 
-                            unsigned int packet_len);
-
-extern int32_t tun_write(uint8_t *packet_ptr, uint16_t packet_length);
-
-extern int32_t nat_perform_snat(uint8_t *packet_ptr, 
-                                uint16_t packet_length, 
-                                uint8_t *snat_ptr, 
-                                uint16_t *snat_length);
 
 /*********************************************************************
  * Function Definition
@@ -47,8 +33,8 @@ int32_t icmp_build_common_header(uint8_t *rsp_ptr,
 
   /*Populating MAC Header*/
   memcpy((void *)tmp_mac, ((struct eth *)packet_ptr)->h_dest, sizeof(tmp_mac));
-  memcpy((void *)eth_ptr->h_dest, ((struct eth *)packet_ptr)->h_source, 6);
-  memcpy((void *)eth_ptr->h_source, tmp_mac, 6);
+  memcpy((void *)eth_ptr->h_dest, ((struct eth *)packet_ptr)->h_source, ETH_ALEN);
+  memcpy((void *)eth_ptr->h_source, tmp_mac, ETH_ALEN);
   eth_ptr->h_proto = ((struct eth *)packet_ptr)->h_proto;
 
   /*Populating IP Header*/
@@ -77,7 +63,7 @@ int32_t icmp_build_echo_reply(int16_t fd,
   int32_t ret = -1;
   struct icmphdr *icmphdr_ptr = NULL;
   uint16_t ip_header_len = 0;
-  uint8_t dest_mac[6];
+  uint8_t dest_mac[ETH_ALEN];
 
   memset((void *)&rsp_buffer, 0, sizeof(rsp_buffer));
 
@@ -161,11 +147,12 @@ int32_t icmp_build_response(uint8_t type,
 
 }/*icmp_build_response*/
 
-int32_t icmp_init(uint32_t dhcp_listen_addr, uint32_t dhcp_listen_mask) {
+int32_t icmp_init(uint32_t ip_addr, uint32_t subnet_mask) {
   icmp_ctx_t *pIcmpCtx = &icmp_ctx_g;
-  pIcmpCtx->dhcp_ip_addr = dhcp_listen_addr;
-  pIcmpCtx->dhcp_listen_mask = dhcp_listen_mask;
+  pIcmpCtx->ip_addr = ip_addr;
+  pIcmpCtx->subnet_mask = subnet_mask;
 
+  return(0);
 }/*icmp_init*/
 
 int32_t icmp_main(int16_t fd, uint8_t *packet_ptr, uint16_t packet_length) {
@@ -188,17 +175,11 @@ int32_t icmp_main(int16_t fd, uint8_t *packet_ptr, uint16_t packet_length) {
 
     case ICMP_ECHO_REQUEST:
     {
-      if((pIcmpCtx->dhcp_ip_addr & pIcmpCtx->dhcp_listen_mask) != 
-         (ipaddr & pIcmpCtx->dhcp_listen_mask)) {
+      if((pIcmpCtx->ip_addr & pIcmpCtx->subnet_mask) != 
+         (ipaddr & pIcmpCtx->subnet_mask)) {
 
         /*Ping Request is for other Network*/
         fprintf(stderr, "\nExternal Echo Request\n");
-        #if 0
-        nat_perform_snat(packet_ptr, 
-                         packet_length, 
-                         buffer, 
-                         &buffer_length);
-        #endif
 
         ret = tun_write((uint8_t *)&packet_ptr[sizeof(struct eth)], 
                         (packet_length - sizeof(struct eth)));

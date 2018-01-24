@@ -1,121 +1,52 @@
 #ifndef __DNS_C__
 #define __DNS_C__
 
-#include <dns.h>
+#include <type.h>
 #include <transport.h>
+#include <db.h>
+#include <dns.h>
+#include <utility.h>
+#include <tun.h>
+#include <nat.h>
+#include <net.h>
 
 /*Global Variable*/
 dns_ctx_t dns_ctx_g;
 
-/*********************************************************************
- * Extern Declaration
- ********************************************************************/
-extern uint32_t  utility_ip_str_to_int(uint8_t *record);
-
-extern int32_t   db_exec_query(char *sql_query);
-
-extern int32_t   db_process_query_result(int32_t *row_count, 
-                                         int32_t *column_count, 
-                                         char ***result);
-
-extern uint16_t  utility_cksum(void *pkt_ptr, size_t pkt_len);
-
-extern int32_t   write_eth_frame (int32_t fd,
-                                  uint8_t *dst_mac,
-                                  uint8_t *packet, 
-                                  uint32_t packet_len);
-
-extern timer_t   timer_create_timer(uint32_t (*callback_handler)(void *));
-
-extern uint32_t timer_set_timer(uint32_t sec, 
-                                uint32_t nano_sec, 
-                                void *ctx_data, 
-                                timer_t tid);
-
-extern int32_t tun_write(uint8_t *packet_ptr, uint16_t packet_length);
-
-extern int32_t nat_perform_dnat(uint8_t *packet_ptr, 
-                                uint16_t packet_length,
-                                uint8_t *dnat_ptr,
-                                uint16_t *dnat_length);
-
-extern int32_t nat_perform_snat(uint8_t *packet_ptr, 
-                                uint16_t packet_length, 
-                                uint8_t *snat_ptr, 
-                                uint16_t *snat_length);
-
-/********************************************************************
- * Function Definition
- ********************************************************************/
-uint32_t dns_snat_request_timeout_callback(void *ctx_data) {
-
-  /*SEND ICMP Response as Destination Not Rchable*/  
-  fprintf(stderr, "Timeout for SNAT Request\n");
-
-  return(0);
-}/*dns_snat_request_timeout_callback*/
-
-
-uint32_t dns_init(uint8_t *table_name,
+/** @brief this function initialises the global param for its subsequent use
+ *
+ *  @param domain_name is the domain name controlled by name server
+ *  @param ip_addr is the ip address of name server
+ *  @param host_name is the name of name server
+ *  @param ip_allocation_table is the name of the database table
+ *
+ *  @return upon success it returns 0 else < 0
+ */
+uint32_t dns_init(uint8_t *domain_name,
+                  uint32_t ip_addr,
+                  uint8_t *ns1_name,
                   uint8_t *ip_allocation_table) {
 
-
-  uint8_t sql_query[256];
-  int32_t row;
-  int32_t col;
-  char record[2][16][32];
-
   dns_ctx_t *pDnsCtx = &dns_ctx_g;
+  
+  pDnsCtx->ns1_ip = ip_addr;
+  
+  memcpy((void *)pDnsCtx->domain_name, 
+         (const void *)domain_name, 
+         strlen((const char *)domain_name));
 
-  memset((void *)&sql_query, 0, sizeof(sql_query));
-  /*check if DNS query is for local DNS or external one.*/
-  snprintf((char *)sql_query, 
-           sizeof(sql_query),
-           "%s%s",
-           "SELECT * from ",
-           table_name);
-     
-  if(!db_exec_query((char *)sql_query)) {
-    
-    memset((void *)record, 0, (2 * 16 * 32));
-    if(!db_process_query_result(&row, &col, (char ***)record)) {
+  if(!ns1_name) {
+    gethostname(pDnsCtx->ns1_name, sizeof(pDnsCtx->ns1_name));
 
-      if(row) {
-
-        /*DNS1 IP*/ 
-        memset((void *)pDnsCtx->dns1, 0, sizeof(pDnsCtx->dns1));
-        memcpy((void *)pDnsCtx->dns1, 
-               (const void *)record[0][1], 
-               strlen((const char *)record[0][1]));
-
-        /*DNS2 IP*/
-        memset((void *)pDnsCtx->dns2, 0, sizeof(pDnsCtx->dns2));
-        memcpy((void *)pDnsCtx->dns2, 
-               (const void *)record[0][2], 
-               strlen((const char *)record[0][2]));
-
-        /*Get the NS - Name Server IP Address, the 8th column*/
-        memset((void *)pDnsCtx->ns1_ip, 0, sizeof(pDnsCtx->ns1_ip));
-        memcpy((void *)pDnsCtx->ns1_ip, 
-               (const void *)record[0][3], 
-               strlen((const char *)record[0][3]));
-
-        memset((void *)pDnsCtx->ns1_name, 0, sizeof(pDnsCtx->ns1_name));
-        gethostname(pDnsCtx->ns1_name, sizeof(pDnsCtx->ns1_name));
-
-        memset((void *)pDnsCtx->domain_name, 0, sizeof(pDnsCtx->domain_name));
-        memcpy((void *)pDnsCtx->domain_name, 
-               (const void *)record[0][0], 
-               strlen((const char *)record[0][0]));
-      }
-    } 
+  } else {
+    memcpy((void *)pDnsCtx->ns1_name, 
+           (const void *)ns1_name, 
+           strlen((const char *)ns1_name));
   }
 
   memcpy((void *)pDnsCtx->ip_allocation_table, 
          (const void *)ip_allocation_table, 
          strlen((const char *)ip_allocation_table));
-  /*Create the Timer*/
-  pDnsCtx->snat_tid = timer_create_timer(dns_snat_request_timeout_callback);
 
   return(0);
 }/*dns_init*/
@@ -141,147 +72,6 @@ uint32_t dns_get_label(uint8_t *domain_name, uint8_t **label_str) {
   return(0);
 }/*dns_get_label*/
 
-uint16_t dns_update_cache(uint8_t *packet_ptr) {
-  uint8_t sql_query[255];
-  int16_t dns_uid = 0x00;
-  uint8_t src_ip_str[32];
-  uint8_t src_mac_str[32];
-  uint8_t protocol_str[8];
-
-  struct eth    *eth_ptr     = (struct eth *)packet_ptr;
-  struct iphdr  *iphdr_ptr   = (struct iphdr  *)&packet_ptr[sizeof(struct eth)];
-  struct udphdr *udphdr_ptr  = (struct udphdr *)&packet_ptr[sizeof(struct eth) + sizeof(struct iphdr)];
-
-  /*source port must be greater than 1024. below to this is reserved for standard protocol.*/ 
-  dns_uid = ((random() + 1024) % ~(1 << sizeof(uint16_t))); 
-  
-  memset((void *)&src_ip_str, 0, sizeof(src_ip_str));
-  utility_ip_int_to_str(iphdr_ptr->ip_src_ip, src_ip_str);
-
-  memset((void *)&src_mac_str, 0, sizeof(src_mac_str));
-  utility_mac_int_to_str(eth_ptr->h_source,  src_mac_str);
-
-  memset((void *)&protocol_str, 0, sizeof(protocol_str));
-  utility_protocol_int_to_str(iphdr_ptr->ip_proto, protocol_str);
-
-  memset((void *)&sql_query, 0, sizeof(sql_query));
-  snprintf((char *)sql_query, 
-           sizeof(sql_query),
-           "%s%s%s%s%s%s%s%s%s"
-           "%s%s%s%d%s%d%s%d%s",
-           "INSERT INTO dns_nat_table (xid, src_ip, src_mac, "
-           "protocol, dns_uid, src_port, dest_ip, dest_port) VALUES (",
-           "NULL",
-           ",'",
-           src_ip_str,
-           "',",
-           "'",
-           src_mac_str,
-           "',",
-           "'",
-           protocol_str,
-           "',",
-           "'",
-           dns_uid,
-           "',",
-           ntohs(udphdr_ptr->udp_src_port),
-           ",NULL,",
-           12,
-           ")");
-
-  if(db_exec_query((char *)sql_query)) {
-    /*SQL failed in syntax*/
-    fprintf(stderr, "\nSQL QUERY failed %s\n", sql_query);
-    exit(0);
-  }
-  
-  return(dns_uid);
-}/*dns_update_cache*/
-
-uint32_t dns_dnat_get_ip_and_mac(uint8_t  *packet_ptr, 
-                                 uint32_t src_ip, 
-                                 uint32_t *dest_ip, 
-                                 uint8_t  *dest_mac,
-                                 uint16_t *dest_port) {
-  uint8_t sql_query[256];
-  uint8_t src_ip_str[32];
-
-  int32_t row = 0;
-  int32_t col = 0;
-  char  record[2][16][32];
-  uint16_t src_port = 0;
-
-  src_port = ((struct udphdr *)&packet_ptr[sizeof(struct eth) + 
-              sizeof(struct iphdr)])->udp_dest_port;
-  memset((void*)src_ip_str, 0, sizeof(src_ip_str));
-
-  utility_ip_int_to_str(src_ip, src_ip_str);
-
-  memset((void *)&sql_query, 0, sizeof(sql_query));
-  snprintf((char *)sql_query,
-           sizeof(sql_query),
-           "%s%s%s%s%d%s",
-           "SELECT * FROM dns_nat_table WHERE (dest_ip ='",
-           src_ip_str,
-           "'",
-           "AND src_port=",
-            src_port,
-           ")");
-
-  if(!db_exec_query((char *)sql_query)) {
-   
-    memset((void *)record, 0, (sizeof(int8_t) * 2 * 16 * 32));
-    if(!db_process_query_result(&row, &col, (char ***)record)) {
-
-      if(row) {
-        *dest_ip = utility_ip_str_to_int(record[0][1]);
-         utility_mac_str_to_int(record[0][2], dest_mac);
-        *dest_port = utility_ip_str_to_int(record[0][5]);
-      }
-    } 
-  }
-
-  return(0);
-}/*dns_dnat_get_ip_and_mac*/
-
-
-uint32_t dns_get_mac_from_ARP_cache(uint32_t ip, uint8_t *dst_mac) {
-  uint8_t ip_str[32];
-  uint8_t sql_query[256];
-
-  int32_t row;
-  int32_t col;
-  char  record[2][16][32];
-
-  memset((void *)ip_str, 0, sizeof(ip_str));
-  utility_ip_int_to_str(ip, ip_str);
-  
-  memset((void *)sql_query, 0, sizeof(sql_query));
-
-  snprintf((char *)sql_query, 
-           sizeof(sql_query),
-           "%s%s%s",
-           "SELECT * FROM arp_cache_table where ip ='",
-           ip_str,
-           "'");
-
-  if(!db_exec_query((char *)sql_query)) {
-
-    memset((void *)record, 0, (sizeof(uint8_t) * 2 * 16 * 32));
-    if(!db_process_query_result(&row, &col, (char ***)record)) {
-
-      if(row) {
-        utility_mac_str_to_int((char *)record[0][1], (uint8_t *)dst_mac);
-      } else {
-        uint8_t bmac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-        memcpy((void *)&dst_mac, (void *)bmac, 6);
-      }
-    } 
-  }
-  
-  return(0);
-}/*dns_get_mac_from_ARP_cache*/
-
 uint32_t dns_perform_snat(int16_t fd, 
                           uint8_t *packet_ptr, 
                           uint16_t packet_length) {
@@ -300,11 +90,12 @@ uint32_t dns_perform_snat(int16_t fd,
   ret = tun_write(buffer, 
                   buffer_length);
   if(ret < 0) {
-    fprintf(stderr, "\nwrite to tunnel failed\n");
+    fprintf(stderr, "\n%s:%d write to tunnel failed\n", __FILE__, __LINE__);
     perror("tun:");
+    return(-1);
   }
+
   return (0);
-  
 }/*dns_perform_snat*/
 
 uint32_t dns_perform_dnat(int16_t fd, 
@@ -312,7 +103,7 @@ uint32_t dns_perform_dnat(int16_t fd,
                           uint16_t packet_length) {
   uint8_t buffer[1500];
   uint16_t buffer_len = 0x00;
-  uint8_t  dst_mac[6];
+  uint8_t  dst_mac[ETH_ALEN];
 
   memset((void *)buffer, 0, sizeof(buffer));
 
@@ -322,11 +113,11 @@ uint32_t dns_perform_dnat(int16_t fd,
                    &buffer_len);
   
   memset((void *)dst_mac, 0, sizeof(dst_mac));
-  memcpy((void *)dst_mac, (const void *)buffer, 6);
+  memcpy((void *)dst_mac, (const void *)buffer, ETH_ALEN);
 
   write_eth_frame(fd, dst_mac, buffer, buffer_len);
-  return(0);
 
+  return(0);
 }/*dns_perform_dnat*/
 
 uint32_t dns_build_rr_reply(int16_t fd, 
@@ -336,7 +127,6 @@ uint32_t dns_build_rr_reply(int16_t fd,
 
   uint8_t  *rsp_ptr    = rr_reply;
   uint32_t  offset     = 0;
-  uint8_t  *pseudo_ptr = NULL;
   uint32_t  idx        = 0;
   uint8_t   label_str[2][255];
   
@@ -377,7 +167,7 @@ uint32_t dns_build_rr_reply(int16_t fd,
   ip_rsp_ptr->ip_proto       = 0x11;
   ip_rsp_ptr->ip_chksum      = 0x00;
 
-  ip_rsp_ptr->ip_src_ip  = htonl(utility_ip_str_to_int((char *)pDnsCtx->ns1_ip));
+  ip_rsp_ptr->ip_src_ip  = htonl(pDnsCtx->ns1_ip);
   ip_rsp_ptr->ip_dest_ip = ip_ptr->ip_src_ip;
 
   /*populating UDP Header*/
@@ -466,7 +256,7 @@ uint32_t dns_build_rr_reply(int16_t fd,
   rsp_ptr[offset++] = (0x04 & 0x00FF);
 
   /*Type is RDATA*/
-  *((uint32_t *)&rsp_ptr[offset]) = htonl(utility_ip_str_to_int((char *)pDnsCtx->host_ip));
+  *((uint32_t *)&rsp_ptr[offset]) = htonl(utility_ip_str_to_int(pDnsCtx->host_ip));
   offset += 4;
   /*AN Section (2) */
   rsp_ptr[offset++] = strlen((const char *)pDnsCtx->ns1_name);
@@ -497,7 +287,7 @@ uint32_t dns_build_rr_reply(int16_t fd,
   
   /*Type is RDATA*/
 
-  *((uint32_t *)&rsp_ptr[offset]) = htonl(utility_ip_str_to_int((char *)pDnsCtx->ns1_ip));
+  *((uint32_t *)&rsp_ptr[offset]) = htonl(pDnsCtx->ns1_ip);
   offset += 4;
  
   /*NS SECTION - Name Server Section of RR*/
@@ -546,33 +336,9 @@ uint32_t dns_build_rr_reply(int16_t fd,
   udp_rsp_ptr->udp_len   = htons(offset - (sizeof(struct eth) + sizeof(struct iphdr)));
   ip_rsp_ptr->ip_chksum  = utility_cksum((void *)ip_rsp_ptr,  (sizeof(unsigned int) * ip_rsp_ptr->ip_len));
 
-  /*Populating pseudo header for UDP csum calculation*/
-  pseudo_ptr = (unsigned char *)malloc(offset + 12);
-  memset((void *)pseudo_ptr, 0, (offset + 12));
-  
-  memcpy((void *)&pseudo_ptr[0], (const void *)&ip_rsp_ptr->ip_dest_ip, 4);
-  memcpy((void *)&pseudo_ptr[4], (const void *)&ip_rsp_ptr->ip_src_ip, 4);
-
-  /*It's padded with zero*/
-  pseudo_ptr[8]  = 0;
-
-  /*Protocol is UDP*/
-  pseudo_ptr[9]  = 17;
-
-  /*Length of UDP Header + it's payload (DNS's Header + DNS Payload)*/
-  pseudo_ptr[10] = (ntohs(udp_rsp_ptr->udp_len) >> 8) & 0xFF;
-  pseudo_ptr[11] = ntohs(udp_rsp_ptr->udp_len) & 0xFF;
-
-  memcpy((void *)&pseudo_ptr[12], 
-         (const void *)&rsp_ptr[sizeof(struct eth) + sizeof(struct iphdr)], 
-         ((offset + 12) - (sizeof(struct eth) + sizeof(struct iphdr))));
+  udp_rsp_ptr->udp_chksum = utility_udp_checksum((uint8_t *)ip_rsp_ptr);
  
-  udp_rsp_ptr->udp_chksum = utility_cksum((void *)pseudo_ptr, 
-                                       ((offset + 12) - (sizeof(struct eth) + sizeof(struct iphdr))));
   write_eth_frame(fd, (uint8_t *)eth_rsp_ptr->h_dest, rr_reply, offset);
-
-  free(pseudo_ptr);
-  pseudo_ptr = NULL;
 
   return(0);
 }/*dns_build_rr_reply*/
@@ -616,8 +382,8 @@ uint32_t dns_process_dns_query(int16_t fd,
 
     if(!db_exec_query((char *)sql_query)) {
 
-      memset((void *)record, 0, (2 * 16 * 32));
-      if(!db_process_query_result(&row, &col, (char ***)record)) {
+      memset((void *)record, 0, sizeof(record));
+      if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
  
         if(row) {
           memset((void *)pDnsCtx->host_ip, 0, sizeof(pDnsCtx->host_ip));
@@ -792,12 +558,6 @@ uint32_t dns_main(int16_t fd,
                             sizeof(struct iphdr) + 
                             sizeof(struct udphdr)];
   
-  
-  /*Is it Query (a value 0) or Answer (a value 1)?*/
-  if(dns_ptr->qr) {
-    return(dns_perform_dnat(fd, packet_ptr, packet_length));
-  }
-
   switch(dns_ptr->opcode) {
     case DNS_QUERY:
       /*Is it for local DNS or the public one*/
