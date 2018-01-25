@@ -30,7 +30,7 @@ int32_t redir_update_conn_status_ex(uint32_t conn_id,
 
   session = redir_get_session(conn_id);
 
-  if(strncmp((const char *)session->uri, "/authstate_success",18)) {
+  if(!strncmp((const char *)session->uri, "/authstate_success", 18)) {
     /*Retrieve the original URL to that subscriber can be redirected to it*/
     ret = snprintf((char *)sql_query,
                    sizeof(sql_query),
@@ -58,6 +58,7 @@ int32_t redir_update_conn_status_ex(uint32_t conn_id,
     }
   } else {
     uint8_t host_name[255];
+    memset((void *)host_name, 0, sizeof(host_name));
     /*Retrieving Host Name from Http Request*/
     for(idx = 0; idx < session->mime_header_count; idx++) {
 
@@ -73,16 +74,19 @@ int32_t redir_update_conn_status_ex(uint32_t conn_id,
     ret = snprintf((char *)sql_query, 
                    sizeof(sql_query),
                    "%s%s%s%s%s"
-                   "%s%s%s%s",
+                   "%s%s%s%s%d"
+                   "%s",
                    "UPDATE ",
                    pRedirCtx->conn_auth_status_table,
                    " SET uri='",
                    session->uri,
                    "', host_name='",
                    host_name,
-                   "' WHERE ip_address='",
+                   "' WHERE (ip_address='",
                    inet_ntoa(session->peer_addr.sin_addr),
-                   "'");
+                   "' AND src_port ='",
+                   ntohs(session->peer_addr.sin_port),
+                   "')");
 
     if(db_exec_query(sql_query)) {
       fprintf(stderr, "\n%s:%d Execution of Query Failed\n", __FILE__, __LINE__);
@@ -583,7 +587,7 @@ int32_t redir_process_req(uint32_t conn_id,
              uri);
   } else {
     memset((void *)ip_str, 0, sizeof(ip_str));
-    utility_ip_int_to_str(pRedirCtx->uam_ip, ip_str);
+    utility_ip_int_to_str(htonl(pRedirCtx->uam_ip), ip_str);
 
     snprintf((char *)location_url, 
              sizeof(location_url),

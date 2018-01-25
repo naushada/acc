@@ -154,16 +154,23 @@ int db_process_query_result(int *row_count, int *column_count, uint8_t (*result)
   /*(N+1)*M elements in the array. Where N = ROWS and M = Column*/
   uint16_t tmp_col; uint16_t tmp_row;
   /*First row is the Table Header in SQLITE3*/
-  for(tmp_row = 0, row = 1; row <= *row_count; row++, tmp_row++) {
+  for(tmp_row = 0, row = 0; row < *row_count; row++, tmp_row++) {
     for(tmp_col = 0, col = 0; col < *column_count; tmp_col++, col++) {
-
-      if(1 == *column_count) {
+#if 0
+      fprintf(stderr, "\n%s:%d (%d) %s\n",
+                       __FILE__, 
+                       __LINE__,
+                       *row_count,
+                       pDbCtx->server_handle.query_result[((row + 1) * *column_count) + col]);
+#endif
+      if((NULL == pDbCtx->server_handle.query_result[((row + 1) * *column_count) + col]) && (1 == *column_count)) {
         /*(N+1)*M elements in the array. Where N = ROWS and M = Column*/
         *row_count = 0;
+        break;
       } else {
-        len = strlen((const char *)pDbCtx->server_handle.query_result[(row * *column_count) + col]);
+        len = strlen((const char *)pDbCtx->server_handle.query_result[((row + 1) * *column_count) + col]);
         memcpy((void *)result[tmp_row][tmp_col], 
-               (const void *)pDbCtx->server_handle.query_result[(row * *column_count) + col], 
+               (const void *)pDbCtx->server_handle.query_result[((row + 1) * *column_count) + col], 
                len);
       }
     }

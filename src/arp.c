@@ -147,7 +147,7 @@ int32_t arp_process_ARP_request(int32_t fd, uint8_t *packet_ptr, uint16_t packet
   arp_rsp_ptr->ar_target_ip = arp_ptr->ar_sender_ip;
 
   /*Sending Packet to the peer*/ 
-  write_eth_frame(fd, (unsigned char *)eth_rsp_ptr->h_dest, packet, packet_length);
+  write_eth_frame(fd, (uint8_t *)eth_rsp_ptr->h_dest, packet, packet_length);
   
   return(0);
  

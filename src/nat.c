@@ -291,13 +291,10 @@ int32_t nat_perform_snat(uint8_t  *packet_ptr,
         uint16_t src_port;
         uint16_t dest_port;
         uint32_t src_ip;
-        uint8_t src_mac[6];
         struct tcp *tcphdr_ptr;
         struct iphdr *iphdr_ptr;
         int32_t ret;
-        uint8_t dest_mac[6];
 
-        memset((void *)src_mac, 0, sizeof(src_mac));
         iphdr_ptr = (struct iphdr *)snat_ptr;
         tcphdr_ptr = (struct tcp *)&snat_ptr[ip_header_len];
 
@@ -313,7 +310,7 @@ int32_t nat_perform_snat(uint8_t  *packet_ptr,
           if(!ret) {
             /*New connection Request, update the cache with it*/
             nat_update_cache(src_ip, 
-                             src_mac, 
+                             eth_ptr->h_source, 
                              src_port,
                              /*destination port*/
                              dest_port,
@@ -321,11 +318,18 @@ int32_t nat_perform_snat(uint8_t  *packet_ptr,
                              dest_ip);
 
             /*Update the subscriber info as well*/
-            subscriber_add_subscriber(src_ip, src_mac, src_port);
+            subscriber_add_subscriber(src_ip, eth_ptr->h_source, src_port);
           }
 
           if((!ret) || (1 == ret)) {
             /*Redirect Request to Redir Server to get Authentication done*/
+#if 0
+            fprintf(stderr, "\n%s:%d dest_ip 0x%X redir_ip 0x%X\n", 
+                            __FILE__,
+                            __LINE__,
+                            iphdr_ptr->ip_dest_ip, 
+                            pNatCtx->redir_ip);
+#endif
             iphdr_ptr->ip_dest_ip = htonl(pNatCtx->redir_ip);
             iphdr_ptr->ip_src_ip = src_ip;
 

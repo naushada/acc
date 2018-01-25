@@ -13,6 +13,7 @@
 #include <http.h>
 #include <icmp.h>
 #include <nat.h>
+#include <net.h>
 #include <tcp.h>
 #include <utility.h>
 #include <tun.h>
@@ -114,7 +115,6 @@ int32_t acc_preinit(uint8_t *server_ip,
 int32_t acc_init_conf(int32_t row, uint8_t (*record)[16][32]) {
   uint16_t idx;
   acc_ctx_t *pAccCtx = &acc_ctx_g;
-  fprintf(stderr, "\n%s:%d row is %d\n", __FILE__, __LINE__, row);
 
   for(idx = 0; idx < row; idx++) {
 
@@ -124,7 +124,6 @@ int32_t acc_init_conf(int32_t row, uint8_t (*record)[16][32]) {
 
     } else if(!strncmp(record[idx][0], "lan_interface", 13)) {
       strncpy(pAccCtx->eth_name, record[idx][1], strlen((const char *)record[idx][1]));
-      fprintf(stderr, "\n%s:%d eth_name %s\n", __FILE__, __LINE__, pAccCtx->eth_name);
 
     } else if(!strncmp(record[idx][0], "network_id", 10)) {
       pAccCtx->dhcpS_param.network_id = utility_network_id_str_to_int(record[idx][1]);
@@ -178,7 +177,11 @@ int32_t acc_init_conf(int32_t row, uint8_t (*record)[16][32]) {
     } else if(!strncmp(record[idx][0], "redir_port", 10)) {
       pAccCtx->redir_port = atoi(record[idx][1]);
    
+    } else if(!strncmp(record[idx][0], "redir_ip", 8)) {
+      pAccCtx->redir_ip = utility_ip_str_to_int(record[idx][1]);
+   
     }
+
   }
   
   return(0);
@@ -240,6 +243,8 @@ int32_t acc_main(char *argv[]) {
             pAccCtx->ip_addr,
             &pAccCtx->dhcpS_param,
             ACC_IP_ALLOCATION_TABLE); 
+
+  net_init(pAccCtx->eth_name);
 
   nat_init(pAccCtx->ip_addr,
            pAccCtx->dns1,

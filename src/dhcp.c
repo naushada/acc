@@ -241,8 +241,10 @@ int32_t dhcp_get_mac(uint32_t ip_address, uint8_t *mac_addr) {
   uint32_t row;
   uint32_t col;
   uint8_t record[2][16][32];
+  uint16_t host_id;
   dhcp_ctx_t *pDhcpCtx = &dhcp_ctx_g;
  
+  host_id = ntohl(ip_address) & (~pDhcpCtx->dhcpS_param.subnet_mask);
   memset((void *)sql_query, 0, sizeof(sql_query));
 
   snprintf((char *)sql_query,
@@ -251,9 +253,8 @@ int32_t dhcp_get_mac(uint32_t ip_address, uint8_t *mac_addr) {
            "SELECT * FROM ",
            pDhcpCtx->ip_allocation_table,
            " WHERE host_id='",
-           (ip_address & 0x000000FF),
+           host_id,
            "'");
-
   if(!db_exec_query(sql_query)) {
 
     memset((void *)record, 0, sizeof(record));
@@ -860,21 +861,21 @@ uint32_t dhcp_is_dhcpc_requested_ip(uint8_t *mac_str, uint32_t *ip_addr_ptr) {
   int32_t  row = 0;
   int32_t  col = 0;
   uint32_t idx = 0;
-  uint32_t ip_addr;
+  uint8_t ip_addr[4];
+  uint32_t ip;
+  uint32_t nw;
   uint8_t  host_name[255];
   uint16_t host_id;
   uint8_t network_id[24];
 
-  ip_addr = 0;
   for(idx = 0; idx < pDhcpCtx->opt_tag.tag_count; idx++) {
 
     if(DHCP_OPTION_REQUESTED_IP_ADDRESS == pDhcpCtx->opt_tag.tag[idx].tag) {
-      ip_addr = *((uint32_t *)&pDhcpCtx->opt_tag.tag[idx].value);
-      #if 0
+      
       memcpy((void *)ip_addr, 
              (void *)pDhcpCtx->opt_tag.tag[idx].value, 
              pDhcpCtx->opt_tag.tag[idx].len);
-      #endif
+     
       break;
     }
   }
@@ -884,9 +885,18 @@ uint32_t dhcp_is_dhcpc_requested_ip(uint8_t *mac_str, uint32_t *ip_addr_ptr) {
     return(0);
   }
 
-  host_id = ip_addr & 0xFF;
+  ip = ip_addr[0] << 24 | ip_addr[1] << 16 | ip_addr[2] << 8 | ip_addr[3];
+
+  host_id = ip & ~(pDhcpCtx->dhcpS_param.subnet_mask);
+  nw = ip & pDhcpCtx->dhcpS_param.subnet_mask;
+
   memset((void *)network_id, 0, sizeof(network_id));
-  utility_network_id_int_to_str((ip_addr & pDhcpCtx->dhcpS_param.subnet_mask), network_id);
+  snprintf(network_id, 
+           sizeof(network_id), 
+           "%d.%d.%d", 
+           ((uint8_t *)&nw)[3], 
+           ((uint8_t *)&nw)[2], 
+           ((uint8_t *)&nw)[1]);
 
   memset((void *)&sql_query, 0, sizeof(sql_query));
   snprintf((char *)sql_query, 
@@ -911,7 +921,7 @@ uint32_t dhcp_is_dhcpc_requested_ip(uint8_t *mac_str, uint32_t *ip_addr_ptr) {
     
       if(row > 0) {
         /*Requested IP address can be allocated, proceed to it*/
-         *ip_addr_ptr = ip_addr;
+         *ip_addr_ptr = ip;
 
          memset((void *)host_name, 0, sizeof(host_name));
          dhcp_get_dhclient_host_name(host_name);
@@ -1242,7 +1252,7 @@ void *dhcp_main(void *tid) {
       dhcp_recvfrom(pDhcpCtx->fd, eth_buffer, &req_len);
      
       if(req_len > 0) {
-        if(memcmp((const void *)eth_buffer, (const void *)&eth_buffer[ETH_ALEN], ETH_ALEN)) {
+        if(memcmp((const void *)&eth_buffer[ETH_ALEN], (const void *)pDhcpCtx->mac_addr, ETH_ALEN)) {
           dhcp_process_eth_frame(pDhcpCtx->fd, eth_buffer, req_len);    
         }
       }
