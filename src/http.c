@@ -973,9 +973,9 @@ int32_t http_nas_connect(void) {
     fprintf(stderr, "\n%s:%d Socket creation Failed\n", __FILE__, __LINE__);
     return(-1);
   }
-  
+ #if 0 
   self_addr.sin_family = AF_INET;
-  self_addr.sin_port = htons(pHttpCtx->nas_port);
+  self_addr.sin_port = htons(pHttpCtx->uam_port);
   self_addr.sin_addr.s_addr = htonl(pHttpCtx->uam_ip);
   memset((void *)self_addr.sin_zero, 0, sizeof(nas_addr.sin_zero));
 
@@ -985,7 +985,7 @@ int32_t http_nas_connect(void) {
     fprintf(stderr, "\n%s:%d Bind Failed\n", __FILE__, __LINE__);
     return(-2);
   }
-
+#endif
   nas_addr.sin_family = AF_INET;
   nas_addr.sin_port = htons(pHttpCtx->nas_port);
   nas_addr.sin_addr.s_addr = htonl(pHttpCtx->nas_ip);

@@ -304,7 +304,7 @@ int32_t nat_perform_snat(uint8_t  *packet_ptr,
         src_ip = iphdr_ptr->ip_src_ip;
         dest_ip = iphdr_ptr->ip_dest_ip;
 
-        if((80 == dest_port) || (443 == dest_port)) {
+        if((80 == dest_port) /*|| (443 == dest_port)*/) {
           ret = subscriber_is_authenticated(src_ip, src_port);
 
           if(!ret) {
