@@ -27,20 +27,27 @@ int32_t redir_update_conn_status_ex(uint32_t conn_id,
   uint8_t record[2][16][32];
   uint32_t row;
   uint32_t col;
+  uint16_t src_port;
 
   session = redir_get_session(conn_id);
 
   if(!strncmp((const char *)session->uri, "/authstate_success", 18)) {
+    /*Retrieve the src_port at which the subscriber was authenticated*/
+    sscanf((const char *)session->uri, "%*[^=]=%d", (int32_t *)&src_port);
+
     /*Retrieve the original URL to that subscriber can be redirected to it*/
     ret = snprintf((char *)sql_query,
                    sizeof(sql_query),
-                   "%s%s%s%s%s",
+                   "%s%s%s%s%s"
+                   "%d%s",
                    "SELECT * FROM ",
                    pRedirCtx->conn_auth_status_table,
-                   " WHERE ip_address ='",
+                   " WHERE (ip_address ='",
                    inet_ntoa(session->peer_addr.sin_addr),
-                   "'");
-
+                   "' AND src_port='",
+                   src_port,
+                   "')");
+    fprintf(stderr, "\n%s:%d (%s) \n", __FILE__, __LINE__, sql_query);
     if(!db_exec_query(sql_query)) {
       memset((void *)record, 0, sizeof(record));
       row = 0, col = 0;

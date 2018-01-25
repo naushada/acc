@@ -216,8 +216,9 @@ int32_t http_process_auth_success(uint32_t conn_id,
                                   uint16_t *response_len_ptr) {
   http_ctx_t *pHttpCtx = &g_http_ctx;
   uint8_t ip_str[32];
-  uint16_t port;
+  http_session_t *session;
 
+  session = http_get_session(conn_id);
   *response_ptr = (uint8_t *)malloc(1024);
 
   if(!(*response_ptr)) {
@@ -227,21 +228,23 @@ int32_t http_process_auth_success(uint32_t conn_id,
 
   memset((void *)ip_str, 0, sizeof(ip_str));
   utility_ip_int_to_str(htonl(pHttpCtx->nas_ip), ip_str);
-  port = 8080;
 
   memset(*response_ptr, 0, 1024);
   *response_len_ptr = snprintf((char *)(*response_ptr), 1024,
                             "%s%s%s%s%s"
-                            "%s%d%s%s%s"
-                            "%s%s%s%s%s",
+                            "%s%d%s%d%s"
+                            "%s%s%s%s%s"
+                            "%s%s",
                             "HTTP/1.1 302 Moved Temporarily\r\n",
                             "Connection: Keep-Alive\r\n",
                             "Location: ",
                             "http://",
                             ip_str,
                             ":",
-                            port,
-                            "/authstate_success\r\n",
+                            pHttpCtx->nas_port,
+                            "/authstate_success?src_port=",
+                            ntohs(session->peer_addr.sin_port),
+                            "\r\n",
                             "Referer: http://172.20.10.7:3990/login.html\r\n",
                             "Content-Type: text/html\r\n",
                             "Accept-Language: en-US,en;q=0.5\r\n",
@@ -975,7 +978,7 @@ int32_t http_nas_connect(void) {
   }
  #if 0 
   self_addr.sin_family = AF_INET;
-  self_addr.sin_port = htons(pHttpCtx->uam_port);
+  self_addr.sin_port = htons(pHttpCtx->nas_port);
   self_addr.sin_addr.s_addr = htonl(pHttpCtx->uam_ip);
   memset((void *)self_addr.sin_zero, 0, sizeof(nas_addr.sin_zero));
 
