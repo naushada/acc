@@ -37,6 +37,7 @@ CREATE TABLE "acc_ip_allocation" (host_name TEXT, mac_address TEXT, network_id T
 CREATE TABLE "acc_cache" (src_ip TEXT, src_mac TEXT, src_port TEXT, dest_ip TEXT, dest_port TEXT);
 CREATE TABLE acc_conf (param_name TEXT, param_value TEXT);
 CREATE TABLE "acc_conn_auth_status" (ip_address TEXT, mac_address TEXT, uri TEXT, host_name TEXT, auth_state TEXT, src_port TEXT);
+CREATE TABLE "acc_conn_auth_status" (ip_address TEXT, auth_state TEXT);
 
 
 INSERT INTO acc_conf (param_name, param_value) VALUES ('ip_addr', '10.100.16.1');

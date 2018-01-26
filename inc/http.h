@@ -1,15 +1,8 @@
 #ifndef __HTTP_H__
 #define __HTTP_H__
 
-typedef enum {
-  AUTH_SUCCESS = 1,
-  AUTH_INPROGRESS,
-  AUTH_FAILED
-
-}http_auth_type_t;
 
 typedef struct {
-
   uint8_t *uri;
   uint16_t uri_len;
   int32_t (*http_req_cb)(uint32_t con_fd,
@@ -23,9 +16,9 @@ struct http_session_t {
   uint8_t method[8];
   uint8_t protocol[8];
   uint8_t uri[255];
+  uint8_t url[1024];
   uint16_t mime_header_count;
   uint8_t mime_header[16][2][255];
-  http_auth_type_t auth_status;
   struct http_session_t *next;
 
 };
@@ -39,7 +32,6 @@ typedef struct {
 
   uint32_t nas_ip;
   uint16_t nas_port;
-  int32_t nas_fd;
 
   /*pointer to session structure*/
   http_session_t *session;

@@ -1,8 +1,6 @@
 #ifndef __RADIUSC_H__
 #define __RADIUSC_H__
 
-#include <uamS_radiusC_interface.h>
-
 typedef struct {
   
   struct sockaddr_in peer_addr;
@@ -29,9 +27,7 @@ typedef struct {
   uint32_t radiusC_TcpFd;
   /*From RadiusC to RadiusS*/
   uint32_t radiusC_UdpFd;
-
   uint8_t secret_code[255];
-
   uint16_t session_count;
   radiusC_session_t session[255];
 
@@ -44,14 +40,14 @@ typedef struct {
   uint8_t type;
   uint8_t len;
   uint8_t value[1];
-}radiusC_radiusS_attr_t;
+}radiusS_attr_t;
 
 typedef struct {
   uint8_t code;
   uint8_t id;
   uint16_t len;
   uint8_t authenticator[16];
-}radiusC_radiusS_message_header_t;
+}radiusS_message_header_t;
 
 typedef enum {
   USER_NAME = 1,
@@ -64,9 +60,77 @@ typedef enum {
   VENDOR_SPECIFIC = 26,
   CALLING_STATION_ID = 31
 
-}radiusC_attr_type_t;
+}radiusS_attr_type_t;
+
+typedef enum {
+  ACCESS_REQUEST = 1,
+  ACCESS_ACCEPT,
+  ACCESS_REJECT,
+  ACCOUNTING_REQUEST,
+  ACCOUNTING_RESPONSE,
+  ACCESS_CHALLENGE = 11,
+  STATUS_SERVER,
+  STATUS_CLIENT,
+  
+}message_type_t;
+
+typedef struct {
+  uint8_t message_type;
+  uint32_t txn_id;
+
+  uint8_t user_name_len;
+  uint8_t user_name[255];
+
+  uint8_t calling_station_id_len;
+  uint8_t calling_station_id[32];
+  
+}access_accept_t;
+
+typedef struct {
+  uint8_t message_type;
+  uint32_t txn_id;
+  
+}accounting_response_t;
+
+typedef struct {
+  uint8_t message_type;
+  uint32_t txn_id;
+  
+}access_challenge_t;
+
+typedef struct {
+  uint8_t message_type;
+  /*Socket Fd at which web-browser is connected with UAMS*/
+  uint32_t txn_id;
+  uint16_t user_id_len;
+  uint8_t  user_id[255];
+  uint16_t password_len;
+  uint8_t password[255];
+ 
+}access_request_t;
+
+typedef struct {
+  uint8_t message_type;
+  /*Socket Fd at which web-browser is connected with UAMS*/
+  uint32_t txn_id;
+ 
+}access_reject_t;
 
 
+typedef struct {
+  uint8_t message_type;
+  
+}accounting_request_t;
+
+typedef union {
+
+  access_request_t access_req;
+  accounting_request_t accounting_req;
+  access_accept_t access_accept;
+  access_reject_t access_reject;
+  accounting_response_t accounting_response;
+  access_challenge_t access_challenge;
+}radiusC_message_t;
 
 
 int32_t radiusC_send(uint32_t conn_fd, 
@@ -81,32 +145,16 @@ int32_t radiusC_get_dest_port(uint8_t *packet_ptr);
 
 int32_t radiusC_sendto(uint8_t *packet_ptr, uint16_t packet_length);
 
-int32_t radiusC_process_access_accept(radiusC_uamS_access_accept_t *rsp_ptr,
+int32_t radiusC_process_access_accept(access_accept_t *rsp_ptr,
                                       uint8_t *packet_ptr,
                                       uint16_t packet_length);
 
 int32_t http_get_req_authenticator(uint8_t *authenticator_ptr);
 
-int32_t radiusC_process_NAS_request(uint32_t conn_fd,
-                                    uint8_t *packet_ptr, 
-                                    uint16_t packet_length);
 
 int32_t radiusC_parse_radiusS_response(uint32_t conn_id, 
                                        uint8_t *packet_ptr, 
                                        uint16_t packet_length);
-
-void radiusC_swap(uint32_t *a, uint32_t *b);
-
-
-uint32_t radiusC_partition (radiusC_session_t *session, 
-                            int16_t low, 
-                            int16_t high);
-
-void radiusC_quick_sort(radiusC_session_t *session, 
-                        int16_t low_idx, 
-                        int16_t high_idx);
-
-void radiusC_modify_conn_count(radiusC_session_t *session);
 
 uint32_t radiusC_get_con_id(uint8_t offset);
 

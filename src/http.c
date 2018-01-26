@@ -6,7 +6,6 @@
 #include <type.h>
 #include <common.h>
 #include <utility.h>
-#include <uamS_radiusC_interface.h>
 #include <http.h>
 
 /********************************************************************
@@ -14,7 +13,7 @@
  ********************************************************************/
 http_ctx_t g_http_ctx;
 
-http_req_handler_t g_handler[] = {
+http_req_handler_t g_handler_http[] = {
 
   {"/img",                        4, http_process_image_req},
   {"/login.html",                11, http_process_login_req},
@@ -23,7 +22,6 @@ http_req_handler_t g_handler[] = {
   {"/register.html",             14, http_process_register_req},
   {"/login_with_mobile_no.html", 26, http_process_login_with_mobile_no_req},
   {"/index.html",                11, http_process_login_req},
-  {"/auth_response.html",        19, http_process_auth_response_req},
 
   /*New callback to be inserted above this*/
   {"/",                           1, http_process_login_req},
@@ -211,54 +209,6 @@ int32_t http_register_signal(uint32_t sig) {
   return(0);
 }/*http_register_signal*/
 
-int32_t http_process_auth_success(uint32_t conn_id,
-                                  uint8_t **response_ptr,
-                                  uint16_t *response_len_ptr) {
-  http_ctx_t *pHttpCtx = &g_http_ctx;
-  uint8_t ip_str[32];
-  http_session_t *session;
-
-  session = http_get_session(conn_id);
-  *response_ptr = (uint8_t *)malloc(1024);
-
-  if(!(*response_ptr)) {
-    fprintf(stderr, "\n%s:%d Allocation of Memory Failed\n", __FILE__, __LINE__);
-    return(-1);
-  }
-
-  memset((void *)ip_str, 0, sizeof(ip_str));
-  utility_ip_int_to_str(htonl(pHttpCtx->nas_ip), ip_str);
-
-  memset(*response_ptr, 0, 1024);
-  *response_len_ptr = snprintf((char *)(*response_ptr), 1024,
-                            "%s%s%s%s%s"
-                            "%s%d%s%d%s"
-                            "%s%s%s%s%s"
-                            "%s%s",
-                            "HTTP/1.1 302 Moved Temporarily\r\n",
-                            "Connection: Keep-Alive\r\n",
-                            "Location: ",
-                            "http://",
-                            ip_str,
-                            ":",
-                            pHttpCtx->nas_port,
-                            "/authstate_success?src_port=",
-                            ntohs(session->peer_addr.sin_port),
-                            "\r\n",
-                            "Referer: http://172.20.10.7:3990/login.html\r\n",
-                            "Content-Type: text/html\r\n",
-                            "Accept-Language: en-US,en;q=0.5\r\n",
-                            "Accept: text/*;q=0.3, text/html;q=0.7, text/html;level=1,",
-                            "text/html;level=2;q=0.4, */*;q=0.5\r\n",
-                            "Content-Length: 0\r\n",
-                            /*Delimiter B/W Header and Body*/
-                            "\r\n\r\n");
-
-  fprintf(stderr, "\n%s:%d \n%s\n", __FILE__, __LINE__, *response_ptr);
-
-  return(0);
-}/*http_process_auth_success*/
-
 int32_t http_decode_reserved_delim_qs(uint8_t hex_digit, uint8_t *delim) {
 
   uint16_t idx;
@@ -399,13 +349,14 @@ int32_t http_parse_req(uint32_t conn_id,
   uint8_t protocol[8];
   uint16_t tmp_len;
   uint16_t line_len;
+  uint8_t url[1024];
 
   http_ctx_t *pHttpCtx = &g_http_ctx;
   http_session_t *session = http_get_session(conn_id);
 
   tmp_ptr = (uint8_t *)malloc(packet_length);
 
-  if(NULL == tmp_ptr) {
+  if(!tmp_ptr) {
     fprintf(stderr, "\n%s:%d Allocation of Memory failed\n", __FILE__, __LINE__);
     return(-1);
   }
@@ -426,7 +377,7 @@ int32_t http_parse_req(uint32_t conn_id,
 
   uri_ptr = (uint8_t *) malloc(uri_len);
 
-  if(NULL == uri_ptr) {
+  if(!uri_ptr) {
     fprintf(stderr, "\n%s:%d Memory Allocation Failed\n", __FILE__, __LINE__);
     free(tmp_ptr);
     return(-1);
@@ -447,6 +398,16 @@ int32_t http_parse_req(uint32_t conn_id,
 
   free(uri_ptr);
   uri_ptr = NULL;
+
+  /*copying URL into session*/
+  if(!strncmp((const char *)session->uri, "/login.html", 11)) { 
+    memset((void *)url, 0, sizeof(url));
+    memset((void *)session->url, 0, sizeof(session->url));
+    sscanf((const char *)session->uri,
+           "%*[^?]?url=%s HTTP/1.1",
+           url);
+    strncpy(session->url, url, strlen((const char *)url));
+  }
 
   memset((void *)session->mime_header, 
          0, 
@@ -476,7 +437,9 @@ int32_t http_parse_req(uint32_t conn_id,
   tmp_ptr = NULL;
 
   if(http_is_connection_closed(conn_id)) {
-    fprintf(stderr, "\n%s:%d (Connection: close) HTTP Connection is closed\n", __FILE__, __LINE__);
+    fprintf(stderr, "\n%s:%d (Connection: close) HTTP Connection is closed\n", 
+                     __FILE__, 
+                     __LINE__);
     return(1);
   }
  
@@ -638,39 +601,6 @@ int32_t http_process_auth_failed_req(uint32_t conn_id,
   return(0);
 }/*http_process_auth_failed_req*/
 
-int32_t http_process_auth_response_req(uint32_t conn_id,
-                                       uint8_t **response_ptr,
-                                       uint16_t *response_len_ptr) {
-
-  http_session_t *session = http_get_session(conn_id);
-
-  if(AUTH_SUCCESS == session->auth_status) {
-    /**
-     * Redirect to NAS which has the original URI
-     * to redirect web-browser to.
-     */
-    fprintf(stderr, "\n%s:%d AUTH SUCCESS (conn_id %d)\n", __FILE__, __LINE__, conn_id);
-    http_process_auth_success(conn_id, response_ptr, response_len_ptr);
-   #if 0 
-    http_process_auth_failed_req(offset,
-                                 response_ptr,
-                                 response_len_ptr); 
-   #endif
-  } else if(AUTH_INPROGRESS == session->auth_status) {
-    http_process_wait_req(conn_id, 
-                          response_ptr, 
-                          response_len_ptr, 
-                          "/auth_response.html");
-
-  } else if(AUTH_FAILED == session->auth_status) {
-    http_process_auth_failed_req(conn_id,
-                                 response_ptr,
-                                 response_len_ptr); 
-  }
-
-  return(0); 
-}/*http_process_auth_response_req*/
-
 int32_t http_process_login_req(uint32_t conn_id,
                                uint8_t **response_ptr, 
                                uint16_t *response_len_ptr) {
@@ -762,26 +692,19 @@ int32_t http_process_sign_in_req(uint32_t conn_id,
   uint8_t qs[1024];
   int32_t ret = -1;
   uint8_t *line_ptr = NULL;
-  uint8_t access_buffer[10240];
+  uint8_t response_qs[2024];
+  uint8_t user_id[255];
+  uint8_t password[255];
+  uint8_t ip_str[32];
   http_session_t *session = NULL;
   http_ctx_t *pHttpCtx = &g_http_ctx;
 
-  uamS_radiusC_access_request_t *access_req_ptr = 
-               (uamS_radiusC_access_request_t *)access_buffer;
-
-  /*build immediate http response wait for 1sec*/
-  uint8_t *refresh_ptr = "/auth_response.html";
-  http_process_wait_req(conn_id, 
-                        response_ptr, 
-                        response_len_ptr,
-                        refresh_ptr);
-
+  
   /*Send Request to Auth Client to Authneticate the USER*/
-  memset((void *)access_buffer, 0, sizeof(access_buffer));
+  memset((void *)response_qs, 0, sizeof(response_qs));
   memset((void *)qs, 0, sizeof(qs));
 
   session = http_get_session(conn_id);
-  session->auth_status = AUTH_INPROGRESS;
 
   ret = sscanf((const char *)session->uri,
                "%*[^?]?%s",
@@ -804,44 +727,41 @@ int32_t http_process_sign_in_req(uint32_t conn_id,
        * Replace %XX with equivalent character, 
        * where XX is the ASCII value in hex.
        */
-      http_decode_perct_digit(access_req_ptr->user_id, param_value);
-      access_req_ptr->user_id_len = strlen((const char *)access_req_ptr->user_id);
+      http_decode_perct_digit(user_id, param_value);
 
     } else if(!strncmp((const char *)param_name, "password", 8)) {
 
       /*Copy the Password Value*/
-      memcpy((void *)access_req_ptr->password, 
+      memcpy((void *)password, 
              (const void *)param_value, 
              strlen((const char *)param_value));
-      access_req_ptr->password_len = strlen((const char *)param_value);
 
     }
   }while(NULL != (line_ptr = strtok(NULL, "&"))); 
 
-  /*Prepare Access-Request message*/
-  access_req_ptr->message_type = ACCESS_REQUEST;
-  /** 
-   * subscriber_conn_id is the connection B/W
-   * web-browser and uamS which is on TCP, So
-   * that Auth response can be sent once received 
-   * Access-Accept is received from RadiusS. 
-   */
-  access_req_ptr->subscriber_conn_id = conn_id;
-  fprintf(stderr, "\n%s:%d subscriber_conn_id %X\n", __FILE__, __LINE__, access_req_ptr->subscriber_conn_id);
+  /*sending subscriber credentials to NAS for Authentication*/
+  memset((void *)ip_str, 0, sizeof(ip_str));
+  utility_ip_int_to_str(htonl(pHttpCtx->nas_ip), ip_str);
 
-  if(pHttpCtx->nas_fd < 0) {
-    fprintf(stderr, "\n%s:%d invoking nas_connect\n", __FILE__, __LINE__);
-    http_nas_connect();
-  }
- 
-  ret = http_send(pHttpCtx->nas_fd, 
-                  access_buffer, 
-                  sizeof(uamS_radiusC_access_request_t));
+  snprintf(response_qs, 
+           sizeof(response_qs),
+           "%s%s%s%d%s"
+           "%s%s%s%s%s",
+           "http://",
+           ip_str,
+           ":",
+           pHttpCtx->nas_port,
+           "/response_callback?auth_type=login&email_id=",
+           user_id,
+           "&password=",
+           password,
+           "&url=",
+           session->url);
 
-  if(ret < 0) {
-    fprintf(stderr, "\n%s:%d Sent to RadiusC failed\n", __FILE__, __LINE__);
-    return(-1);
-  }
+  http_process_wait_req(conn_id, 
+                        response_ptr, 
+                        response_len_ptr,
+                        response_qs);
 
   return(0);
 }/*http_process_sign_in_req*/
@@ -928,119 +848,6 @@ int32_t http_process_req(uint32_t conn_id,
   return(0);
 }/*http_process_req*/
 
-int32_t http_un_ipc_init(void) {
-
-  struct sockaddr_un self_addr;
-  socklen_t addr_len = sizeof(self_addr);
-  int32_t fd;
-  int32_t ret = -1;
-  http_ctx_t *pHttpCtx = &g_http_ctx;
-
-  fd = socket(AF_UNIX, SOCK_STREAM, 0);
-
-  if(fd < 0) {
-    fprintf(stderr, "\n%s:%d Creation of Unix Socket failed\n", __FILE__, __LINE__);
-    return(-1);
-  }
-
-  self_addr.sun_family = AF_UNIX;
-  memset((void *)self_addr.sun_path, 0, sizeof(self_addr.sun_path));
-  memcpy((void *)self_addr.sun_path, (const char *)UN_SOCK_NAME, UN_SOCK_NAME_LEN);
-
-  ret = connect(fd, (struct sockaddr *)&self_addr, addr_len);
- 
-  fprintf(stderr, "\n%s:%d new connected fd %d\n", __FILE__, __LINE__, fd); 
-  if(ret < 0) {
-    fprintf(stderr, "\n%s:%d Unix Socket Connect Failed\n", __FILE__, __LINE__);
-    return(-2);
-  }
-
-  pHttpCtx->nas_fd = fd;
- 
-  return(0);
-}/*http_un_ipc_init*/
-
-int32_t http_nas_connect(void) {
-
-  int32_t fd = -1;
-  http_ctx_t *pHttpCtx = &g_http_ctx;
-  struct sockaddr_in nas_addr;
-  struct sockaddr_in self_addr;
-  int32_t ret = -1;
-  uint8_t ipc_type;
-  socklen_t addr_len = sizeof(nas_addr);
-
-  fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-  if(fd < 0) {
-    fprintf(stderr, "\n%s:%d Socket creation Failed\n", __FILE__, __LINE__);
-    return(-1);
-  }
- #if 0 
-  self_addr.sin_family = AF_INET;
-  self_addr.sin_port = htons(pHttpCtx->nas_port);
-  self_addr.sin_addr.s_addr = htonl(pHttpCtx->uam_ip);
-  memset((void *)self_addr.sin_zero, 0, sizeof(nas_addr.sin_zero));
-
-  ret = bind(fd, (struct sockaddr *)&self_addr, addr_len);
-
-  if(ret < 0) {
-    fprintf(stderr, "\n%s:%d Bind Failed\n", __FILE__, __LINE__);
-    return(-2);
-  }
-#endif
-  nas_addr.sin_family = AF_INET;
-  nas_addr.sin_port = htons(pHttpCtx->nas_port);
-  nas_addr.sin_addr.s_addr = htonl(pHttpCtx->nas_ip);
-  memset((void *)nas_addr.sin_zero, 0, sizeof(nas_addr.sin_zero));
- 
-  ret = connect(fd, (struct sockaddr *)&nas_addr, addr_len);
- 
-  if(ret < 0) {
-    fprintf(stderr, "\n%s:%d socket connection failed\n", __FILE__, __LINE__);
-    return(-2);
-  }
- 
-  pHttpCtx->nas_fd = fd;
-
-  return(0);
-}/*http_nas_connect*/
-
-
-int32_t http_process_nas_response(int32_t nas_fd) {
-
-  http_ctx_t *pHttpCtx = &g_http_ctx;
-  uint8_t resp_buffer[4096];
-  int32_t ret = -1;
-  uint16_t max_len = 0;
-  http_session_t *session = NULL;
-
-  radiusC_uamS_access_accept_t *response_ptr = 
-         (radiusC_uamS_access_accept_t *)resp_buffer;
-
-  memset((void *)resp_buffer, 0, sizeof(resp_buffer));
-  
-  ret = http_recv(nas_fd, resp_buffer, &max_len);
-
-  if(!max_len) {
-    fprintf(stderr, "\n%s:%d Connection is closed peer\n", __FILE__, __LINE__);
-    return(-1);
-  } 
-
-  session = http_get_session(response_ptr->subscriber_conn_id);
-
-  if(ACCESS_ACCEPT == response_ptr->message_type) {
-    session->auth_status = AUTH_SUCCESS;  
-
-  } else if(ACCESS_REJECT == response_ptr->message_type) {
-    session->auth_status = AUTH_FAILED;  
-    
-  }
-
-  return(0);
-}/*http_process_nas_response*/
-
-
 int32_t http_init(uint32_t uam_ip, 
                   uint16_t uam_port,
                   uint32_t nas_ip,
@@ -1086,12 +893,11 @@ int32_t http_init(uint32_t uam_ip,
   pHttpCtx->session = NULL;
 
   /*Initializing array of objects*/
-  pHttpCtx->pHandler = g_handler;
+  pHttpCtx->pHandler = g_handler_http;
 
   /*Connect with radiusC - Radius Client*/
   pHttpCtx->nas_ip = nas_ip;
   pHttpCtx->nas_port = nas_port;
-  pHttpCtx->nas_fd = -1;
 
   return(0); 
 }/*http_init*/
@@ -1153,14 +959,6 @@ void *http_main(void *argv) {
 
     max_fd = http_get_max_fd(pHttpCtx->session);
     max_fd = (max_fd > pHttpCtx->uam_fd) ? max_fd : pHttpCtx->uam_fd;
-
-    if(pHttpCtx->nas_fd > 0) {
-
-      FD_SET(pHttpCtx->nas_fd, &rd);
-      max_fd = (max_fd > pHttpCtx->nas_fd ?
-                          max_fd:
-                          pHttpCtx->nas_fd);
-    }
    
     max_fd += 1;
     ret = select(max_fd, &rd, NULL, NULL, &to);
@@ -1184,10 +982,6 @@ void *http_main(void *argv) {
           /*Connection is from 0.0.0.0 IP Address*/
           close(new_conn);
         }
-
-      } else if((pHttpCtx->nas_fd > 0) && (FD_ISSET(pHttpCtx->nas_fd, &rd))) {
-        /*Response from NAS*/
-        http_process_nas_response(pHttpCtx->nas_fd);
 
       } else {
         for(session = pHttpCtx->session; session; session = session->next) {

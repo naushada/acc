@@ -111,35 +111,35 @@ int32_t radiusC_sendto(uint8_t *packet_ptr, uint16_t packet_length) {
   return(0);
 }/*radiusC_sendto*/
 
-int32_t radiusC_process_access_reject(uamS_radiusC_access_reject_t *rsp_ptr,
+int32_t radiusC_process_access_reject(access_reject_t *rsp_ptr,
                                       uint8_t *packet_ptr,
                                       uint16_t packet_length) {
 
   radiusC_ctx_t *pRadiusCCtx = &g_radiusC_ctx;
 
   rsp_ptr->message_type = *packet_ptr;
-  rsp_ptr->subscriber_conn_id = pRadiusCCtx->subscriber_id[packet_ptr[1]].ext_conn_id;
+  rsp_ptr->txn_id = pRadiusCCtx->subscriber_id[packet_ptr[1]].ext_conn_id;
 
   return(0);
 }/*radiusC_process_access_reject*/
 
-int32_t radiusC_process_access_accept(radiusC_uamS_access_accept_t *rsp_ptr,
+int32_t radiusC_process_access_accept(access_accept_t *rsp_ptr,
                                       uint8_t *packet_ptr,
                                       uint16_t packet_length) {
 
-  radiusC_radiusS_message_header_t *header_ptr;
-  radiusC_radiusS_attr_t *attr_ptr;
+  radiusS_message_header_t *header_ptr;
+  radiusS_attr_t *attr_ptr;
   uint16_t offset = 0;
   radiusC_ctx_t *pRadiusCCtx = &g_radiusC_ctx;
 
-  header_ptr = (radiusC_radiusS_message_header_t *)packet_ptr;
+  header_ptr = (radiusS_message_header_t *)packet_ptr;
   
   if(ntohs(header_ptr->len) > packet_length) {
     fprintf(stderr, "\n%s:%d Invalid length is response received\n", __FILE__, __LINE__);
     return(-1);
   }
  
-  if(ntohs(header_ptr->len) < sizeof(radiusC_radiusS_message_header_t)) {
+  if(ntohs(header_ptr->len) < sizeof(radiusS_message_header_t)) {
     fprintf(stderr, "\n%s:%d Response length is less than 20 Bytes\n", __FILE__, __LINE__);
     return(-2);
   } 
@@ -147,13 +147,13 @@ int32_t radiusC_process_access_accept(radiusC_uamS_access_accept_t *rsp_ptr,
   utility_hex_dump(packet_ptr, packet_length);
 
   /*Get to Attribute Offset*/
-  offset = sizeof(radiusC_radiusS_message_header_t);
+  offset = sizeof(radiusS_message_header_t);
 
   if(offset == packet_length) {
     /*Optional Attributes are not present*/
-    rsp_ptr->subscriber_conn_id =  pRadiusCCtx->subscriber_id[packet_ptr[1]].ext_conn_id;
+    rsp_ptr->txn_id =  pRadiusCCtx->subscriber_id[packet_ptr[1]].ext_conn_id;
     
-    fprintf(stderr, "\n%s:%d subscriber_conn_id %X\n", __FILE__, __LINE__, rsp_ptr->subscriber_conn_id);
+    fprintf(stderr, "\n%s:%d subscriber_conn_id %X\n", __FILE__, __LINE__, rsp_ptr->txn_id);
     /*Not Present*/
     rsp_ptr->user_name_len = 0;
     rsp_ptr->calling_station_id_len = 0;
@@ -161,7 +161,7 @@ int32_t radiusC_process_access_accept(radiusC_uamS_access_accept_t *rsp_ptr,
   }
 
   do {
-    attr_ptr = (radiusC_radiusS_attr_t *)&packet_ptr[offset];
+    attr_ptr = (radiusS_attr_t *)&packet_ptr[offset];
 
     switch(attr_ptr->type) {
       case USER_NAME:
@@ -190,10 +190,10 @@ int32_t radiusC_process_access_accept(radiusC_uamS_access_accept_t *rsp_ptr,
       break;
 
       case VENDOR_SPECIFIC:
-        rsp_ptr->subscriber_conn_id = 0;
-        rsp_ptr->subscriber_conn_id = (*(uint32_t *)attr_ptr->value);
+        rsp_ptr->txn_id = 0;
+        rsp_ptr->txn_id = (*(uint32_t *)attr_ptr->value);
         offset += attr_ptr->len;
-        fprintf(stderr, "\n%s:%d ConnId %X\n", __FILE__, __LINE__, rsp_ptr->subscriber_conn_id);
+        fprintf(stderr, "\n%s:%d ConnId %X\n", __FILE__, __LINE__, rsp_ptr->txn_id);
       break;
 
       default:
@@ -270,7 +270,7 @@ int32_t radiusC_process_NAS_request(uint32_t uam_conn,
   uint16_t encoded_password_len;
   radiusC_ctx_t *pRadiusCCtx = &g_radiusC_ctx;
 
-  uamS_radiusC_message_t *req = (uamS_radiusC_message_t *)packet_ptr;
+  radiusC_message_t *req = (radiusC_message_t *)packet_ptr;
 
   radiusS_buffer[offset++] = *packet_ptr;
 
@@ -342,16 +342,16 @@ int32_t radiusC_process_NAS_request(uint32_t uam_conn,
       /*Vendor Specific Attr*/
       radiusS_buffer[offset++] = VENDOR_SPECIFIC;
       radiusS_buffer[offset++] = 4 + 2;
-      *((uint32_t *)&radiusS_buffer[offset]) = ntohl(req->access_req.subscriber_conn_id); 
+      *((uint32_t *)&radiusS_buffer[offset]) = ntohl(req->access_req.txn_id); 
       offset += 4;
 
       /*Vendor Id will not be present in Access-Reject*/ 
-      pRadiusCCtx->subscriber_id[pRadiusCCtx->subscriber_count].ext_conn_id = req->access_req.subscriber_conn_id;
+      pRadiusCCtx->subscriber_id[pRadiusCCtx->subscriber_count].ext_conn_id = req->access_req.txn_id;
       fprintf(stderr, "\n%s:%d ext_conn_id is %X subscriber_conn_id is %X\n", 
                       __FILE__, 
                       __LINE__, 
                       pRadiusCCtx->subscriber_id[pRadiusCCtx->subscriber_count].ext_conn_id,
-                      req->access_req.subscriber_conn_id);
+                      req->access_req.txn_id);
 
       /*radiusC's TCP connection*/
       pRadiusCCtx->subscriber_id[pRadiusCCtx->subscriber_count].conn_id = uam_conn;
@@ -382,10 +382,10 @@ int32_t radiusC_parse_radiusS_response(uint32_t uam_conn,
   uint8_t *response_ptr;
   uint16_t response_length;
 
-  radiusC_radiusS_message_header_t *header_ptr = 
-                      (radiusC_radiusS_message_header_t *)packet_ptr;
+  radiusS_message_header_t *header_ptr = 
+                      (radiusS_message_header_t *)packet_ptr;
 
-  uamS_radiusC_message_t message_response;
+  radiusC_message_t message_response;
   radiusC_ctx_t *pRadiusCCtx = &g_radiusC_ctx;
 
   switch(*packet_ptr) {
@@ -399,7 +399,7 @@ int32_t radiusC_parse_radiusS_response(uint32_t uam_conn,
                                     packet_length);
 
       response_ptr = (uint8_t *)&message_response.access_accept;
-      response_length = sizeof(radiusC_uamS_access_accept_t);
+      response_length = sizeof(access_accept_t);
 
       radiusC_send(uam_conn,
                    response_ptr, 
@@ -414,7 +414,7 @@ int32_t radiusC_parse_radiusS_response(uint32_t uam_conn,
                                     packet_length);
       
       response_ptr = (uint8_t *)&message_response.access_reject;
-      response_length = sizeof(uamS_radiusC_access_reject_t);
+      response_length = sizeof(access_reject_t);
 
       radiusC_send(uam_conn, 
                    response_ptr, 
@@ -439,70 +439,6 @@ int32_t radiusC_parse_radiusS_response(uint32_t uam_conn,
 
   return(0);
 }/*radiusC_parse_radiusS_response*/
-
-void radiusC_swap(uint32_t *a, uint32_t *b) {
-  uint32_t t = *a;
-  *a = *b;
-  *b = t;
-
-}/*radiusC_swap*/
-
-uint32_t radiusC_partition (radiusC_session_t *session, 
-                            int16_t low, 
-                            int16_t high) {
-  int16_t i;
-  int16_t j;
-  uint32_t pivot = session[low].conn;  
-  i = low;
-  j = high + 1;
-
-  while( 1)
-  {
-    do ++i; while( session[i].conn >= pivot && i <= high );
-    do --j; while( session[j].conn < pivot );
-    if( i >= j ) break;
-    radiusC_swap(&session[i].conn, &session[j].conn);
-  } 
-
-  radiusC_swap(&session[low].conn, &session[j].conn);
-  return(j);
-  
-}/*radiusC_partion*/
-
-/* low  --> Starting index,  high  --> Ending index */
-void radiusC_quick_sort(radiusC_session_t *session, 
-                        int16_t low_idx, 
-                        int16_t high_idx) {
-  uint32_t pi;
-
-  if (low_idx < high_idx) {
-    /* pi is partitioning index, arr[p] is now
-       at right place */
-    pi = radiusC_partition(session, low_idx, high_idx);
-
-    radiusC_quick_sort(session, low_idx, pi - 1);
-    radiusC_quick_sort(session, pi + 1, high_idx);
-  }
-
-}/*radiusC_quick_sort*/
-
-void radiusC_modify_conn_count(radiusC_session_t *session) {
-
-  uint32_t idx;
-  radiusC_ctx_t *pRadiusCCtx = &g_radiusC_ctx;
-
-  for(idx = 0; idx < pRadiusCCtx->session_count; idx++) {
-    if(!session[idx].conn) {
-      if(!idx) {
-        pRadiusCCtx->session_count = idx;
-      } else {
-        pRadiusCCtx->session_count = idx - 1;
-      }
-      break;
-    }
-  }
-
-}/*radiusC_modify_conn_count*/
 
 uint32_t radiusC_get_con_id(uint8_t offset) {
   
@@ -553,44 +489,6 @@ int32_t radiusC_process_radiusS_response(uint32_t UdpFd) {
   return(0);
 
 }/*radiusC_process_radiusS_response*/
-
-int32_t radiusC_un_ipc_init(void) {
-
-  struct sockaddr_un self_addr;
-  socklen_t addr_len = sizeof(self_addr);
-  int32_t fd;
-  int32_t ret = -1;
-  radiusC_ctx_t *pRadiusCCtx = &g_radiusC_ctx;
-
-  fd = socket(AF_UNIX, SOCK_STREAM, 0);
-
-  if(fd < 0) {
-    fprintf(stderr, "\n%s:%d Creation of Unix Socket failed\n", __FILE__, __LINE__);
-    return(-1);
-  }
-
-  self_addr.sun_family = AF_UNIX;
-  memset((void *)self_addr.sun_path, 0, sizeof(self_addr.sun_path));
-  memcpy((void *)self_addr.sun_path, (const char *)UN_SOCK_NAME, UN_SOCK_NAME_LEN);
-  unlink(self_addr.sun_path);
-
-  ret = bind(fd, (struct sockaddr *)&self_addr, addr_len);
-
-  if(ret < 0) {
-    fprintf(stderr, "\n%s:%d Binding on Unix Socket Failed\n", __FILE__, __LINE__);
-    return(-2);
-  }
-
-  ret = listen(fd, 5);
- 
-  if(ret < 0) {
-    fprintf(stderr, "\n%s:%d Listening on Unix Socket Failed\n", __FILE__, __LINE__);
-    return(-3);
-  }
- 
-  pRadiusCCtx->radiusC_TcpFd = fd;
-  return(0);
-}/*radiusC_un_ipc_init*/
 
 int32_t radiusC_init(uint32_t radiusC_ip, 
                      uint32_t radiusC_port,

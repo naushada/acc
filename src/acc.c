@@ -277,6 +277,7 @@ int32_t acc_main(char *argv[]) {
              pAccCtx->redir_port,
              pAccCtx->uamS_ip,
              pAccCtx->uamS_port,
+             pAccCtx->radiusC_port,
              ACC_CON_AUTH_STATUS_TABLE,
              ACC_IP_ALLOCATION_TABLE); 
 
@@ -300,10 +301,10 @@ int32_t acc_main(char *argv[]) {
   /*http thread must spawned after radiusC - radius Client*/ 
   http_init(pAccCtx->uamS_ip,
             pAccCtx->uamS_port,
-            /*RadiusC IP*/
-            pAccCtx->radiusC_ip,
-            /*radiusC_port*/
-            pAccCtx->radiusC_port);
+            /*uamC IP*/
+            pAccCtx->redir_ip,
+            /*uamC_port*/
+            pAccCtx->redir_port);
 
   pthread_create(&pAccCtx->tid[3], 
                  NULL, 

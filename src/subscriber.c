@@ -37,13 +37,13 @@ int32_t subscriber_is_authenticated(uint32_t subscriber_ip, uint16_t src_port) {
   snprintf((char *)sql_query, 
            sizeof(sql_query), 
            "%s%s%s%s%s"
-           "%d%s",
+           "%s%s",
            "SELECT * FROM ",
            pSubscriberCtx->conn_auth_status_table,
            " WHERE (ip_address ='",
            ip_str,
-           "' AND src_port ='",
-           src_port,
+           "' AND auth_state ='",
+           "SUCCESS",
            "')");
 
   if(!db_exec_query(sql_query)) {

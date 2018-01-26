@@ -235,14 +235,15 @@ int32_t nat_query_cache(uint16_t dest_port,
         sscanf((const char *)record[0][4], "%d", (uint32_t *)src_port);
         /*src_ip will hold the value of dest ip*/
         *src_ip = utility_ip_str_to_int(record[0][3]);
-        //fprintf(stderr, "\n%s:%d src_ip %X src_port %d\n", __FILE__, __LINE__, *src_ip, *src_port);
       } else {
+
         fprintf(stderr, "\n%s:%d no Row found for ip_address %s and nat_port %d\n%s\n", 
                         __FILE__,
                         __LINE__,
                         dest_ip_str,
                         dest_port,
                         sql_query);
+
       }
     }
   }
@@ -318,7 +319,7 @@ int32_t nat_perform_snat(uint8_t  *packet_ptr,
                              dest_ip);
 
             /*Update the subscriber info as well*/
-            subscriber_add_subscriber(src_ip, eth_ptr->h_source, src_port);
+            //subscriber_add_subscriber(src_ip, eth_ptr->h_source, src_port);
           }
 
           if((!ret) || (1 == ret)) {
@@ -441,7 +442,9 @@ int32_t nat_perform_dnat(uint8_t *packet_ptr,
 
       ret = subscriber_is_authenticated(dest_ip, dest_port);
 
-      if(1 == ret) {
+      if((0 == ret) && ((src_port != pNatCtx->uamS_port) || 
+                        (src_port != 443) || 
+                        (src_port != 8080))) {
         /*connection is not yet authenticated*/
         /*Retrieve the IP, MAC from cache based on nat_port*/
         ret = nat_query_cache(dest_port,

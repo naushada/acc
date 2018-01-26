@@ -6,6 +6,7 @@
 #include <common.h>
 #include <db.h>
 #include <utility.h>
+#include <radiusC.h>
 #include <redir.h>
 
 /********************************************************************
@@ -16,6 +17,354 @@ redir_ctx_t redir_ctx_g;
 /********************************************************************
  * Function Definition starts
  ********************************************************************/
+
+redir_req_handler_t g_handler_redir[] = {
+  {"/img",                 4, redir_process_image_req},
+  {"/response_callback",  18, redir_process_response_callback_req},
+  {"/time_out",            9, redir_process_time_out_req},
+  {"/auth_rejected.html", 19, redir_process_rejected_req},
+  {"/",                    1, redir_process_redirect_req},
+  /*This shall be the last row in this table*/
+  {NULL,                   0, NULL}
+};
+
+
+int32_t redir_process_rejected_req(uint32_t conn_id,
+                                   uint8_t **response_ptr,
+                                   uint16_t *response_len_ptr) {
+  uint8_t html_body[255];
+  uint16_t html_body_len;
+  int32_t ret = -1;
+  uint8_t ip_str[32];
+  redir_ctx_t *pRedirCtx = &redir_ctx_g;
+
+  memset((void *)ip_str, 0, sizeof(ip_str));
+  utility_ip_int_to_str(pRedirCtx->uam_ip, ip_str);
+
+  memset((void *)html_body, 0, sizeof(html_body));
+  html_body_len = snprintf((char *)html_body, 
+                           sizeof(html_body),
+                           "%s%s%s%s%s"
+                           "%d%s%s%s%s"
+                           "%s%s%s",
+                           "<html><head><title></title>",
+                           "<meta http-equiv=\"refresh\" content=\"2;URL='",
+                           "http://",
+                           ip_str,
+                           ":",
+                           pRedirCtx->uam_port, 
+                           "/ui.html",
+                           "'\"",
+                           "</head>",
+                           "<body><center><table align = center style =\"position:relative; margin-top:10%\">",
+                           "<tr><td align=center>",
+                           "<h2>Authentication Failed",
+                           "</td></tr></table></center></body></html>"); 
+
+  (*response_ptr) = (uint8_t *)malloc(html_body_len + 255);
+
+  if(!(*response_ptr)) {
+    fprintf(stderr, "\n%s:%d Memory Allocation Failed\n", __FILE__, __LINE__);
+    return(-1);
+  }
+
+  memset((void *)(*response_ptr), 0, (255 + html_body_len));
+
+  ret = snprintf((char *)(*response_ptr),
+                 (255 + html_body_len),
+                 "%s%s%s%s%d"
+                 "%s",
+                 "HTTP/1.1 200 OK\r\n",
+                 "Content-Type: text/html\r\n",
+                 "Connection: Keep-Alive\r\n",
+                 "Content-Length: ",
+                 html_body_len,
+                 "\r\n\r\n");
+  memcpy((void *)&(*response_ptr)[ret], (const void *)html_body, html_body_len);
+
+  *response_len_ptr = ret + html_body_len; 
+
+  return(0); 
+}/*redir_process_rejected_req*/
+
+int32_t redir_process_image_req(uint32_t conn_id,
+                                uint8_t **response_ptr, 
+                                uint16_t *response_len_ptr) {
+  uint32_t fd;
+  struct stat statbuff;
+  uint8_t http_header[255];
+  uint8_t file_name[255];
+  uint16_t tmp_len;
+  redir_ctx_t *pRedirpCtx = &redir_ctx_g;
+  redir_session_t *session = redir_get_session(conn_id);
+
+  memset((void *)file_name, 0, sizeof(file_name));
+ 
+  snprintf((char *)file_name, sizeof(file_name),
+           "..%s",
+           session->uri);
+  
+  fd = open(file_name, O_RDONLY);
+
+  if(fd > 0) {
+    fstat(fd, &statbuff);
+    tmp_len = snprintf((char *)http_header,
+                       sizeof(http_header), 
+                       "%s%s%s%d%s"
+                       "%s%s",
+                       "HTTP/1.1 200 OK\r\n",
+                       "Content-Type: image/gif; image/png;image/ico\r\n",
+                       "Content-Length: ",
+                       (int32_t)statbuff.st_size,
+                       "\r\n",
+                       "Connection: Keep-Alive\r\n",
+                       "\r\n");
+
+    (*response_ptr) = (uint8_t *)malloc(statbuff.st_size + tmp_len);
+
+    if(!(*response_ptr)) {
+      fprintf(stderr, "\n%s:%d memory Allocation Failed\n", __FILE__, __LINE__);
+      return(-1);
+    }
+
+    memset((void *)(*response_ptr), 0, (statbuff.st_size + tmp_len));
+    memcpy((void *)(*response_ptr), (const void *)http_header, tmp_len);
+
+    *response_len_ptr = read(fd, (void *)&(*response_ptr)[tmp_len], statbuff.st_size);
+    *response_len_ptr += tmp_len;
+
+    close(fd);
+  }
+
+  return(0);
+}/*redir_process_image_req*/
+
+
+int32_t redir_update_conn_status_success(uint32_t conn_id) {
+
+  uint8_t sql_query[255];
+  redir_ctx_t *pRedirCtx = &redir_ctx_g;
+  redir_session_t *session = redir_get_session(conn_id);
+
+  snprintf((char *)sql_query, 
+           sizeof(sql_query),
+           "%s%s%s%s%s"
+           "%s%s",
+           "INSERT INTO ",
+           pRedirCtx->conn_auth_status_table,
+           " (ip_address, auth_status) VALUES ('",
+           inet_ntoa(session->peer_addr.sin_addr),
+           "', '",
+           "SUCCESS'", 
+           ")"); 
+  if(db_exec_query(sql_query)) {
+    fprintf(stderr, "\n%s:%d Execution of Query Failed\n",
+                    __FILE__,
+                    __LINE__);
+    return(-1);
+  }
+ 
+  return(0);
+}/*redir_update_conn_status_success*/
+
+int32_t redir_process_response_callback_req(uint32_t conn_id,
+                                            uint8_t **response_ptr,
+                                            uint16_t *response_len_ptr) {
+
+  redir_session_t *session = redir_get_session(conn_id);
+  redir_process_response_callback_uri(conn_id, session->uri);
+  redir_process_wait_req(conn_id, 
+                         response_ptr, 
+                         response_len_ptr, 
+                         "/time_out");
+  
+  return(0);
+}/*redir_process_response_callback_req*/
+
+int32_t redir_process_time_out_req(uint32_t conn_id,
+                                   uint8_t **response_ptr,
+                                   uint16_t *response_len_ptr) {
+
+  redir_ctx_t *pRedirCtx = &redir_ctx_g;
+  redir_session_t *session = redir_get_session(conn_id);
+
+  if(AUTH_INPROGRESS == pRedirCtx->session->auth_status) {
+    redir_process_wait_req(conn_id,
+                           response_ptr,
+                           response_len_ptr,
+                           "/time_out"); 
+
+  } else if(AUTH_SUCCESS == pRedirCtx->session->auth_status) {
+    /*Update in db that USER is authenticated successfully*/
+    redir_update_conn_status_success(conn_id);
+    redir_process_wait_req(conn_id,
+                           response_ptr,
+                           response_len_ptr,
+                           pRedirCtx->session->url); 
+
+  } else if(AUTH_REJECTED == pRedirCtx->session->auth_status) {
+    redir_process_wait_req(conn_id,
+                           response_ptr,
+                           response_len_ptr,
+                           "/auth_rejected.html"); 
+  }
+
+  return(0);
+}/*redir_process_time_out_req*/
+
+int32_t redir_process_wait_req(uint32_t conn_id,
+                              uint8_t **response_ptr, 
+                              uint16_t *response_len_ptr,
+                              uint8_t *refresh_uri) {
+  uint8_t html_body[255];
+  uint16_t html_body_len;
+  int32_t ret = -1;
+
+  memset((void *)html_body, 0, sizeof(html_body));
+
+  html_body_len = snprintf((char *)html_body, 
+                           sizeof(html_body),
+                           "%s%s%s%s%s"
+                           "%s%s%s%s",
+                           "<html><head><title></title>",
+                           "<meta http-equiv=\"refresh\" content=\"1;URL='",
+                           refresh_uri,
+                           "'\">",
+                           "</head>",
+                           "<body><center><table align = center style =\"position:relative; margin-top:10%\">",
+                           "<tr><td align=center>",
+                           "<img src=../img/wait.gif>",
+                           "</td></tr></table></center></body></html>"); 
+
+  (*response_ptr) = (uint8_t *)malloc(html_body_len + 255);
+
+  if(!(*response_ptr)) {
+    fprintf(stderr, "\n%s:%d Memory Allocation Failed\n", __FILE__, __LINE__);
+    return(-1);
+  }
+
+  memset((void *)(*response_ptr), 0, (255 + html_body_len));
+
+  ret = snprintf((char *)(*response_ptr),
+                 (255 + html_body_len),
+                 "%s%s%s%s%d"
+                 "%s",
+                 "HTTP/1.1 200 OK\r\n",
+                 "Content-Type: text/html\r\n",
+                 "Connection: Keep-Alive\r\n",
+                 "Content-Length: ",
+                 html_body_len,
+                 "\r\n\r\n");
+
+  memcpy((void *)&(*response_ptr)[ret], (const void *)html_body, html_body_len);
+
+  *response_len_ptr = ret + html_body_len; 
+
+  return(0);
+
+}/*redir_process_wait_req*/
+
+int32_t redir_radiusC_connect(void) {
+  redir_ctx_t *pRedirCtx = &redir_ctx_g;
+  int32_t fd;
+  int32_t ret = -1;
+  struct sockaddr_in radiusC;
+  socklen_t addr_len = sizeof(radiusC);
+
+  fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+  if(fd < 0) {
+    fprintf(stderr, "\n%s:%d socket creation Failed\n", __FILE__, __LINE__);
+    return(-1);
+  }
+
+  radiusC.sin_family = AF_INET;
+  radiusC.sin_addr.s_addr = htonl(pRedirCtx->redir_listen_ip);
+  radiusC.sin_port = htons(pRedirCtx->radiusC_port);
+  memset((void *)radiusC.sin_zero, 0, sizeof(radiusC.sin_zero));
+
+  if(!(ret = connect(fd, (struct sockaddr *)&radiusC, addr_len))) {
+    pRedirCtx->radiusC_fd = fd;
+  }
+
+  return(ret);
+}/*redir_radiusC_connect*/
+
+int32_t redir_build_access_request(uint32_t conn_id, 
+                                   uint8_t *email_id, 
+                                   uint8_t *password, 
+                                   uint8_t *url) {
+  uint8_t acc_req[1024];
+  uint16_t acc_req_len = 0;
+  redir_ctx_t *pRedirCtx = &redir_ctx_g;
+
+  memset((void *)acc_req, 0, sizeof(acc_req));
+
+  access_request_t *access_req_ptr = 
+               (access_request_t *)acc_req;
+
+  acc_req_len = sizeof(access_request_t);
+  redir_session_t *session = redir_get_session(conn_id);
+
+  session->auth_status = AUTH_INPROGRESS;
+  /*copying the URL into session*/
+  strncpy((char *)session->url, url, strlen((const char *)url));
+  
+  access_req_ptr->message_type = ACCESS_REQUEST;
+  access_req_ptr->txn_id = conn_id;
+  access_req_ptr->user_id_len = strlen((const char *)email_id);
+  strncpy((char *)access_req_ptr->user_id, 
+          (const char *)email_id, 
+          strlen((const char *)email_id));
+
+  access_req_ptr->password_len = strlen((const char *)password);
+  strncpy((char *)access_req_ptr->password, 
+          (const char *)password, 
+          strlen((const char *)password));
+
+  if(pRedirCtx->radiusC_fd < 0) {
+    redir_radiusC_connect();
+  }
+  redir_send(pRedirCtx->radiusC_fd, acc_req, acc_req_len);
+  
+  return(0); 
+}/*redir_build_access_request*/
+
+int32_t redir_process_response_callback_uri(uint32_t conn_id, 
+                                            uint8_t *uri) {
+
+  uint8_t auth_type[32];
+  uint8_t url[2048]; 
+
+  memset((void *)auth_type, 0, sizeof(auth_type));
+  sscanf((const char *)uri, "%*[^?]?auth_type=%[^&]", auth_type);
+  memset((void *)url, 0, sizeof(url));
+  
+  fprintf(stderr, "\n%s:%d auth_type is %s\n", __FILE__, __LINE__, auth_type);  
+
+  if(!strncmp((const char *)auth_type, "login", 5)) {
+    uint8_t email_id[128];
+    uint8_t password[64];
+    sscanf((const char *)uri, 
+           "%*[^?]?auth_type=%*[^&]&email_id=%[^&]&password=%[^&]&url=%s", 
+            email_id,
+            password,
+            url);
+    redir_build_access_request(conn_id, email_id, password, url);    
+     
+  } else if(!strncmp((const char *)auth_type, "registration",12 )) {
+
+  } else if(!strncmp((const char *)auth_type, "fb", 2)) {
+    /*login with Facebook*/
+  } else if(!strncmp((const char *)auth_type, "gmail", 5)) {
+    
+  } else if(!strncmp((const char *)auth_type, "twitter", 7)) {
+ 
+  } else if(!strncmp((const char *)auth_type, "aadhaar", 7)) {
+    
+  }
+}/*redir_process_response_callback_uri*/
+
 int32_t redir_update_conn_status_ex(uint32_t conn_id, 
                                     uint8_t *uri_ptr, 
                                     uint8_t *host_name_ptr) {
@@ -31,7 +380,7 @@ int32_t redir_update_conn_status_ex(uint32_t conn_id,
 
   session = redir_get_session(conn_id);
 
-  if(!strncmp((const char *)session->uri, "/authstate_success", 18)) {
+  if(!strncmp((const char *)session->uri, "/response_callback", 18)) {
     /*Retrieve the src_port at which the subscriber was authenticated*/
     sscanf((const char *)session->uri, "%*[^=]=%d", (int32_t *)&src_port);
 
@@ -257,9 +606,7 @@ int32_t redir_send(int32_t fd,
   }while((ret == -1) && (EINTR == errno));
 
   return(ret);
-
 }/*redir_send*/
-
 
 int32_t redir_set_fd(redir_session_t *session, fd_set *rd) {
 
@@ -494,28 +841,31 @@ int32_t redir_parse_req(uint32_t conn_id,
   return(0);  
 }/*redir_parse_req*/
 
-int32_t redir_process_uri(uint32_t conn_id,
-                          uint8_t *response_ptr,
-                          uint16_t *response_len_ptr,
-                          uint8_t *location_ptr) {
+int32_t redir_process_redirect_req(uint32_t conn_id,
+                                   uint8_t **response_ptr,
+                                   uint16_t *response_len_ptr) {
   uint16_t idx;
   uint8_t *referer_ptr;
   uint16_t referer_len;
-  uint16_t mime_idx;
+  uint8_t location_buff[1024];
+  uint8_t ip_str[32];
   redir_session_t *session = NULL;
 
   redir_ctx_t *pRedirCtx = &redir_ctx_g;
+  memset((void *)ip_str, 0, sizeof(ip_str));
+  utility_ip_int_to_str(htonl(pRedirCtx->uam_ip), ip_str);
 
   session = redir_get_session(conn_id);
 
-  for(mime_idx = 0; mime_idx < session->mime_header_count; mime_idx++) {
-    if(!strncmp((const char *)session->mime_header[mime_idx][0], "Host", 4)) {
-      referer_len = strlen((const char *)session->mime_header[mime_idx][1]) +
+  for(idx = 0; idx < session->mime_header_count; idx++) {
+
+    if(!strncmp((const char *)session->mime_header[idx][0], "Host", 4)) {
+      referer_len = strlen((const char *)session->mime_header[idx][1]) +
                       strlen((const char *)session->uri) + 50;
 
       referer_ptr = (uint8_t *)malloc(referer_len);
 
-      if(NULL == referer_ptr) {
+      if(!referer_ptr) {
         fprintf(stderr, "\n%s:%d Memory Allocation Failed\n", __FILE__, __LINE__);
         return(-1);
       }
@@ -525,18 +875,41 @@ int32_t redir_process_uri(uint32_t conn_id,
                referer_len,
                "%s%s%s",
                "Referer: http://",
-               session->mime_header[mime_idx][1],
+               session->mime_header[idx][1],
+               session->uri);
+
+      /*Prepare location string*/
+      memset((void *)location_buff, 0, sizeof(location_buff));
+      snprintf((char *)location_buff, 
+               sizeof(location_buff),
+               "%s%s%s%d%s"
+               "%s%s",
+               "http://",
+               ip_str,
+               ":",
+               pRedirCtx->uam_port, 
+               "/login.html?url=http://",
+               session->mime_header[idx][1],
                session->uri);
       break;
     } 
   }
   
-  if(mime_idx == session->mime_header_count) {
+  if(idx == session->mime_header_count) {
     fprintf(stderr, "\n%s:%d Host Header not found in mime header\n", __FILE__, __LINE__);
-    return(-1);
+    return(-3);
   }
 
-  *response_len_ptr = sprintf((char *)response_ptr, 
+  (*response_ptr) = (uint8_t *) malloc(2048);
+
+  if(!(*response_ptr)) {
+    fprintf(stderr, "\n%s:%d memory Allocation Failed\n", __FILE__, __LINE__);
+    return(-4);
+  }
+
+  memset((void *)(*response_ptr), 0, 2048);
+
+  *response_len_ptr = sprintf((char *)(*response_ptr), 
                             "%s%s%s%s%s"
                             "%s%s%s%s%s"
                             "%s%s%s",
@@ -546,7 +919,7 @@ int32_t redir_process_uri(uint32_t conn_id,
                             "Connection: Keep-Alive\r\n",
                             /*"Connection: close\r\n",*/
                             "Location: ",
-                            location_ptr,
+                            location_buff,
                             "\r\n",
                             "Content-Type: text/html\r\n",
                             "Accept-Language: en-US,en;q=0.5\r\n",
@@ -559,6 +932,31 @@ int32_t redir_process_uri(uint32_t conn_id,
   free(referer_ptr);
   referer_ptr = NULL;
 
+
+}/*redir_process_redirect_req*/
+
+
+int32_t redir_process_uri(uint32_t conn_id,
+                          uint8_t **response_ptr,
+                          uint16_t *response_len_ptr) {
+  uint16_t idx;
+  redir_ctx_t *pRedirCtx = &redir_ctx_g;
+  redir_session_t *session = redir_get_session(conn_id);
+
+  for(idx = 0; pRedirCtx->pHandler[idx].uri; idx++) {
+
+    if(!strncmp(session->uri,
+                pRedirCtx->pHandler[idx].uri,
+                pRedirCtx->pHandler[idx].uri_len)) {
+
+      pRedirCtx->pHandler[idx].redir_req_cb(conn_id, 
+                                            response_ptr, 
+                                            response_len_ptr);
+      break;
+
+    } 
+  }
+
   return(0);
 }/*redir_process_uri*/
                           
@@ -567,60 +965,61 @@ int32_t redir_process_req(uint32_t conn_id,
                           uint16_t packet_length) {
 
   /*Build temporary HTTP Response*/
-  uint8_t http_redir[3000];
-  uint16_t http_len;
-  uint16_t idx;
-  uint8_t uri[255];
-  uint8_t host_name[255];
-  uint8_t location_url[512];
-  uint8_t ip_str[32];
-
-  redir_ctx_t *pRedirCtx = &redir_ctx_g;
+  uint8_t *redir_ptr = NULL;
+  uint16_t redir_len = 0;
 
   redir_parse_req(conn_id, packet_ptr, packet_length);
 
-  /*Update the connection auth status*/
-  memset((void *)uri, 0, sizeof(uri));
-  memset((void *)host_name, 0, sizeof(host_name));
-  //redir_update_conn_status(conn_id, uri, host_name);
-  redir_update_conn_status_ex(conn_id, uri, host_name);
+  redir_process_uri(conn_id, &redir_ptr, &redir_len);
 
-  if(strlen((const char *)uri)) {
-    snprintf((char *)location_url, 
-             sizeof(location_url),
-             "%s%s%s",
-             "http://",
-             host_name,
-             uri);
-  } else {
-    memset((void *)ip_str, 0, sizeof(ip_str));
-    utility_ip_int_to_str(htonl(pRedirCtx->uam_ip), ip_str);
-
-    snprintf((char *)location_url, 
-             sizeof(location_url),
-             "%s%s%s%d%s",
-             "http://",
-             ip_str,
-             ":",
-             pRedirCtx->uam_port,
-             "/login.html");
-  }
-
-  memset((void *)http_redir, 0, sizeof(http_redir));
-  redir_process_uri(conn_id, http_redir, &http_len, location_url);
-
-  if(redir_send(conn_id, http_redir, http_len) < 0) {
+  if(redir_send(conn_id, redir_ptr, redir_len) < 0) {
     perror("redir send Failed:");
     return(-1); 
   }
 
+  free(redir_ptr);
   return(0);
 }/*redir_process_req*/
+
+int32_t redir_process_radiusS_response(int32_t radiusC_fd,
+                                       uint8_t *packet_ptr,
+                                       uint16_t packet_length) {
+
+  redir_session_t *session = NULL;
+  redir_ctx_t *pRedirCtx = &redir_ctx_g;
+  radiusC_message_t *rsp_ptr = (radiusC_message_t *)packet_ptr;
+ 
+  switch(*packet_ptr) {
+    case ACCESS_ACCEPT:
+     session = redir_get_session(rsp_ptr->access_accept.txn_id);
+     session->auth_status = AUTH_SUCCESS; 
+     fprintf(stderr, "\n%s:%d Received ACCESS ACCEPT conn_id %d\n", 
+                      __FILE__, 
+                      __LINE__,
+                      rsp_ptr->access_accept.txn_id);
+    break;
+    case ACCESS_REJECT:
+     session = redir_get_session(rsp_ptr->access_reject.txn_id);
+     session->auth_status = AUTH_SUCCESS; 
+    break;
+    case ACCOUNTING_RESPONSE:
+    break;
+    default:
+      fprintf(stderr, "\n%s:%d Unknown Response from radiusS\n", 
+                      __FILE__,
+                      __LINE__);
+    break;
+  } 
+
+
+
+}/*redir_process_radiusS_response*/
 
 int32_t redir_init(uint32_t redir_listen_ip, 
                    uint16_t redir_listen_port, 
                    uint32_t uam_ip, 
                    uint16_t uam_port,
+                   uint16_t radiusC_port,
                    uint8_t *conn_auth_status_table,
                    uint8_t *ip_allocation_table) {
 
@@ -659,10 +1058,13 @@ int32_t redir_init(uint32_t redir_listen_ip,
   pRedirCtx->redir_listen_port = redir_listen_port;
   pRedirCtx->uam_ip = uam_ip;
   pRedirCtx->uam_port = uam_port;
+  pRedirCtx->radiusC_port = radiusC_port;
   pRedirCtx->redir_fd = fd;
 
   pRedirCtx->session = NULL;
-  
+  pRedirCtx->pHandler = g_handler_redir;
+  pRedirCtx->radiusC_fd = -1;
+   
   strncpy((char *)pRedirCtx->conn_auth_status_table, 
           (const char *)conn_auth_status_table, 
           strlen((const char *)conn_auth_status_table)); 
@@ -707,6 +1109,15 @@ void *redir_main(void *argv) {
     redir_set_fd(pRedirCtx->session, &rd);
 
     max_fd = redir_get_max_fd(pRedirCtx->session);
+
+    if(pRedirCtx->radiusC_fd > 0) {
+
+      FD_SET(pRedirCtx->radiusC_fd, &rd);
+      max_fd = (max_fd > pRedirCtx->radiusC_fd) ? 
+                max_fd : 
+                pRedirCtx->radiusC_fd;
+    }
+
     max_fd = (max_fd > pRedirCtx->redir_fd ? 
                  max_fd : 
                  pRedirCtx->redir_fd) + 1;
@@ -739,6 +1150,20 @@ void *redir_main(void *argv) {
           close(new_conn);
         }
         #endif
+      } else if((pRedirCtx->radiusC_fd > 0) && (FD_ISSET(pRedirCtx->radiusC_fd, &rd))) {
+        /*Process RadiusS Response*/
+        memset((void *)packet_buffer, 0, sizeof(packet_buffer));
+        packet_length = 0;
+        redir_recv(pRedirCtx->radiusC_fd, packet_buffer, &packet_length);
+
+        if(!packet_length) {
+          close(pRedirCtx->radiusC_fd);
+          pRedirCtx->radiusC_fd = -1;
+        } else {
+          redir_process_radiusS_response(pRedirCtx->radiusC_fd,
+                                         packet_buffer,
+                                         packet_length);
+        }
       } else {
 
         for(session = pRedirCtx->session; session != NULL; session = session->next) {
