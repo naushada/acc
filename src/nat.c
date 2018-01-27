@@ -305,7 +305,7 @@ int32_t nat_perform_snat(uint8_t  *packet_ptr,
         src_ip = iphdr_ptr->ip_src_ip;
         dest_ip = iphdr_ptr->ip_dest_ip;
 
-        if((80 == dest_port) /*|| (443 == dest_port)*/) {
+        if((80 == dest_port) || (pNatCtx->redir_port == dest_port)) {
           ret = subscriber_is_authenticated(src_ip, src_port);
 
           if(!ret) {
@@ -442,9 +442,7 @@ int32_t nat_perform_dnat(uint8_t *packet_ptr,
 
       ret = subscriber_is_authenticated(dest_ip, dest_port);
 
-      if((0 == ret) && ((src_port != pNatCtx->uamS_port) || 
-                        (src_port != 443) || 
-                        (src_port != 8080))) {
+      if((0 == ret) && (ntohl(dest_ip) != pNatCtx->uamS_ip)) {
         /*connection is not yet authenticated*/
         /*Retrieve the IP, MAC from cache based on nat_port*/
         ret = nat_query_cache(dest_port,

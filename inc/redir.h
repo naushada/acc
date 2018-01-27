@@ -18,13 +18,13 @@ typedef struct {
 
 struct redir_session_t {
   
+  uint32_t auth_status;
   uint32_t conn;
   struct sockaddr_in peer_addr;
   uint8_t method[8];
   uint8_t protocol[8];
   uint8_t uri[255];
-  uint8_t url[255];
-  redir_auth_type_t auth_status;
+  uint8_t url[1024];
   uint16_t mime_header_count;
   uint8_t mime_header[16][2][255];
   struct redir_session_t *next;
@@ -126,4 +126,9 @@ int32_t redir_process_response_callback_uri(uint32_t conn_id,
 int32_t redir_process_redirect_req(uint32_t conn_id,
                                    uint8_t **response_ptr,
                                    uint16_t *response_len_ptr);
+
+int32_t redir_process_auth_response(uint32_t conn_id,
+                                    uint8_t **response_ptr,
+                                    uint16_t *response_len_ptr,
+                                    uint8_t *location_ptr);
 #endif /* __REDIR_H__ */

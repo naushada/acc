@@ -173,4 +173,8 @@ int32_t radiusC_encode_password(uint8_t *password_ptr,
                                 uint8_t *encoded_password_ptr,
                                 uint16_t *len_ptr);
 
+int32_t radiusC_process_request(uint32_t uam_conn,
+                                uint8_t *packet_ptr, 
+                                uint16_t packet_length);
+
 #endif /* __RADIUSC_H__ */

@@ -104,6 +104,8 @@ int32_t http_process_auth_response_req(uint32_t con_fd,
                                        uint8_t **response_ptr,
                                        uint16_t *response_len_ptr);
 
-int32_t http_nas_connect(void);
-
+int32_t http_process_redirect_req(uint32_t conn_id,
+                                  uint8_t **response_ptr,
+                                  uint16_t *response_len_ptr,
+                                  uint8_t *location_uri);
 #endif /* __HTTP_H__ */

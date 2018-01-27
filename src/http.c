@@ -758,14 +758,56 @@ int32_t http_process_sign_in_req(uint32_t conn_id,
            "&url=",
            session->url);
 
+  http_process_redirect_req(conn_id,
+                            response_ptr,
+                            response_len_ptr,
+                            response_qs);
+  #if 0
   http_process_wait_req(conn_id, 
                         response_ptr, 
                         response_len_ptr,
                         response_qs);
+  #endif
 
   return(0);
 }/*http_process_sign_in_req*/
 
+
+int32_t http_process_redirect_req(uint32_t conn_id,
+                                  uint8_t **response_ptr,
+                                  uint16_t *response_len_ptr,
+                                  uint8_t *location_uri) {
+
+  (*response_ptr) = (uint8_t *) malloc(2048);
+
+  if(!(*response_ptr)) {
+    fprintf(stderr, "\n%s:%d memory Allocation Failed\n", __FILE__, __LINE__);
+    return(-4);
+  }
+
+  memset((void *)(*response_ptr), 0, 2048);
+
+  *response_len_ptr = sprintf((char *)(*response_ptr), 
+                            "%s%s%s%s%s"
+                            "%s%s%s%s%s"
+                            "%s",
+                            "HTTP/1.1 302 Moved Temporarily\r\n",
+                            "Connection: Keep-Alive\r\n",
+                            /*"Connection: close\r\n",*/
+                            "Location: ",
+                            location_uri,
+                            "\r\n",
+                            "Content-Type: text/html\r\n",
+                            "Accept-Language: en-US,en;q=0.5\r\n",
+                            "Accept: text/*;q=0.3, text/html;q=0.7, text/html;level=1,",
+                            "text/html;level=2;q=0.4, */*;q=0.5\r\n",
+                            "Content-Length: 0",
+                            /*Delimiter B/W Header and Body*/
+                            "\r\n\r\n");
+
+
+  return(0);
+}/*http_process_redirect_req*/
 
 int32_t http_process_login_with_mobile_no_req(uint32_t conn_id,
                                               uint8_t **response_ptr, 
@@ -820,7 +862,6 @@ int32_t http_process_req(uint32_t conn_id,
   uint16_t http_len = 0;
   int32_t ret = -1;
 
-  fprintf(stderr, "\n%s:%d HTTP Request at conn_id %d\n", __FILE__, __LINE__, conn_id);
   ret = http_parse_req(conn_id, packet_ptr, packet_length);
 
   if(ret) {
@@ -830,13 +871,7 @@ int32_t http_process_req(uint32_t conn_id,
 
   /*This function loop through the static uri table*/
   http_process_uri(conn_id, &http_ptr, &http_len);
- #if 0 
-  fprintf(stderr, "\n%s:%d HTTP Response (%d) %s\n",
-                  __FILE__,
-                  __LINE__,
-                  conn_id,
-                  http_ptr);
-#endif
+
   if(http_send(conn_id, http_ptr, http_len) < 0) {
     perror("http send Failed:");
     return(-1); 
@@ -973,11 +1008,7 @@ void *http_main(void *argv) {
         if(peer_addr.sin_addr.s_addr) {
           session = http_add_session(new_conn);
           session->peer_addr = peer_addr;
-          fprintf(stderr, "\n%s:%d New Connection received conn %d ip %s\n", 
-                     __FILE__,
-                     __LINE__,
-                     new_conn, 
-                     inet_ntoa(peer_addr.sin_addr));
+
         } else {
           /*Connection is from 0.0.0.0 IP Address*/
           close(new_conn);
@@ -985,12 +1016,7 @@ void *http_main(void *argv) {
 
       } else {
         for(session = pHttpCtx->session; session; session = session->next) {
-#if 0
-          fprintf(stderr, "\n%s:%d session.conn_id %d\n",
-                          __FILE__,
-                          __LINE__,
-                          session->conn);
-#endif
+
           if(FD_ISSET(session->conn, &rd)) {
             /*Either connection is closed or data has been received.*/
             memset((void *)packet_buffer, 0, sizeof(packet_buffer));
@@ -1004,7 +1030,6 @@ void *http_main(void *argv) {
 
             if(!packet_length) {
               /*Closing the connected conn_id*/
-              fprintf(stderr, "\n%s:%d connection  %d is being closed\n", __FILE__, __LINE__, session->conn);
               close(session->conn);
               session->conn = 0;
 

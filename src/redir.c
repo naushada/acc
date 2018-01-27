@@ -152,7 +152,7 @@ int32_t redir_update_conn_status_success(uint32_t conn_id) {
            "%s%s",
            "INSERT INTO ",
            pRedirCtx->conn_auth_status_table,
-           " (ip_address, auth_status) VALUES ('",
+           " (ip_address, auth_state) VALUES ('",
            inet_ntoa(session->peer_addr.sin_addr),
            "', '",
            "SUCCESS'", 
@@ -181,32 +181,72 @@ int32_t redir_process_response_callback_req(uint32_t conn_id,
   return(0);
 }/*redir_process_response_callback_req*/
 
+int32_t redir_process_auth_response(uint32_t conn_id,
+                                    uint8_t **response_ptr,
+                                    uint16_t *response_len_ptr,
+                                    uint8_t *location_ptr) {
+
+  (*response_ptr) = (uint8_t *) malloc(2048);
+
+  if(!(*response_ptr)) {
+    fprintf(stderr, "\n%s:%d memory Allocation Failed\n", __FILE__, __LINE__);
+    return(-4);
+  }
+
+  memset((void *)(*response_ptr), 0, 2048);
+
+  *response_len_ptr = sprintf((char *)(*response_ptr), 
+                            "%s%s%s%s%s"
+                            "%s%s%s%s%s"
+                            "%s",
+                            "HTTP/1.1 302 Moved Temporarily\r\n",
+                            "Connection: Keep-Alive\r\n",
+                            /*"Connection: close\r\n",*/
+                            "Location: ",
+                            location_ptr,
+                            "\r\n",
+                            "Content-Type: text/html\r\n",
+                            "Accept-Language: en-US,en;q=0.5\r\n",
+                            "Accept: text/*;q=0.3, text/html;q=0.7, text/html;level=1,",
+                            "text/html;level=2;q=0.4, */*;q=0.5\r\n",
+                            "Content-Length: 0",
+                            /*Delimiter B/W Header and Body*/
+                            "\r\n\r\n");
+
+  return(0);
+}/*redir_process_auth_response*/
+
 int32_t redir_process_time_out_req(uint32_t conn_id,
                                    uint8_t **response_ptr,
                                    uint16_t *response_len_ptr) {
 
-  redir_ctx_t *pRedirCtx = &redir_ctx_g;
   redir_session_t *session = redir_get_session(conn_id);
 
-  if(AUTH_INPROGRESS == pRedirCtx->session->auth_status) {
+  if(AUTH_INPROGRESS == session->auth_status) {
     redir_process_wait_req(conn_id,
                            response_ptr,
                            response_len_ptr,
                            "/time_out"); 
 
-  } else if(AUTH_SUCCESS == pRedirCtx->session->auth_status) {
+  } else if(AUTH_SUCCESS == session->auth_status) {
     /*Update in db that USER is authenticated successfully*/
     redir_update_conn_status_success(conn_id);
-    redir_process_wait_req(conn_id,
-                           response_ptr,
-                           response_len_ptr,
-                           pRedirCtx->session->url); 
+    redir_process_auth_response(conn_id,
+                                response_ptr,
+                                response_len_ptr,
+                                session->url);
 
-  } else if(AUTH_REJECTED == pRedirCtx->session->auth_status) {
+  } else if(AUTH_REJECTED == session->auth_status) {
     redir_process_wait_req(conn_id,
                            response_ptr,
                            response_len_ptr,
                            "/auth_rejected.html"); 
+  } else {
+    fprintf(stderr, "\n%s:%d Invalid Auth Status %d conn_id %d\n",
+                   __FILE__,
+                   __LINE__,
+                   session->auth_status,
+                   conn_id);
   }
 
   return(0);
@@ -325,8 +365,9 @@ int32_t redir_build_access_request(uint32_t conn_id,
   if(pRedirCtx->radiusC_fd < 0) {
     redir_radiusC_connect();
   }
+
   redir_send(pRedirCtx->radiusC_fd, acc_req, acc_req_len);
-  
+
   return(0); 
 }/*redir_build_access_request*/
 
@@ -340,8 +381,6 @@ int32_t redir_process_response_callback_uri(uint32_t conn_id,
   sscanf((const char *)uri, "%*[^?]?auth_type=%[^&]", auth_type);
   memset((void *)url, 0, sizeof(url));
   
-  fprintf(stderr, "\n%s:%d auth_type is %s\n", __FILE__, __LINE__, auth_type);  
-
   if(!strncmp((const char *)auth_type, "login", 5)) {
     uint8_t email_id[128];
     uint8_t password[64];
@@ -993,14 +1032,12 @@ int32_t redir_process_radiusS_response(int32_t radiusC_fd,
     case ACCESS_ACCEPT:
      session = redir_get_session(rsp_ptr->access_accept.txn_id);
      session->auth_status = AUTH_SUCCESS; 
-     fprintf(stderr, "\n%s:%d Received ACCESS ACCEPT conn_id %d\n", 
-                      __FILE__, 
-                      __LINE__,
-                      rsp_ptr->access_accept.txn_id);
+
     break;
     case ACCESS_REJECT:
      session = redir_get_session(rsp_ptr->access_reject.txn_id);
-     session->auth_status = AUTH_SUCCESS; 
+     session->auth_status = AUTH_REJECTED; 
+
     break;
     case ACCOUNTING_RESPONSE:
     break;

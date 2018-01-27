@@ -261,9 +261,9 @@ int32_t radiusC_encode_password(uint8_t *password_ptr,
 }/*radiusC_encode_password*/
 
 
-int32_t radiusC_process_NAS_request(uint32_t uam_conn,
-                                    uint8_t *packet_ptr, 
-                                    uint16_t packet_length) {
+int32_t radiusC_process_request(uint32_t uam_conn,
+                                uint8_t *packet_ptr, 
+                                uint16_t packet_length) {
   uint8_t radiusS_buffer[4096];
   uint16_t offset = 0;
   uint8_t encoded_password[128];
@@ -372,7 +372,7 @@ int32_t radiusC_process_NAS_request(uint32_t uam_conn,
     break;
   } 
 
-}/*radiusC_process_NAS_request*/
+}/*radiusC_process_request*/
 
 
 int32_t radiusC_parse_radiusS_response(uint32_t uam_conn, 
@@ -633,9 +633,9 @@ void *radiusC_main(void *arg) {
 
         } else {
           /*Process Request from UAM/NAS */
-          radiusC_process_NAS_request(uam_conn,
-                                      packet_ptr, 
-                                      packet_length);
+          radiusC_process_request(uam_conn,
+                                  packet_ptr, 
+                                  packet_length);
           free(packet_ptr);
           packet_ptr = NULL;
         }
