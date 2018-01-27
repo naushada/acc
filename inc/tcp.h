@@ -1,8 +1,6 @@
 #ifndef __TCP_H__
 #define __TCP_H__
 
-#define DD_S_SUBSCRIBER_AUTH_TABLE "subscriber_authentication_table"
-
 
 typedef enum {
   TCP_URG_BIT = (1 << 5),
@@ -36,11 +34,15 @@ struct tcp {
 typedef struct {
   uint32_t ip_addr;
   uint32_t ip_mask;
+  uint16_t uamS_port;
+  uint16_t redir_port;
 
 }tcp_ctx_t;
 
 int32_t tcp_init(uint32_t ip_addr, 
-                 uint32_t ip_mask);
+                 uint32_t ip_mask,
+                 uint16_t uamS_port,
+                 uint16_t redir_port);
 
 uint16_t tcp_checksum(uint8_t *packet_ptr);
 
@@ -48,4 +50,8 @@ int32_t tcp_main(uint16_t fd,
                  uint8_t *packet_ptr, 
                  uint16_t packet_length);
 
+int32_t tcp_reset_tcp(uint8_t *packet_ptr, 
+                      uint16_t packet_length, 
+                      uint8_t *rsp_ptr, 
+                      uint16_t *rsp_len_ptr);
 #endif /*__TCP_H__*/

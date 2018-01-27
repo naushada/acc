@@ -22,7 +22,7 @@ int32_t subscriber_init(uint8_t *conn_auth_status_table) {
 
 }/*subscriber_init*/
 
-int32_t subscriber_is_authenticated(uint32_t subscriber_ip, uint16_t src_port) { 
+int32_t subscriber_is_authenticated(uint32_t subscriber_ip) { 
 
   uint8_t ip_str[32];
   uint8_t sql_query[255];
@@ -36,15 +36,12 @@ int32_t subscriber_is_authenticated(uint32_t subscriber_ip, uint16_t src_port) {
 
   snprintf((char *)sql_query, 
            sizeof(sql_query), 
-           "%s%s%s%s%s"
-           "%s%s",
+           "%s%s%s%s%s",
            "SELECT * FROM ",
            pSubscriberCtx->conn_auth_status_table,
-           " WHERE (ip_address ='",
+           " WHERE ip_address ='",
            ip_str,
-           "' AND auth_state ='",
-           "SUCCESS",
-           "')");
+           "'");
 
   if(!db_exec_query(sql_query)) {
     memset((void *)record, 0, sizeof(record));

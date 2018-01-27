@@ -305,10 +305,9 @@ int32_t nat_perform_snat(uint8_t  *packet_ptr,
         src_ip = iphdr_ptr->ip_src_ip;
         dest_ip = iphdr_ptr->ip_dest_ip;
 
-        if((80 == dest_port) || (pNatCtx->redir_port == dest_port)) {
-          ret = subscriber_is_authenticated(src_ip, src_port);
-
-          if(!ret) {
+        ret = subscriber_is_authenticated(src_ip);
+        if(!ret) {
+          if(80 == dest_port) {
             /*New connection Request, update the cache with it*/
             nat_update_cache(src_ip, 
                              eth_ptr->h_source, 
@@ -317,23 +316,21 @@ int32_t nat_perform_snat(uint8_t  *packet_ptr,
                              dest_port,
                              /*destination ip*/
                              dest_ip);
-
           }
+        }
 
-          if((!ret) || (1 == ret)) {
-            /*Redirect Request to Redir Server to get Authentication done*/
-            iphdr_ptr->ip_dest_ip = htonl(pNatCtx->redir_ip);
-            iphdr_ptr->ip_src_ip = src_ip;
-
-            /*IP Header checksum calculation - only header part*/
-            iphdr_ptr->ip_chksum = 0;
-            iphdr_ptr->ip_chksum = utility_cksum((void *)iphdr_ptr, ip_header_len);
+        if((!ret) || (1 == ret)) {
+          /*Redirect Request to Redir Server to get Authentication done*/
+          iphdr_ptr->ip_dest_ip = htonl(pNatCtx->redir_ip);
+          iphdr_ptr->ip_src_ip = src_ip;
+          /*IP Header checksum calculation - only header part*/
+          iphdr_ptr->ip_chksum = 0;
+          iphdr_ptr->ip_chksum = utility_cksum((void *)iphdr_ptr, ip_header_len);
           
-            /*Modify the TCP headera as per need*/
-            tcphdr_ptr->dest_port = htons(pNatCtx->redir_port);
-            tcphdr_ptr->check_sum = 0;
-            tcphdr_ptr->check_sum = tcp_checksum(snat_ptr);
-          }
+          /*Modify the TCP headera as per need*/
+          tcphdr_ptr->dest_port = htons(pNatCtx->redir_port);
+          tcphdr_ptr->check_sum = 0;
+          tcphdr_ptr->check_sum = tcp_checksum(snat_ptr);
         }
       }
       break;
@@ -431,9 +428,11 @@ int32_t nat_perform_dnat(uint8_t *packet_ptr,
       dest_port = ntohs(tcphdr_ptr->dest_port);
       src_port = ntohs(tcphdr_ptr->src_port);
 
-      ret = subscriber_is_authenticated(dest_ip, dest_port);
-
-      if((0 == ret) && (ntohl(dest_ip) != pNatCtx->uamS_ip)) {
+      ret = subscriber_is_authenticated(dest_ip);
+      if((2/*SUCCESS*/ == ret) ||
+         (src_port == pNatCtx->uamS_port)) { 
+        
+      } else if(!ret) {
         /*connection is not yet authenticated*/
         /*Retrieve the IP, MAC from cache based on nat_port*/
         ret = nat_query_cache(dest_port,
@@ -468,9 +467,6 @@ int32_t nat_perform_dnat(uint8_t *packet_ptr,
           /*Entry in cache table found, delete it.*/
           nat_delete_cache(dest_port, src_ip);
         }
-
-      } else if(3 == ret) {
-        /*Authentication is rejected , reset the connection*/
       }
     }
     break;

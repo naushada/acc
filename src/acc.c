@@ -324,7 +324,9 @@ int32_t acc_main(char *argv[]) {
             pAccCtx->dhcpS_param.subnet_mask);
 
   tcp_init(pAccCtx->ip_addr, 
-           pAccCtx->dhcpS_param.subnet_mask);
+           pAccCtx->dhcpS_param.subnet_mask,
+           pAccCtx->uamS_port,
+           pAccCtx->redir_port);
 
   pthread_create(&pAccCtx->tid[4], 
                  NULL, 

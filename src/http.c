@@ -998,11 +998,6 @@ void *http_main(void *argv) {
             memset((void *)packet_buffer, 0, sizeof(packet_buffer));
             packet_length = 0;
             http_recv(session->conn, packet_buffer, &packet_length);
-            fprintf(stderr, "\n%s:%d Got Request (%d) %s\n",
-                            __FILE__,
-                            __LINE__,
-                            session->conn,
-                            packet_buffer);
 
             if(!packet_length) {
               /*Closing the connected conn_id*/

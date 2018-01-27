@@ -943,6 +943,12 @@ void *redir_main(void *argv) {
                      __LINE__,
                      new_conn, 
                      inet_ntoa(peer_addr.sin_addr));
+
+          if(!subscriber_is_authenticated(ntohl(peer_addr.sin_addr.s_addr))) {
+            /*TCP 3-Way hand shake has happened*/
+            subscriber_update_conn_status(inet_ntoa(peer_addr.sin_addr),
+                                          "INPROGRESS");
+          }
         } else {
           /*Connect Request from 0.0.0.0 ip Address*/
           close(new_conn);
