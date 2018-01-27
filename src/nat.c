@@ -318,19 +318,10 @@ int32_t nat_perform_snat(uint8_t  *packet_ptr,
                              /*destination ip*/
                              dest_ip);
 
-            /*Update the subscriber info as well*/
-            //subscriber_add_subscriber(src_ip, eth_ptr->h_source, src_port);
           }
 
           if((!ret) || (1 == ret)) {
             /*Redirect Request to Redir Server to get Authentication done*/
-#if 0
-            fprintf(stderr, "\n%s:%d dest_ip 0x%X redir_ip 0x%X\n", 
-                            __FILE__,
-                            __LINE__,
-                            iphdr_ptr->ip_dest_ip, 
-                            pNatCtx->redir_ip);
-#endif
             iphdr_ptr->ip_dest_ip = htonl(pNatCtx->redir_ip);
             iphdr_ptr->ip_src_ip = src_ip;
 

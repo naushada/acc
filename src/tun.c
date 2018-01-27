@@ -27,7 +27,9 @@ int32_t tun_read(uint8_t **packet_ptr, uint16_t *packet_length) {
   *packet_ptr = (uint8_t *)malloc(max_bytes);
 
   if(!(*packet_ptr)) {
-    fprintf(stderr, "\n%s:%d Allocation of Memory Failed\n", __FILE__, __LINE__);
+    fprintf(stderr, "\n%s:%d Allocation of Memory Failed\n", 
+                    __FILE__, 
+                    __LINE__);
     return(-1);
   }
 
@@ -188,7 +190,8 @@ int32_t tun_open_tun(void) {
   }
   
   strncpy((char *)pTunCtx->tun_devname, ifr.ifr_name, IFNAMSIZ);
-  ioctl(pTunCtx->tun_fd, TUNSETNOCSUM, 1); /* Disable checksums */ 
+  /*Disable checksums*/
+  ioctl(pTunCtx->tun_fd, TUNSETNOCSUM, 1);
 
   /*Set the MTU*/
   memset((void *)&nifr, 0, sizeof(struct ifreq));

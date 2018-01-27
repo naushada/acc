@@ -133,10 +133,6 @@ int32_t http_remove_session(uint32_t conn_id) {
         pHttpCtx->session = curr_session->next;
         curr_session = pHttpCtx->session;
         free(tobe_deleted);
-        fprintf(stderr, "\n%s:%d Head node (conn_id %d)\n", 
-                        __FILE__,
-                        __LINE__,
-                       conn_id);
         continue;
  
       } else {
@@ -144,10 +140,6 @@ int32_t http_remove_session(uint32_t conn_id) {
         tobe_deleted = curr_session;
         prev_session->next = curr_session->next;
         curr_session = curr_session->next;
-        fprintf(stderr, "\n%s:%d Mid node (conn_id %d\n", 
-                        __FILE__,
-                        __LINE__,
-                       conn_id);
         free(tobe_deleted);
         continue; 
       }
@@ -437,9 +429,6 @@ int32_t http_parse_req(uint32_t conn_id,
   tmp_ptr = NULL;
 
   if(http_is_connection_closed(conn_id)) {
-    fprintf(stderr, "\n%s:%d (Connection: close) HTTP Connection is closed\n", 
-                     __FILE__, 
-                     __LINE__);
     return(1);
   }
  
@@ -824,21 +813,8 @@ int32_t http_process_uri(uint32_t conn_id,
   uint16_t idx;
   http_ctx_t *pHttpCtx = &g_http_ctx;
   http_session_t *session = http_get_session(conn_id);
-#if 0
-  fprintf(stderr, "\n%s:%d conn_id %d uri %s\n",
-                  __FILE__,
-                  __LINE__,
-                  conn_id,
-                  session->uri);
-#endif
   for(idx = 0; pHttpCtx->pHandler[idx].uri; idx++) {
-#if 0
-    fprintf(stderr, "\n%s:%d conn_id %d uri %s\n",
-                  __FILE__,
-                  __LINE__,
-                  conn_id,
-                  session->uri);
-#endif
+
     if(!strncmp(session->uri, 
                 pHttpCtx->pHandler[idx].uri, 
                 pHttpCtx->pHandler[idx].uri_len)) {
@@ -849,8 +825,8 @@ int32_t http_process_uri(uint32_t conn_id,
       break;
     }
   }
- return(0);
 
+ return(0);
 }/*http_process_uri*/
                           
 int32_t http_process_req(uint32_t conn_id, 

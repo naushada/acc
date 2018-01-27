@@ -91,16 +91,13 @@ uint32_t arp_build_ARP_request(uint32_t dest_ip) {
                         (unsigned char *)eth_rsp_ptr->h_dest, 
                         packet, 
                         packet_length);
-  //ret = tun_write(packet, packet_length);
-
   if(ret < 0) {
     fprintf(stderr, "tun_write error ret is %d\n", ret);
     perror("The Error is ");
   }
-  close(fd);
 
+  close(fd);
   return(0);
-  
 }/*arp_build_ARP_request*/
 
 int32_t arp_process_ARP_request(int32_t fd, uint8_t *packet_ptr, uint16_t packet_length) {
@@ -150,7 +147,6 @@ int32_t arp_process_ARP_request(int32_t fd, uint8_t *packet_ptr, uint16_t packet
   write_eth_frame(fd, (uint8_t *)eth_rsp_ptr->h_dest, packet, packet_length);
   
   return(0);
- 
 }/*arp_process_ARP_request*/
 
 uint32_t arp_main(int32_t fd, 

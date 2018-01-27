@@ -39,8 +39,6 @@ int db_init(uint8_t *db_conn_info[]) {
 
 }/*db_init*/
 
-
-
 int db_connect(void) {
   int ret = -1;
 
@@ -60,7 +58,7 @@ int db_connect(void) {
                              pDbCtx->server_config.server_port,
                              NULL, 0);
   
-  if((NULL == pConn) || (pConn != pDbCtx->server_handle.mysql_conn)) {
+  if((!pConn) || (pConn != pDbCtx->server_handle.mysql_conn)) {
     /*free the allocated memory*/
     mysql_close(pDbCtx->server_handle.mysql_conn);
     pDbCtx->server_handle.mysql_conn = NULL;
@@ -114,7 +112,6 @@ int db_exec_query(uint8_t *sql_query) {
   } 
 #endif /* DB_MYSQL */
   return(0);
- 
 }/*db_exec_query*/
 
 int db_process_query_result(int *row_count, int *column_count, uint8_t (*result)[16][32]) {

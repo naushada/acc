@@ -41,11 +41,7 @@ int32_t radiusC_recv(uint32_t conn_fd,
   if(ret > 0) {
     *packet_length = (uint16_t)ret;
   }
-  fprintf(stderr, "\n%s:%d Received from UAMS ret %d packet_length %d\n", 
-                 __FILE__, 
-                 __LINE__,
-                 ret,
-                 *packet_length); 
+
   return(0);
 }/*radiusC_recv*/
 
@@ -135,12 +131,16 @@ int32_t radiusC_process_access_accept(access_accept_t *rsp_ptr,
   header_ptr = (radiusS_message_header_t *)packet_ptr;
   
   if(ntohs(header_ptr->len) > packet_length) {
-    fprintf(stderr, "\n%s:%d Invalid length is response received\n", __FILE__, __LINE__);
+    fprintf(stderr, "\n%s:%d Invalid length is response received\n", 
+                     __FILE__, 
+                     __LINE__);
     return(-1);
   }
  
   if(ntohs(header_ptr->len) < sizeof(radiusS_message_header_t)) {
-    fprintf(stderr, "\n%s:%d Response length is less than 20 Bytes\n", __FILE__, __LINE__);
+    fprintf(stderr, "\n%s:%d Response length is less than 20 Bytes\n", 
+                    __FILE__, 
+                    __LINE__);
     return(-2);
   } 
 
@@ -153,7 +153,6 @@ int32_t radiusC_process_access_accept(access_accept_t *rsp_ptr,
     /*Optional Attributes are not present*/
     rsp_ptr->txn_id =  pRadiusCCtx->subscriber_id[packet_ptr[1]].ext_conn_id;
     
-    fprintf(stderr, "\n%s:%d subscriber_conn_id %X\n", __FILE__, __LINE__, rsp_ptr->txn_id);
     /*Not Present*/
     rsp_ptr->user_name_len = 0;
     rsp_ptr->calling_station_id_len = 0;
@@ -174,7 +173,6 @@ int32_t radiusC_process_access_accept(access_accept_t *rsp_ptr,
                 /*-2 is because length includes type and len*/
                 (attr_ptr->len - 2));
         offset += attr_ptr->len;
-        fprintf(stderr, "\n%s:%d User Name %s\n", __FILE__, __LINE__, rsp_ptr->user_name);
       break;
 
       case CALLING_STATION_ID:
@@ -193,7 +191,6 @@ int32_t radiusC_process_access_accept(access_accept_t *rsp_ptr,
         rsp_ptr->txn_id = 0;
         rsp_ptr->txn_id = (*(uint32_t *)attr_ptr->value);
         offset += attr_ptr->len;
-        fprintf(stderr, "\n%s:%d ConnId %X\n", __FILE__, __LINE__, rsp_ptr->txn_id);
       break;
 
       default:
@@ -213,7 +210,9 @@ int32_t http_get_req_authenticator(uint8_t *authenticator_ptr) {
   fd = open("/dev/urandom", O_RDONLY);
    
   if(fd < 0) {
-    fprintf(stderr, "\n%s:%d Opening of /dev/urandom failed\n", __FILE__, __LINE__);
+    fprintf(stderr, "\n%s:%d Opening of /dev/urandom failed\n", 
+                    __FILE__, 
+                    __LINE__);
     return(-1);
   } 
 
@@ -347,11 +346,6 @@ int32_t radiusC_process_request(uint32_t uam_conn,
 
       /*Vendor Id will not be present in Access-Reject*/ 
       pRadiusCCtx->subscriber_id[pRadiusCCtx->subscriber_count].ext_conn_id = req->access_req.txn_id;
-      fprintf(stderr, "\n%s:%d ext_conn_id is %X subscriber_conn_id is %X\n", 
-                      __FILE__, 
-                      __LINE__, 
-                      pRadiusCCtx->subscriber_id[pRadiusCCtx->subscriber_count].ext_conn_id,
-                      req->access_req.txn_id);
 
       /*radiusC's TCP connection*/
       pRadiusCCtx->subscriber_id[pRadiusCCtx->subscriber_count].conn_id = uam_conn;
@@ -391,7 +385,6 @@ int32_t radiusC_parse_radiusS_response(uint32_t uam_conn,
   switch(*packet_ptr) {
 
     case ACCESS_ACCEPT:
-      fprintf(stderr, "\n%s:%d Got the Access Accept\n", __FILE__, __LINE__);
       message_response.access_accept.message_type = *packet_ptr;
 
       radiusC_process_access_accept(&message_response.access_accept, 
@@ -407,7 +400,6 @@ int32_t radiusC_parse_radiusS_response(uint32_t uam_conn,
       break;
 
     case ACCESS_REJECT:
-      fprintf(stderr, "\n%s:%d Got the Access Reject\n", __FILE__, __LINE__);
       utility_hex_dump(packet_ptr, packet_length);
       radiusC_process_access_reject(&message_response.access_reject,
                                     packet_ptr,
@@ -592,13 +584,6 @@ void *radiusC_main(void *arg) {
         uam_conn = accept(pRadiusCCtx->radiusC_TcpFd, 
                           (struct sockaddr *)&from_addr,
                           (socklen_t *)&peer_addr_len); 
-
-        fprintf(stderr, "\n%s:%d connection received from uamS %s from Port %d fd %d\n", 
-                         __FILE__, 
-                         __LINE__,
-                         inet_ntoa(from_addr.sin_addr),
-                         ntohs(from_addr.sin_port),
-                         uam_conn);
 
       }
 

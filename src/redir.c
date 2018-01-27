@@ -7,6 +7,7 @@
 #include <db.h>
 #include <utility.h>
 #include <radiusC.h>
+#include <subscriber.h>
 #include <redir.h>
 
 /********************************************************************
@@ -139,34 +140,6 @@ int32_t redir_process_image_req(uint32_t conn_id,
   return(0);
 }/*redir_process_image_req*/
 
-
-int32_t redir_update_conn_status_success(uint32_t conn_id) {
-
-  uint8_t sql_query[255];
-  redir_ctx_t *pRedirCtx = &redir_ctx_g;
-  redir_session_t *session = redir_get_session(conn_id);
-
-  snprintf((char *)sql_query, 
-           sizeof(sql_query),
-           "%s%s%s%s%s"
-           "%s%s",
-           "INSERT INTO ",
-           pRedirCtx->conn_auth_status_table,
-           " (ip_address, auth_state) VALUES ('",
-           inet_ntoa(session->peer_addr.sin_addr),
-           "', '",
-           "SUCCESS'", 
-           ")"); 
-  if(db_exec_query(sql_query)) {
-    fprintf(stderr, "\n%s:%d Execution of Query Failed\n",
-                    __FILE__,
-                    __LINE__);
-    return(-1);
-  }
- 
-  return(0);
-}/*redir_update_conn_status_success*/
-
 int32_t redir_process_response_callback_req(uint32_t conn_id,
                                             uint8_t **response_ptr,
                                             uint16_t *response_len_ptr) {
@@ -230,7 +203,8 @@ int32_t redir_process_time_out_req(uint32_t conn_id,
 
   } else if(AUTH_SUCCESS == session->auth_status) {
     /*Update in db that USER is authenticated successfully*/
-    redir_update_conn_status_success(conn_id);
+    subscriber_update_conn_status(inet_ntoa(session->peer_addr.sin_addr),
+                                  "SUCCESS");
     redir_process_auth_response(conn_id,
                                 response_ptr,
                                 response_len_ptr,
@@ -404,222 +378,6 @@ int32_t redir_process_response_callback_uri(uint32_t conn_id,
   }
 }/*redir_process_response_callback_uri*/
 
-int32_t redir_update_conn_status_ex(uint32_t conn_id, 
-                                    uint8_t *uri_ptr, 
-                                    uint8_t *host_name_ptr) {
-  uint8_t sql_query[255];
-  int32_t ret;
-  redir_ctx_t *pRedirCtx = &redir_ctx_g;
-  redir_session_t *session;
-  uint16_t idx;
-  uint8_t record[2][16][32];
-  uint32_t row;
-  uint32_t col;
-  uint16_t src_port;
-
-  session = redir_get_session(conn_id);
-
-  if(!strncmp((const char *)session->uri, "/response_callback", 18)) {
-    /*Retrieve the src_port at which the subscriber was authenticated*/
-    sscanf((const char *)session->uri, "%*[^=]=%d", (int32_t *)&src_port);
-
-    /*Retrieve the original URL to that subscriber can be redirected to it*/
-    ret = snprintf((char *)sql_query,
-                   sizeof(sql_query),
-                   "%s%s%s%s%s"
-                   "%d%s",
-                   "SELECT * FROM ",
-                   pRedirCtx->conn_auth_status_table,
-                   " WHERE (ip_address ='",
-                   inet_ntoa(session->peer_addr.sin_addr),
-                   "' AND src_port='",
-                   src_port,
-                   "')");
-    fprintf(stderr, "\n%s:%d (%s) \n", __FILE__, __LINE__, sql_query);
-    if(!db_exec_query(sql_query)) {
-      memset((void *)record, 0, sizeof(record));
-      row = 0, col = 0;
-      if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
-        if(row) {
-          strncpy((char *)uri_ptr, 
-                  (const char *)record[0][2], 
-                  strlen((const char *)record[0][2]));
-
-          strncpy((char *)host_name_ptr, 
-                  (const char *)record[0][3], 
-                  strlen((const char *)record[0][3]));
-        }
-      }  
-    }
-  } else {
-    uint8_t host_name[255];
-    memset((void *)host_name, 0, sizeof(host_name));
-    /*Retrieving Host Name from Http Request*/
-    for(idx = 0; idx < session->mime_header_count; idx++) {
-
-      if(!strncmp((char *)session->mime_header[idx][0], "Host", 4)) {
-        memset((void *)host_name, 0, sizeof(host_name));
-        strncpy((char *)host_name, 
-                (const char *)session->mime_header[idx][1], 
-                strlen((const char *)session->mime_header[idx][1]));
-        break;
-      }
-    }
-
-    ret = snprintf((char *)sql_query, 
-                   sizeof(sql_query),
-                   "%s%s%s%s%s"
-                   "%s%s%s%s%d"
-                   "%s",
-                   "UPDATE ",
-                   pRedirCtx->conn_auth_status_table,
-                   " SET uri='",
-                   session->uri,
-                   "', host_name='",
-                   host_name,
-                   "' WHERE (ip_address='",
-                   inet_ntoa(session->peer_addr.sin_addr),
-                   "' AND src_port ='",
-                   ntohs(session->peer_addr.sin_port),
-                   "')");
-
-    if(db_exec_query(sql_query)) {
-      fprintf(stderr, "\n%s:%d Execution of Query Failed\n", __FILE__, __LINE__);
-      return(-2);
-    }
-  }
-
-  return(0);
-}/*redir_update_conn_status_ex*/
-
-int32_t redir_update_conn_status(uint32_t conn_id, 
-                                 uint8_t *orig_uri_ptr, 
-                                 uint8_t *host_name_ptr) {
-
-  redir_ctx_t *pRedirCtx = &redir_ctx_g;
-  uint16_t idx;
-  uint8_t sql_query[255];
-  int32_t ret = -1;
-  uint8_t record[2][16][32];
-  uint32_t row;
-  uint32_t col;
-  redir_session_t *session = NULL;
-
-  session = redir_get_session(conn_id);
-
-  /*Valid Connection found, update the db*/
-  memset((void *)sql_query, 0, sizeof(sql_query));
-  ret = snprintf((char *)sql_query,
-                 sizeof(sql_query),
-                 "%s%s%s%s%s",
-                 "SELECT * FROM ",
-                 pRedirCtx->conn_auth_status_table,
-                 " WHERE ip_address ='",
-                 inet_ntoa(session->peer_addr.sin_addr),
-                 "'");
-
-  if(!db_exec_query(sql_query)) {
-    memset((void *)record, 0, sizeof(record));
-    if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
-      if(row) {
-        /*Record Found*/
-        if(!strncmp((const char *)session->uri, "/authstate_success", 18)) {
-          strncpy((char *)orig_uri_ptr, 
-                  (const char *)record[0][2], 
-                  strlen((const char *)record[0][2]));
-
-          strncpy((char *)host_name_ptr, 
-                  (const char *)record[0][3], 
-                  strlen((const char *)record[0][3]));
-          
-          /*Update the STATUS in Database*/
-          memset((void *)sql_query, 0, sizeof(sql_query));
-
-          ret = snprintf((char *)sql_query, 
-                         sizeof(sql_query),
-                         "%s%s%s%s%s"
-                         "%s",
-                         "UPDATE ",
-                         pRedirCtx->conn_auth_status_table,
-                         " SET auth_state = 'SUCCESS' ",
-                         "WHERE ip_address = '",
-                         inet_ntoa(session->peer_addr.sin_addr),
-                         "'");
-
-          if(db_exec_query(sql_query)) {
-            fprintf(stderr, "\n%s:%d Execution of Query Failed\n", __FILE__, __LINE__);
-            return(-1);
-          }
-
-        }
-      } else {
-        /*No Record Found*/
-        uint8_t mac_address[64];
-        memset((void *)sql_query, 0, sizeof(sql_query));
-        ret = snprintf((char *)sql_query,
-                       sizeof(sql_query),  
-                       "%s%s%s%d%s",
-                       "SELECT * FROM ",
-                       pRedirCtx->ip_allocation_table,
-                       " WHERE (host_id ='",
-                       ((session->peer_addr.sin_addr.s_addr & 0xFF000000) >> 24),
-                       "' AND ip_allocation_status ='ASSIGNED')");
-
-        if(!db_exec_query(sql_query)) {
-          memset((void *)record, 0, sizeof(record));
-
-          if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
-            if(row) {
-              strncpy((char *)mac_address, (const char *)record[0][1], 17);
-              /*Insert New Record*/
-              uint8_t host_name[255];
-
-              /*Retrieving Host Name from Http Request*/
-              for(idx = 0; idx < session->mime_header_count; idx++) {
-
-                if(!strncmp((char *)session->mime_header[idx][0], "Host", 4)) {
-                  memset((void *)host_name, 0, sizeof(host_name));
-                  strncpy((char *)host_name, 
-                          (const char *)session->mime_header[idx][1], 
-                          strlen((const char *)session->mime_header[idx][1]));
-
-                  fprintf(stderr, "\nHost Name is found and is %s\n", host_name);
-                  break;
-                }
-              }
-
-              ret = snprintf((char *)sql_query, 
-                             sizeof(sql_query),
-                             "%s%s%s%s%s"
-                             "%s%s%s%s%s"
-                             "%s%s%s",
-                             "INSERT INTO ",
-                             pRedirCtx->conn_auth_status_table,
-                             " (ip_address, mac_address, uri, host_name, auth_state)",
-                             " VALUES ('",
-                             inet_ntoa(session->peer_addr.sin_addr),
-                             "', '",
-                             mac_address,
-                             "', '",
-                             session->uri,
-                             "', '",
-                             host_name,
-                             "', '",
-                             "INPROGRESS')");
-
-              if(db_exec_query(sql_query)) {
-                fprintf(stderr, "\n%s:%d Execution of Query Failed\n", __FILE__, __LINE__);
-                return(-2);
-              }
-            }
-          }
-        }               
-      }  
-    } 
-  }               
-  return(0); 
-}/*redir_update_conn_status*/
-
 int32_t redir_recv(int32_t fd, 
                    uint8_t *packet_ptr, 
                    uint16_t *packet_length) {
@@ -639,8 +397,21 @@ int32_t redir_send(int32_t fd,
                    uint8_t *packet_ptr, 
                    uint16_t packet_length) {
   int32_t  ret = -1;
+  int32_t offset = 0;
+
   do {
-    ret = send(fd, packet_ptr, packet_length, 0);
+    ret = send(fd, 
+               (const void *)&packet_ptr[offset], 
+               (packet_length - offset), 
+               0);
+
+    if(ret > 0) {
+      offset += ret;
+
+      if(!(packet_length - offset)) {
+        ret = 0;
+      }
+    }
 
   }while((ret == -1) && (EINTR == errno));
 
@@ -718,12 +489,6 @@ redir_session_t *redir_get_session(uint32_t conn_id) {
   
   while(NULL != tmp_session) {
     if(conn_id == tmp_session->conn) {
-#if 0
-      fprintf(stderr, "\n%s:%d conn_id %d found in the session\n",
-                      __FILE__,
-                      __LINE__,
-                      tmp_session->conn);
-#endif
       return(tmp_session);
     }
     /*look for next session's conn_id*/
@@ -752,10 +517,6 @@ int32_t redir_remove_session(uint32_t conn_id) {
         pRedirCtx->session = curr_session->next;
         curr_session = pRedirCtx->session;
         free(tobe_deleted);
-        fprintf(stderr, "\n%s:%d Removed the Head node (%d)",
-                        __FILE__,
-                        __LINE__,
-                        conn_id);
         continue;
 
       } else {
@@ -763,10 +524,6 @@ int32_t redir_remove_session(uint32_t conn_id) {
         prev_session->next = curr_session->next;
         curr_session = curr_session->next;
         free(tobe_deleted);
-        fprintf(stderr, "\n%s:%d Removed the mid node (%d)",
-                        __FILE__,
-                        __LINE__,
-                        conn_id);
         continue;
       }
     }
@@ -831,7 +588,7 @@ int32_t redir_parse_req(uint32_t conn_id,
 
   uri_ptr = (uint8_t *) malloc(uri_len);
 
-  if(NULL == uri_ptr) {
+  if(!uri_ptr) {
     fprintf(stderr, "\n%s:%d Memory Allocation Failed\n", __FILE__, __LINE__);
     free(tmp_ptr);
     return(-1);
@@ -935,7 +692,9 @@ int32_t redir_process_redirect_req(uint32_t conn_id,
   }
   
   if(idx == session->mime_header_count) {
-    fprintf(stderr, "\n%s:%d Host Header not found in mime header\n", __FILE__, __LINE__);
+    fprintf(stderr, "\n%s:%d Host Header not found in mime header\n", 
+                     __FILE__, 
+                     __LINE__);
     return(-3);
   }
 
@@ -1067,7 +826,9 @@ int32_t redir_init(uint32_t redir_listen_ip,
 
   fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if(fd < 0) {
-    fprintf(stderr, "\n%s:%d creation of socket failed\n", __FILE__, __LINE__);
+    fprintf(stderr, "\n%s:%d creation of socket failed\n", 
+                    __FILE__, 
+                    __LINE__);
     return(-1);
   }
   redir_addr_len = sizeof(struct sockaddr_in);
@@ -1077,14 +838,18 @@ int32_t redir_init(uint32_t redir_listen_ip,
   memset((void *)redir_addr.sin_zero, 0, sizeof(redir_addr.sin_zero));
 
   if(bind(fd, (struct sockaddr *)&redir_addr, redir_addr_len) < 0) {
-    fprintf(stderr, "\n%s:%d bind to given address failed\n", __FILE__, __LINE__);
+    fprintf(stderr, "\n%s:%d bind to given address failed\n", 
+                    __FILE__, 
+                    __LINE__);
     perror("Bind Failed: ");
     return(-1);
   }
   
   /*Max Pending connection which is 10 as of now*/
   if(listen(fd, 5) < 0) {
-    fprintf(stderr, "\n%s:%d listen to given ip failed\n", __FILE__, __LINE__);
+    fprintf(stderr, "\n%s:%d listen to given ip failed\n", 
+                    __FILE__, 
+                    __LINE__);
     return(-1);
   }
 
@@ -1170,9 +935,6 @@ void *redir_main(void *argv) {
                           (struct sockaddr *)&peer_addr, 
                           (socklen_t *)&peer_addr_len);
 
-        session = redir_add_session(new_conn); 
-        session->peer_addr = peer_addr;
-        #if 0
         if(peer_addr.sin_addr.s_addr) {
           session = redir_add_session(new_conn); 
           session->peer_addr = peer_addr;
@@ -1183,10 +945,9 @@ void *redir_main(void *argv) {
                      inet_ntoa(peer_addr.sin_addr));
         } else {
           /*Connect Request from 0.0.0.0 ip Address*/
-          fprintf(stderr, "\n%s:%d Closing the connection\n", __FILE__, __LINE__);
           close(new_conn);
         }
-        #endif
+        
       } else if((pRedirCtx->radiusC_fd > 0) && (FD_ISSET(pRedirCtx->radiusC_fd, &rd))) {
         /*Process RadiusS Response*/
         memset((void *)packet_buffer, 0, sizeof(packet_buffer));
@@ -1213,10 +974,6 @@ void *redir_main(void *argv) {
             if(!packet_length) {
               /*Closing the connected conn_id*/
               close(session->conn);
-              fprintf(stderr, "\n%s:%d conn_id %d is being cloed\n",
-                              __FILE__,
-                              __LINE__,
-                              session->conn);
               session->conn = 0;
 
             } else {

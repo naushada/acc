@@ -312,7 +312,7 @@ int32_t dhcp_process_eth_frame(int32_t fd,
           dhcp_option.len = ntohs(udphdr_ptr->udp_len) - sizeof(dhcp_packet_t);
           dhcp_option.option = (char *)malloc(dhcp_option.len);
            
-          if(NULL == dhcp_option.option) {
+          if(!dhcp_option.option) {
             fprintf(stderr, "\nMalloc failed to allocate the memory");
             exit(0);
           }
@@ -330,7 +330,6 @@ int32_t dhcp_process_eth_frame(int32_t fd,
                               dhcp_option.len);
 
           dhcp_process_request(fd, packet_ptr, packet_length);
-
         }
       } 
     } else if(!memcmp(eth_hdr_ptr->h_dest, pDhcpCtx->mac_addr, ETH_ALEN)) {
@@ -630,7 +629,7 @@ int32_t dhcp_OFFER (int32_t fd, uint8_t *packet_ptr, uint16_t packet_length) {
 int32_t dhcp_ACK (int32_t fd, uint8_t *packet_ptr, uint16_t packet_length) {
   int32_t rsp_len = -1;
   uint8_t rsp_buffer[1500];
-  uint8_t dest_mac[6];
+  uint8_t dest_mac[ETH_ALEN];
   uint8_t message_type = (uint8_t)DHCPACK;
   
   memset((void *)rsp_buffer, 0, sizeof(rsp_buffer));
@@ -1213,7 +1212,8 @@ int32_t dhcp_build_rsp(uint8_t message_type,
                            (sizeof(struct eth) + 
                            sizeof(struct iphdr)));
  
-  ip_ptr->ip_chksum = utility_cksum((void *)ip_ptr,  (sizeof(uint32_t) * ip_ptr->ip_len)); 
+  ip_ptr->ip_chksum = utility_cksum((void *)ip_ptr,  
+                                    (sizeof(uint32_t) * ip_ptr->ip_len));
 
   udp_ptr->udp_chksum = utility_udp_checksum((void *)ip_ptr); 
 
@@ -1252,8 +1252,12 @@ void *dhcp_main(void *tid) {
       dhcp_recvfrom(pDhcpCtx->fd, eth_buffer, &req_len);
      
       if(req_len > 0) {
-        if(memcmp((const void *)&eth_buffer[ETH_ALEN], (const void *)pDhcpCtx->mac_addr, ETH_ALEN)) {
-          dhcp_process_eth_frame(pDhcpCtx->fd, eth_buffer, req_len);    
+        if(memcmp((const void *)&eth_buffer[ETH_ALEN], 
+                  (const void *)pDhcpCtx->mac_addr, 
+                  ETH_ALEN)) {
+          dhcp_process_eth_frame(pDhcpCtx->fd, 
+                                 eth_buffer, 
+                                 req_len);    
         }
       }
     }

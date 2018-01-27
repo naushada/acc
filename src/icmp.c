@@ -179,8 +179,6 @@ int32_t icmp_main(int16_t fd, uint8_t *packet_ptr, uint16_t packet_length) {
          (ipaddr & pIcmpCtx->subnet_mask)) {
 
         /*Ping Request is for other Network*/
-        fprintf(stderr, "\nExternal Echo Request\n");
-
         ret = tun_write((uint8_t *)&packet_ptr[sizeof(struct eth)], 
                         (packet_length - sizeof(struct eth)));
 
@@ -190,8 +188,6 @@ int32_t icmp_main(int16_t fd, uint8_t *packet_ptr, uint16_t packet_length) {
         }
 
       } else {
-
-        fprintf(stderr, "\n%s:%d Internal Echo Request\n", __FILE__, __LINE__);
         icmp_build_response((uint8_t)ICMP_ECHO_REPLY, 
                             fd, 
                             packet_ptr, 

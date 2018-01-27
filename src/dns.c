@@ -505,8 +505,6 @@ uint32_t dns_process_ansection(int16_t   fd,
   memset((void *)&pDnsCtx->andata, 0, sizeof(dns_andata_t));
   pDnsCtx->andata.name[idx].len = pAndata[offset++];
   
-  fprintf(stderr, "\nAnswer Section\n");
-
   while(pDnsCtx->andata.name[idx].len > 0) {
     memcpy((void *)&pDnsCtx->andata.name[idx].value, (void *)&pAndata[offset], pDnsCtx->andata.name[idx].len);
     offset += pDnsCtx->andata.name[idx].len;
