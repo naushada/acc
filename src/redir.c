@@ -388,9 +388,9 @@ int32_t redir_recv(int32_t fd,
 
   }while((ret == -1) && (EINTR == errno));
 
-  *packet_length = (uint16_t)ret;
-  return(ret);
+  *packet_length = (ret < 0) ? 0 : ret;
 
+  return(ret);
 }/*redir_recv*/
 
 int32_t redir_send(int32_t fd, 
@@ -567,7 +567,7 @@ int32_t redir_parse_req(uint32_t conn_id,
 
   tmp_ptr = (uint8_t *)malloc(packet_length);
 
-  if(NULL == tmp_ptr) {
+  if(!tmp_ptr) {
     fprintf(stderr, "\n%s:%d Allocation of Memory failed\n", __FILE__, __LINE__);
     return(-1);
   }
@@ -891,7 +891,7 @@ void *redir_main(void *argv) {
   struct timeval to;
   struct sockaddr_in peer_addr;
   uint16_t idx;
-  size_t peer_addr_len;
+  size_t peer_addr_len = sizeof(peer_addr);
   uint8_t packet_buffer[3500];
   uint16_t packet_length;
   int32_t max_fd;
@@ -938,19 +938,26 @@ void *redir_main(void *argv) {
         if(peer_addr.sin_addr.s_addr) {
           session = redir_add_session(new_conn); 
           session->peer_addr = peer_addr;
-          fprintf(stderr, "\n%s:%d New Connection received conn %d ip %s\n", 
+          fprintf(stderr, "\n%s:%d New Connection received conn %d ip %s (port %d)\n", 
                      __FILE__,
                      __LINE__,
                      new_conn, 
-                     inet_ntoa(peer_addr.sin_addr));
+                     inet_ntoa(peer_addr.sin_addr),
+                     ntohs(peer_addr.sin_port));
 
-          if(!subscriber_is_authenticated(ntohl(peer_addr.sin_addr.s_addr))) {
+          if(!subscriber_is_authenticated(peer_addr.sin_addr.s_addr)) {
             /*TCP 3-Way hand shake has happened*/
+            #if 0
             subscriber_update_conn_status(inet_ntoa(peer_addr.sin_addr),
                                           "INPROGRESS");
+            #endif
           }
         } else {
           /*Connect Request from 0.0.0.0 ip Address*/
+          fprintf(stderr, "\n%s:%d src port %d being closed\n", 
+                          __FILE__,
+                          __LINE__,
+                          ntohs(peer_addr.sin_port));
           close(new_conn);
         }
         
@@ -978,6 +985,10 @@ void *redir_main(void *argv) {
             redir_recv(session->conn, packet_buffer, &packet_length);
 
             if(!packet_length) {
+              fprintf(stderr, "\n%s:%d src port %d being closed for zero length\n", 
+                          __FILE__,
+                          __LINE__,
+                          ntohs(peer_addr.sin_port));
               /*Closing the connected conn_id*/
               close(session->conn);
               session->conn = 0;

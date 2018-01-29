@@ -132,9 +132,14 @@ int32_t tcp_reset_tcp(uint8_t *packet_ptr,
   /*swap the TCP port*/ 
   rsp_tcp_ptr->src_port = req_tcp_ptr->dest_port;
   rsp_tcp_ptr->dest_port = req_tcp_ptr->src_port;
+  /*Updating Sequence Number*/
+  rsp_tcp_ptr->seq_num = req_tcp_ptr->ack_number;
+  /*No ACK is expected*/
+  rsp_tcp_ptr->ack_number = 0;
+  rsp_tcp_ptr->window = 0;
+  
   /*resetting the checksum*/
   rsp_tcp_ptr->check_sum = 0;
-  rsp_tcp_ptr->window = 0;
   /*modifying the TCP flags to exhibits the RST bit*/
   tmp_flags = ntohs(rsp_tcp_ptr->flags);
   tmp_flags = htons((tmp_flags & ~(0x3F)) | TCP_RST_BIT);
@@ -156,42 +161,55 @@ int32_t tcp_main(uint16_t fd,
   struct iphdr *iphdr_ptr;
   struct tcp *tcphdr_ptr;
   tcp_ctx_t *pTcpCtx = &tcp_ctx_g;
-  uint8_t  buffer[1500];
   uint8_t  rsp[1500];
   uint16_t rsp_len = 0;
   uint8_t dest_mac[ETH_ALEN];
-  uint16_t buffer_len = 0;
   int32_t  ret = -1;
 
   iphdr_ptr = (struct iphdr *)&packet_ptr[sizeof(struct eth)];
   tcphdr_ptr = (struct tcp *)&packet_ptr[sizeof(struct eth) + sizeof(struct iphdr)];
 
-  /*Whose request is for?*/
-  if((ntohl(iphdr_ptr->ip_dest_ip) & ntohl(pTcpCtx->ip_mask)) != 
-     (ntohl(pTcpCtx->ip_addr) & ntohl(pTcpCtx->ip_mask))) {
+  memset((void *)rsp, 0, sizeof(rsp));
+  rsp_len = 0;
+  ret = subscriber_is_authenticated(iphdr_ptr->ip_src_ip);
+  /* TCP Connection will be marked as INPROGRESS when 3-way
+   * hand shake is performed for any connection and is done in redir.c
+   * because redir.c operates at tcp layer and only it knows when 3-way hand shake is done
+   * i.e. after accepting a new connection by accept system call.
+   */
+  if((2/*AUTHENTICATED*/ == ret) ||
+     (ntohs(tcphdr_ptr->dest_port) == pTcpCtx->uamS_port) ||
+     (ntohs(tcphdr_ptr->dest_port) == pTcpCtx->redir_port)) {
 
-    ret = subscriber_is_authenticated(iphdr_ptr->ip_src_ip);
-    /* TCP Connection will be marked as INPROGRESS when 3-way
-     * hand shake is performed for any connection and is done in redir.c
-     * because redir.c operates at tcp layer and only it knows when 3-way hand shake is done
-     * i.e. after accepting a new connection by accept system call.
+    /*Subscriber is Authenticated Successfully, Pass the packet on*/
+    rsp_len = packet_length - sizeof(struct eth);
+    memcpy((void *)rsp, 
+           (const void *)&packet_ptr[sizeof(struct eth)], 
+           rsp_len);
+
+    ret = tun_write(rsp, rsp_len);
+
+    if(ret < 0) {
+      perror("\nwriting to tun failed\n");
+      return(-1);
+    }   
+  } else if((1/*INPROGRESS*/ == ret) && 
+            (!nat_query_cache(ntohs(tcphdr_ptr->src_port),
+                              iphdr_ptr->ip_src_ip,
+                               NULL, NULL, NULL))) {
+    /* There could be possibility that subsequent packet may 
+     * be sent at detination port other than 80
      */
-    if((2/*AUTHENTICATED*/ == ret) ||
-       (ntohs(tcphdr_ptr->dest_port) == pTcpCtx->uamS_port) ||
-       (ntohs(tcphdr_ptr->dest_port) == pTcpCtx->redir_port)) {
+    /*Reset the connection*/  
+    tcp_reset_tcp(packet_ptr, packet_length, rsp, &rsp_len);
+    memset((void *)dest_mac, 0, sizeof(dest_mac));
+    /*copying the destination MAC Address*/
+    memcpy((void *)dest_mac, rsp, ETH_ALEN);
+    write_eth_frame(fd, dest_mac, rsp, rsp_len);
 
-      /*Subscriber is Authenticated Successfully, Pass the packet on*/
-      ret = tun_write((uint8_t *)&packet_ptr[sizeof(struct eth)], 
-                      (packet_length - sizeof(struct eth)));
-
-      if(ret < 0) {
-        perror("\nwriting to tun failed\n");
-        return(-1);
-      }   
-    } else if(1/*INPROGRESS*/ == ret) {
-      /* There could be possibility that subsequent packet may 
-       * be sent at detination port other than 80
-       */
+  } else {
+    /*SYN Packet for new TCP connection*/
+    if(80 != ntohs(tcphdr_ptr->dest_port)) {
       /*Reset the connection*/  
       tcp_reset_tcp(packet_ptr, packet_length, rsp, &rsp_len);
       memset((void *)dest_mac, 0, sizeof(dest_mac));
@@ -200,33 +218,23 @@ int32_t tcp_main(uint16_t fd,
       write_eth_frame(fd, dest_mac, rsp, rsp_len);
 
     } else {
-      /*SYN Packet for new TCP connection*/
-      if(80 != ntohs(tcphdr_ptr->dest_port)) {
-        /*Reset the connection*/  
-        tcp_reset_tcp(packet_ptr, packet_length, rsp, &rsp_len);
-        memset((void *)dest_mac, 0, sizeof(dest_mac));
-        /*copying the destination MAC Address*/
-        memcpy((void *)dest_mac, rsp, ETH_ALEN);
-        write_eth_frame(fd, dest_mac, rsp, rsp_len);
+      /*Request is for other*/
+      nat_perform_snat(packet_ptr, 
+                       packet_length, 
+                       (uint8_t *)rsp, 
+                       &rsp_len);
 
-      } else {
-        /*Request is for other*/
-        nat_perform_snat(packet_ptr, 
-                         packet_length, 
-                         (uint8_t *)buffer, 
-                         &buffer_len);
+      //utility_hex_dump(buffer, buffer_len);
+      ret = tun_write(rsp, rsp_len);
 
-        ret = tun_write(buffer, buffer_len);
-
-        if(ret < 0) {
-          perror("\nwriting to tun failed\n");
-          return(-1);
-        }
+      if(ret < 0) {
+        perror("\nwriting to tun failed\n");
+        return(-1);
       }
     }
   }
-  return(0);
 
+  return(0);
 }/*tcp_main*/
 
 

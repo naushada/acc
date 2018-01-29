@@ -48,11 +48,13 @@ int32_t subscriber_is_authenticated(uint32_t subscriber_ip) {
 
     if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
       if(row) {
-        if(!strncmp((const char *)record[0][4], "INPROGRESS", 10)) {
+        if(!strncmp((const char *)record[0][1], "INPROGRESS", 10)) {
           return(1);
-        } else {
+        } else if(!strncmp((const char *)record[0][1], "SUCCESS", 7)) {
           /*SUCCESS*/
           return(2);
+        } else {
+          return(0);
         }
       } 
     }    

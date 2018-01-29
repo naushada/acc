@@ -533,11 +533,9 @@ int32_t http_process_wait_req(uint32_t conn_id,
                  "\r\n\r\n");
 
   memcpy((void *)&(*response_ptr)[ret], (const void *)html_body, html_body_len);
-
   *response_len_ptr = ret + html_body_len; 
 
   return(0);
-
 }/*http_process_wait_req*/
 
 
@@ -838,6 +836,11 @@ int32_t http_process_req(uint32_t conn_id,
   uint16_t http_len = 0;
   int32_t ret = -1;
 
+  fprintf(stderr, "\n%s:%d (conn_id %d) %s", 
+                  __FILE__,
+                  __LINE__,
+                  conn_id,
+                  packet_ptr);
   ret = http_parse_req(conn_id, packet_ptr, packet_length);
 
   if(ret) {
@@ -947,7 +950,7 @@ void *http_main(void *argv) {
   int32_t new_conn;
   struct timeval to;
   struct sockaddr_in peer_addr;
-  size_t peer_addr_len;
+  size_t peer_addr_len = sizeof(peer_addr);
   uint8_t packet_buffer[3000];
   uint16_t packet_length;
   fd_set rd;
@@ -984,9 +987,24 @@ void *http_main(void *argv) {
         if(peer_addr.sin_addr.s_addr) {
           session = http_add_session(new_conn);
           session->peer_addr = peer_addr;
+          fprintf(stderr, "\n%s:%d New connection ip_addr %s port %d\n",
+                          __FILE__,
+                          __LINE__,
+                          inet_ntoa(peer_addr.sin_addr),
+                          ntohs(peer_addr.sin_port));
 
         } else {
-          /*Connection is from 0.0.0.0 IP Address*/
+          /* Connection is from 0.0.0.0 IP Address,
+           * accept system call expects non-zero in addr_len, 
+           * if addr_len is zero or not initialized then accept
+           * system call will fill ip as 0.0.0.0 and port as 0
+           * upon receipt of first connection.
+           */
+          fprintf(stderr, "\n%s:%d closing the connection ip_addr %s port %d\n",
+                          __FILE__,
+                          __LINE__,
+                          inet_ntoa(peer_addr.sin_addr),
+                          ntohs(peer_addr.sin_port));
           close(new_conn);
         }
 

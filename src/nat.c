@@ -229,21 +229,28 @@ int32_t nat_query_cache(uint16_t dest_port,
     col = 0;
     if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
       if(row) {
-        /*MAC Address*/
-        utility_mac_str_to_int(record[0][1], mac_addr);
-        /*dest Port would now become src port*/
-        sscanf((const char *)record[0][4], "%d", (uint32_t *)src_port);
-        /*src_ip will hold the value of dest ip*/
-        *src_ip = utility_ip_str_to_int(record[0][3]);
+
+        if((!mac_addr) && (!src_port) && (!src_ip)) {
+          return(1);
+
+        } else {
+          /*MAC Address*/
+          utility_mac_str_to_int(record[0][1], mac_addr);
+          /*dest Port would now become src port*/
+          sscanf((const char *)record[0][4], "%d", (uint32_t *)src_port);
+          /*src_ip will hold the value of dest ip*/
+          *src_ip = utility_ip_str_to_int(record[0][3]);
+        }
       } else {
 
-        fprintf(stderr, "\n%s:%d no Row found for ip_address %s and nat_port %d\n%s\n", 
-                        __FILE__,
-                        __LINE__,
-                        dest_ip_str,
-                        dest_port,
-                        sql_query);
-
+        if((mac_addr) && (src_port) && (src_ip)) {
+          fprintf(stderr, "\n%s:%d no Row found for ip_address %s and nat_port %d\n%s\n", 
+                          __FILE__,
+                          __LINE__,
+                          dest_ip_str,
+                          dest_port,
+                          sql_query);
+        }
       }
     }
   }
@@ -329,6 +336,7 @@ int32_t nat_perform_snat(uint8_t  *packet_ptr,
           
           /*Modify the TCP headera as per need*/
           tcphdr_ptr->dest_port = htons(pNatCtx->redir_port);
+          tcphdr_ptr->src_port = htons(src_port);
           tcphdr_ptr->check_sum = 0;
           tcphdr_ptr->check_sum = tcp_checksum(snat_ptr);
         }
@@ -408,7 +416,7 @@ int32_t nat_perform_dnat(uint8_t *packet_ptr,
     break;
     case IP_TCP:
     {
-      uint8_t dest_mac[6];
+      uint8_t dest_mac[ETH_ALEN];
       uint16_t dest_port;
       uint16_t src_port;
       uint32_t src_ip = 0;
@@ -431,8 +439,8 @@ int32_t nat_perform_dnat(uint8_t *packet_ptr,
       ret = subscriber_is_authenticated(dest_ip);
       if((2/*SUCCESS*/ == ret) ||
          (src_port == pNatCtx->uamS_port)) { 
-        
-      } else if(!ret) {
+
+      } else if((!ret) || (1 == ret)) {
         /*connection is not yet authenticated*/
         /*Retrieve the IP, MAC from cache based on nat_port*/
         ret = nat_query_cache(dest_port,
