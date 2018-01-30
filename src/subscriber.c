@@ -63,6 +63,34 @@ int32_t subscriber_is_authenticated(uint32_t subscriber_ip) {
   return(0);
 }/*subscriber_is_authenticated*/
 
+int32_t subscriber_is_present(uint8_t *ip_str) {
+
+  uint8_t sql_query[255];
+  uint8_t record[2][16][32];
+  uint32_t row = 0;
+  uint32_t col = 0;  
+  subscriber_ctx_t *pSubscriberCtx = &subscriber_ctx_g;
+
+  memset((void *)sql_query, 0, sizeof(sql_query));
+  (void)snprintf((char *)sql_query, 
+           sizeof(sql_query),
+           "%s%s%s%s%s",
+           "SELECT * FROM ",
+           pSubscriberCtx->conn_auth_status_table,
+           " WHERE ip_address='",
+           ip_str,
+           "'");
+
+  if(!db_exec_query(sql_query)) {
+    memset((void *)record, 0, sizeof(record));
+    if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
+      return(row);  
+    }
+  }
+
+  return(0);
+}/*subscriber_is_present*/
+
 
 int32_t subscriber_update_conn_status(uint8_t *ip_str,
                                       uint8_t *status) {
@@ -70,24 +98,26 @@ int32_t subscriber_update_conn_status(uint8_t *ip_str,
   uint8_t sql_query[255];
   subscriber_ctx_t *pSubscriberCtx = &subscriber_ctx_g;
 
-  memset((void *)sql_query, 0, sizeof(sql_query));
-  (void)snprintf((char *)sql_query, 
-           sizeof(sql_query),
-           "%s%s%s%s%s"
-           "%s%s",
-           "INSERT INTO ",
-           pSubscriberCtx->conn_auth_status_table,
-           " (ip_address, auth_state) VALUES ('",
-           ip_str,
-           "', '",
-           status, 
-           "')"); 
+  if(!subscriber_is_present(ip_str)) {
+    memset((void *)sql_query, 0, sizeof(sql_query));
+    (void)snprintf((char *)sql_query, 
+             sizeof(sql_query),
+             "%s%s%s%s%s"
+             "%s%s",
+             "INSERT INTO ",
+             pSubscriberCtx->conn_auth_status_table,
+             " (ip_address, auth_state) VALUES ('",
+             ip_str,
+             "', '",
+             status, 
+             "')"); 
 
-  if(db_exec_query(sql_query)) {
-    fprintf(stderr, "\n%s:%d Execution of Query Failed\n",
-                    __FILE__,
-                    __LINE__);
-    return(-1);
+    if(db_exec_query(sql_query)) {
+      fprintf(stderr, "\n%s:%d Execution of Query Failed\n",
+                      __FILE__,
+                      __LINE__);
+      return(-1);
+    }
   }
  
   return(0);

@@ -79,8 +79,7 @@ int32_t nat_init(uint32_t ip_addr,
  * 
  *  @return Upon success it returns 0 else < 0
  */
-int32_t nat_delete_cache(uint16_t dest_port,
-                         uint32_t dest_ip) {
+int32_t nat_delete_cache(uint32_t dest_ip) {
   uint8_t sql_query[255];
   int32_t ret = -1;
   uint8_t ipaddr_str[40];
@@ -89,26 +88,23 @@ int32_t nat_delete_cache(uint16_t dest_port,
   memset((void *)ipaddr_str, 0, sizeof(ipaddr_str));
 
   utility_ip_int_to_str(ntohl(dest_ip), ipaddr_str);
-
+  fprintf(stderr, "\n%s:%d ip_str %s\n", __FILE__, __LINE__, ipaddr_str);
   ret = snprintf((char *)sql_query, 
                  sizeof(sql_query),
-                 "%s%s%s%d%s"
-                 "%s%s",
+                 "%s%s%s%s%s",
                  "DELETE FROM ",
                  pNatCtx->cache_table_name,
-                 " WHERE (src_port='",
-                 dest_port,
-                 "' AND dest_ip='",
+                 " WHERE src_ip='",
                  ipaddr_str,
-                 "')");
+                 "'");
 
   if(db_exec_query(sql_query)) {
     fprintf(stderr, "\n%s:%d::Deletion of entry failed\n", __FILE__, __LINE__);
     return(-1);
   }
   (void)ret;
-  return(0);
 
+  return(0);
 }/*nat_delete_cache*/
 
 int32_t nat_update_cache(uint32_t ipaddr, 
@@ -437,8 +433,8 @@ int32_t nat_perform_dnat(uint8_t *packet_ptr,
       src_port = ntohs(tcphdr_ptr->src_port);
 
       ret = subscriber_is_authenticated(dest_ip);
-      if((2/*SUCCESS*/ == ret) ||
-         (src_port == pNatCtx->uamS_port)) { 
+      if(2/*SUCCESS*/ == ret) {
+          nat_delete_cache(dest_ip);
 
       } else if((!ret) || (1 == ret)) {
         /*connection is not yet authenticated*/
@@ -461,20 +457,6 @@ int32_t nat_perform_dnat(uint8_t *packet_ptr,
         tcphdr_ptr->check_sum = 0;
         tcphdr_ptr->check_sum = tcp_checksum(&dnat_ptr[sizeof(struct eth)]);
 
-      } else if(2 == ret) {
-        /*connection is authenticated*/
-        /*Accounting Management*/
-        /*Retrieve the IP, MAC from cache based on nat_port*/
-        query_status = nat_query_cache(dest_port,
-                                       (uint32_t)dest_ip, 
-                                       /*destination ip before snat*/
-                                       (uint32_t *)&src_ip,
-                                       (uint8_t *)dest_mac,
-                                       (uint16_t *)&src_port);
-        if(query_status) {
-          /*Entry in cache table found, delete it.*/
-          nat_delete_cache(dest_port, src_ip);
-        }
       }
     }
     break;

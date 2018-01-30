@@ -173,8 +173,8 @@ int32_t redir_process_auth_response(uint32_t conn_id,
                             "%s%s%s%s%s"
                             "%s",
                             "HTTP/1.1 302 Moved Temporarily\r\n",
-                            "Connection: Keep-Alive\r\n",
-                            /*"Connection: close\r\n",*/
+                            /*"Connection: Keep-Alive\r\n",*/
+                            "Connection: close\r\n",
                             "Location: ",
                             location_ptr,
                             "\r\n",
@@ -714,8 +714,8 @@ int32_t redir_process_redirect_req(uint32_t conn_id,
                             "HTTP/1.1 302 Moved Temporarily\r\n",
                             referer_ptr,
                             "\r\n",
-                            "Connection: Keep-Alive\r\n",
-                            /*"Connection: close\r\n",*/
+                            /*"Connection: Keep-Alive\r\n",*/
+                            "Connection: close\r\n",
                             "Location: ",
                             location_buff,
                             "\r\n",

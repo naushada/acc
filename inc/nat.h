@@ -65,13 +65,11 @@ int32_t nat_init(uint32_t ip_addr,
 
 /** @brief this function is used to delete entry from cache table based on dest ip and port
  *
- *  @param dest_port is the destination port in the direction WAN -> TUN - > LAN
  *  @param dest_ip is the destination ip at which request were sent in direction LAN -> TUN -> WAN
  * 
  *  @return Upon success it returns 0 else < 0
  */
-int32_t nat_delete_cache(uint16_t dest_port,
-                         uint32_t dest_ip);
+int32_t nat_delete_cache(uint32_t dest_ip);
 
 int32_t nat_update_cache(uint32_t ipaddr, 
                          uint8_t *mac_addr, 
