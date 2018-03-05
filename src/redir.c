@@ -81,8 +81,8 @@ int32_t redir_process_rejected_req(uint32_t conn_id,
                  "Content-Length: ",
                  html_body_len,
                  "\r\n\r\n");
-  memcpy((void *)&(*response_ptr)[ret], (const void *)html_body, html_body_len);
 
+  memcpy((void *)&(*response_ptr)[ret], (const void *)html_body, html_body_len);
   *response_len_ptr = ret + html_body_len; 
 
   return(0); 
