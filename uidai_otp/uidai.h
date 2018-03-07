@@ -18,7 +18,7 @@ typedef struct {
 
   /*TCP Connection B/W acc- access Controller and uidai task*/
   uint16_t port;
-  uint32_t ip;
+  uint8_t ip[18];
   int32_t fd;
   uint8_t ac[16];
   uint8_t sa[16];
@@ -105,7 +105,7 @@ int32_t uidai_send(int32_t conn_fd,
 
 int32_t uidai_connect_uidai(void);
 
-int32_t uidai_init(uint32_t ip, 
+int32_t uidai_init(uint8_t *ip_addr, 
                    uint32_t port, 
                    uint8_t *uidai_host, 
                    uint32_t uidai_port,

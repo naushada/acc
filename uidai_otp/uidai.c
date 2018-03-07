@@ -1,13 +1,14 @@
 #ifndef __UIDAI_C__
 #define __UIDAI_C__
 
+#include <stdio.h>
+#include <string.h>
+#include <common.h>
 #include <type.h>
-
-#include "common.h"
-#include "uidai.h"
-#include "util.h"
-#include "otp.h"
-#include "auth.h"
+#include <uidai.h>
+#include <util.h>
+#include <otp.h>
+#include <auth.h>
 
 uidai_ctx_t uidai_ctx_g;
 
@@ -520,7 +521,7 @@ int32_t uidai_connect_uidai(void) {
 }/*uidai_connect_uidai*/
 
 
-int32_t uidai_init(uint32_t ip_addr, 
+int32_t uidai_init(uint8_t *ip_addr, 
                    uint32_t port, 
                    uint8_t *uidai_host, 
                    uint32_t uidai_port,
@@ -545,7 +546,7 @@ int32_t uidai_init(uint32_t ip_addr,
   
   addr.sin_family = AF_INET;
   addr.sin_port = htons(port);
-  //inet_aton(ip_addr, addr.sin_addr);
+  inet_aton(ip_addr, addr.sin_addr);
   addr.sin_addr.s_addr = htonl(addr.sin_addr.s_addr);
 
   memset((void *)addr.sin_zero, 0, sizeof(addr.sin_zero));
@@ -559,7 +560,7 @@ int32_t uidai_init(uint32_t ip_addr,
   pUidaiCtx->fd = fd;
   pUidaiCtx->port = port;
   memset((void *)pUidaiCtx->ip, 0, sizeof(pUidaiCtx->ip));
-  pUidaiCtx->ip = ip_addr;
+  strncpy(pUidaiCtx->ip, ip_addr, strlen(ip_addr));
 
   memset((void *)pUidaiCtx->uidai_host_name, 0, sizeof(pUidaiCtx->uidai_host_name));
   strncpy(pUidaiCtx->uidai_host_name, uidai_host, strlen(uidai_host));
@@ -569,19 +570,6 @@ int32_t uidai_init(uint32_t ip_addr,
   strncpy(pUidaiCtx->public_fname, public_fname, strlen(public_fname));
   memset((void *)pUidaiCtx->private_fname, 0, sizeof(pUidaiCtx->private_fname));
   strncpy(pUidaiCtx->private_fname, private_fname, strlen(private_fname));
-
-  otp_init(ac, 
-           sa, 
-           lk, 
-           "1.6", 
-           "developer.uidai.gov.in");
-
-  auth_init(ac, 
-            sa, 
-            lk, 
-            pUidaiCtx->private_fname, 
-            pUidaiCtx->public_fname, 
-            "developer.uidai.gov.in");
 
   return(0);
 }/*uidai_init*/
@@ -693,7 +681,6 @@ void *uidai_main(void *tid) {
   return(0);
 }/*uidai_main*/
 
-#if 0
 int32_t main(int32_t argc, char *argv[]) {
 
   uint8_t b64_skey[1024];
@@ -754,7 +741,5 @@ int32_t main(int32_t argc, char *argv[]) {
 #endif
 
 }/*main*/
-
-#endif
 
 #endif /* __UIDAI_C__ */

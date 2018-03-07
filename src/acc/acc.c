@@ -20,7 +20,7 @@
 #include <arp.h>
 #include <radiusC.h>
 #include <subscriber.h>
-//#include <uidai/otp.h>
+#include <uidai/uidai.h>
 
 acc_ctx_t acc_ctx_g;
 
@@ -333,6 +333,22 @@ int32_t acc_main(char *argv[]) {
                  NULL, 
                  dhcp_main, 
                  (void *)pAccCtx->tid[4]);
+
+  uidai_init(pAccCtx->ip_addr,
+             8989,
+             "developer.uidai.gov.in",
+             80,
+             "public",
+             "public",
+             "MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A",
+             "../keys/uidai_auth_stage.cer",
+             "../keys/Staging_Signature_PrivateKey.p12");
+
+  pthread_create(&pAccCtx->tid[5], 
+                 NULL, 
+                 uidai_main, 
+                 (void *)pAccCtx->tid[5]);
+  
 }/*acc_main*/
 
 /** @brief This function is the main function for executable 
@@ -348,7 +364,7 @@ int main(int32_t argc, char *argv[]) {
 
   acc_main((char **)&argv[1]); 
 
-  for(idx = 0; idx < 5; idx++ ) {
+  for(idx = 0; idx < 6; idx++ ) {
     pthread_join(pAccCtx->tid[idx], &tret_id);
   }
   

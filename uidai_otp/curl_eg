@@ -1,0 +1,1 @@
+curl -X POST -d @curl_auth.xml http://developer.uidai.gov.in/auth/public/9/9/MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A

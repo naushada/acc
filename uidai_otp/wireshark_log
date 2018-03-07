@@ -1,0 +1,1456 @@
+      1 0.000000000    172.20.10.7           103.57.226.18         TCP      66     44526 → 80 [RST, ACK] Seq=1 Ack=1 Win=293 Len=0 TSval=89226525 TSecr=1971617995
+
+Frame 1: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44526, Dst Port: 80, Seq: 1, Ack: 1, Len: 0
+    Source Port: 44526
+    Destination Port: 80
+    [Stream index: 0]
+    [TCP Segment Len: 0]
+    Sequence number: 1    (relative sequence number)
+    Acknowledgment number: 1    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x014 (RST, ACK)
+    Window size value: 293
+    [Calculated window size: 293]
+    [Window size scaling factor: -1 (unknown)]
+    Checksum: 0x803d [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x803d]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+
+      2 1.413451976    172.20.10.7           172.20.10.1           DNS      82     Standard query 0x3f7c A developer.uidai.gov.in
+
+Frame 2: 82 bytes on wire (656 bits), 82 bytes captured (656 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 172.20.10.1
+User Datagram Protocol, Src Port: 55840, Dst Port: 53
+Domain Name System (query)
+    [Response In: 3]
+    Transaction ID: 0x3f7c
+    Flags: 0x0100 Standard query
+    Questions: 1
+    Answer RRs: 0
+    Authority RRs: 0
+    Additional RRs: 0
+    Queries
+
+      3 1.417011118    172.20.10.1           172.20.10.7           DNS      98     Standard query response 0x3f7c A developer.uidai.gov.in A 103.57.226.18
+
+Frame 3: 98 bytes on wire (784 bits), 98 bytes captured (784 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 172.20.10.1, Dst: 172.20.10.7
+User Datagram Protocol, Src Port: 53, Dst Port: 55840
+Domain Name System (response)
+    [Request In: 2]
+    [Time: 0.003559142 seconds]
+    Transaction ID: 0x3f7c
+    Flags: 0x8180 Standard query response, No error
+    Questions: 1
+    Answer RRs: 1
+    Authority RRs: 0
+    Additional RRs: 0
+    Queries
+    Answers
+        developer.uidai.gov.in: type A, class IN, addr 103.57.226.18
+            Name: developer.uidai.gov.in
+            Type: A (Host Address) (1)
+            Class: IN (0x0001)
+            Time to live: 288
+            Data length: 4
+            Address: 103.57.226.18
+
+      4 1.417142321    172.20.10.7           103.57.226.18         TCP      74     44528 → 80 [SYN] Seq=0 Win=29200 Len=0 MSS=1460 SACK_PERM=1 TSval=89226880 TSecr=0 WS=128
+
+Frame 4: 74 bytes on wire (592 bits), 74 bytes captured (592 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 0, Len: 0
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 0    (relative sequence number)
+    Acknowledgment number: 0
+    Header Length: 40 bytes
+    Flags: 0x002 (SYN)
+    Window size value: 29200
+    [Calculated window size: 29200]
+    Checksum: 0x38c6 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x38c6]
+    Urgent pointer: 0
+    Options: (20 bytes), Maximum segment size, SACK permitted, Timestamps, No-Operation (NOP), Window scale
+
+      5 1.915262231    103.57.226.18         172.20.10.7           TCP      74     80 → 44528 [SYN, ACK] Seq=0 Ack=1 Win=14480 Len=0 MSS=1260 SACK_PERM=1 TSval=1971628382 TSecr=89226880 WS=128
+
+Frame 5: 74 bytes on wire (592 bits), 74 bytes captured (592 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 0, Ack: 1, Len: 0
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 0    (relative sequence number)
+    Acknowledgment number: 1    (relative ack number)
+    Header Length: 40 bytes
+    Flags: 0x012 (SYN, ACK)
+    Window size value: 14480
+    [Calculated window size: 14480]
+    Checksum: 0x2a4f [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x2a4f]
+    Urgent pointer: 0
+    Options: (20 bytes), Maximum segment size, SACK permitted, Timestamps, No-Operation (NOP), Window scale
+    [SEQ/ACK analysis]
+
+      6 1.915289468    172.20.10.7           103.57.226.18         TCP      66     44528 → 80 [ACK] Seq=1 Ack=1 Win=29312 Len=0 TSval=89227004 TSecr=1971628382
+
+Frame 6: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 1, Ack: 1, Len: 0
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 1    (relative sequence number)
+    Acknowledgment number: 1    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 229
+    [Calculated window size: 29312]
+    [Window size scaling factor: 128]
+    Checksum: 0x8f82 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x8f82]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+      7 1.915376965    172.20.10.7           103.57.226.18         TCP      1314   [TCP segment of a reassembled PDU]
+
+Frame 7: 1314 bytes on wire (10512 bits), 1314 bytes captured (10512 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 1, Ack: 1, Len: 1248
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 1248]
+    Sequence number: 1    (relative sequence number)
+    [Next sequence number: 1249    (relative sequence number)]
+    Acknowledgment number: 1    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 229
+    [Calculated window size: 29312]
+    [Window size scaling factor: 128]
+    Checksum: 0x372e [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x372e]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    [Reassembled PDU in frame: 9]
+    TCP segment data (1248 bytes)
+
+      8 1.915389362    172.20.10.7           103.57.226.18         TCP      1314   [TCP segment of a reassembled PDU]
+
+Frame 8: 1314 bytes on wire (10512 bits), 1314 bytes captured (10512 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 1249, Ack: 1, Len: 1248
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 1248]
+    Sequence number: 1249    (relative sequence number)
+    [Next sequence number: 2497    (relative sequence number)]
+    Acknowledgment number: 1    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 229
+    [Calculated window size: 29312]
+    [Window size scaling factor: 128]
+    Checksum: 0xcced [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0xcced]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    [Reassembled PDU in frame: 9]
+    TCP segment data (1248 bytes)
+
+      9 1.917994676    172.20.10.7           103.57.226.18         HTTP/XML 630    POST http://developer.uidai.gov.in/otp/1.6/public/8/6/MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A HTTP/1.1 
+
+Frame 9: 630 bytes on wire (5040 bits), 630 bytes captured (5040 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 2497, Ack: 1, Len: 564
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 564]
+    Sequence number: 2497    (relative sequence number)
+    [Next sequence number: 3061    (relative sequence number)]
+    Acknowledgment number: 1    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x018 (PSH, ACK)
+    Window size value: 229
+    [Calculated window size: 29312]
+    [Window size scaling factor: 128]
+    Checksum: 0xc13b [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0xc13b]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    TCP segment data (564 bytes)
+[3 Reassembled TCP Segments (3060 bytes): #7(1248), #8(1248), #9(564)]
+Hypertext Transfer Protocol
+    POST http://developer.uidai.gov.in/otp/1.6/public/8/6/MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A HTTP/1.1\r\n
+        [Expert Info (Chat/Sequence): POST http://developer.uidai.gov.in/otp/1.6/public/8/6/MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A HTTP/1.1\r\n]
+            [POST http://developer.uidai.gov.in/otp/1.6/public/8/6/MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A HTTP/1.1\r\n]
+            [Severity level: Chat]
+            [Group: Sequence]
+        Request Method: POST
+        Request URI: http://developer.uidai.gov.in/otp/1.6/public/8/6/MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A
+        Request Version: HTTP/1.1
+    Host: developer.uidai.gov.in\r\n
+    Content-Type: text/xml\r\n
+    Connection: Keep-alive\r\n
+    Content-Length: 2838\r\n
+    \r\n
+    [Full request URI: http://developer.uidai.gov.in/otp/1.6/public/8/6/MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A]
+    [HTTP request 1/2]
+    [Response in frame: 17]
+    [Next request in frame: 22]
+    File Data: 2838 bytes
+eXtensible Markup Language
+    <?xml
+    <Otp
+        xmlns="http://www.uidai.gov.in/authentication/otp/1.0"
+        ac="public"
+        lk="MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A"
+        sa="public"
+        tid="public"
+        ts="2018-02-21T19:30:03"
+        txn="8SampleClient"
+        type="A"
+        uid="8639859710"
+        ver="1.6">
+        <Opts
+            ch="00"/>
+        <Signature
+            xmlns="http://www.w3.org/2000/09/xmldsig#">
+            <SignedInfo>
+                <CanonicalizationMethod
+                    Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
+                <SignatureMethod
+                    Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
+                <Reference
+                    URI="">
+                    <Transforms>
+                        <Transform
+                            Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+                        </Transforms>
+                    <DigestMethod
+                        Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
+                    <DigestValue>
+                        AgMUIq7BIOtkia797CFjd1bD5SQ=
+                        </DigestValue>
+                    </Reference>
+                </SignedInfo>
+            <SignatureValue>
+                 [truncated]jT6XhepMWzJv4Wlty6ThrKN2TcZGbTS5BIxQZVO6hLpOdYkOXxXe6i/MjIhQMWlT\nPydnl6k+qqRguSTaCGZxJuk9coXX3N5XYpSDXMQVvKyr5dyX6M8ylEA+8pyor+/o\nl+r3R3D3HY9r/V9JyQ2okwoy3+RHlFqRhjaWaNTxycB9KqDZU6MS4xcmL//S/J0J\nsem6hdJRO5QV9S2aUd4Jj/ZDfxZ0C
+                </SignatureValue>
+            <KeyInfo>
+                <X509Data>
+                    <X509SubjectName>
+                        C=IN,ST=KA,L=Bangalore,O=Public AUA,OU=Staging Services,CN=Public AUA for Staging Services
+                        </X509SubjectName>
+                    <X509Certificate>
+                         [truncated]MIIDuDCCAqCgAwIBAgIGA7J+eqryMA0GCSqGSIb3DQEBBQUAMIGNMQswCQYDVQQG\nEwJJTjELMAkGA1UECBMCS0ExEjAQBgNVBAcTCUJhbmdhbG9yZTETMBEGA1UEChMK\nUHVibGljIEFVQTEZMBcGA1UECxMQU3RhZ2luZyBTZXJ2aWNlczEtMCsGA1UEAxMk\nUm9vdCBQdWJsaWMgQVVBIGZvciBTd
+                        </X509Certificate>
+                    </X509Data>
+                </KeyInfo>
+            </Signature>
+        </Otp>
+
+     10 2.550565502    103.57.226.18         172.20.10.7           TCP      66     80 → 44528 [ACK] Seq=1 Ack=1249 Win=17024 Len=0 TSval=1971628945 TSecr=89227004
+
+Frame 10: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 1, Ack: 1249, Len: 0
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 1    (relative sequence number)
+    Acknowledgment number: 1249    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 133
+    [Calculated window size: 17024]
+    [Window size scaling factor: 128]
+    Checksum: 0x88cf [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x88cf]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     11 2.610360529    103.57.226.18         172.20.10.7           TCP      66     80 → 44528 [ACK] Seq=1 Ack=2497 Win=19584 Len=0 TSval=1971628961 TSecr=89227004
+
+Frame 11: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 1, Ack: 2497, Len: 0
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 1    (relative sequence number)
+    Acknowledgment number: 2497    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 153
+    [Calculated window size: 19584]
+    [Window size scaling factor: 128]
+    Checksum: 0x83cb [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x83cb]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     12 2.610376338    103.57.226.18         172.20.10.7           TCP      66     80 → 44528 [ACK] Seq=1 Ack=3061 Win=22016 Len=0 TSval=1971628990 TSecr=89227005
+
+Frame 12: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 1, Ack: 3061, Len: 0
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 1    (relative sequence number)
+    Acknowledgment number: 3061    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 172
+    [Calculated window size: 22016]
+    [Window size scaling factor: 128]
+    Checksum: 0x8166 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x8166]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     13 2.944866657    103.57.226.18         172.20.10.7           TCP      294    [TCP segment of a reassembled PDU]
+
+Frame 13: 294 bytes on wire (2352 bits), 294 bytes captured (2352 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 1, Ack: 3061, Len: 228
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 228]
+    Sequence number: 1    (relative sequence number)
+    [Next sequence number: 229    (relative sequence number)]
+    Acknowledgment number: 3061    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x018 (PSH, ACK)
+    Window size value: 172
+    [Calculated window size: 22016]
+    [Window size scaling factor: 128]
+    Checksum: 0xef24 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0xef24]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    [Reassembled PDU in frame: 17]
+    TCP segment data (228 bytes)
+
+     14 2.944887935    172.20.10.7           103.57.226.18         TCP      66     44528 → 80 [ACK] Seq=3061 Ack=229 Win=30336 Len=0 TSval=89227261 TSecr=1971629335
+
+Frame 14: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 3061, Ack: 229, Len: 0
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 3061    (relative sequence number)
+    Acknowledgment number: 229    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 237
+    [Calculated window size: 30336]
+    [Window size scaling factor: 128]
+    Checksum: 0x7de8 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x7de8]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     15 2.961644018    103.57.226.18         172.20.10.7           TCP      549    [TCP segment of a reassembled PDU]
+
+Frame 15: 549 bytes on wire (4392 bits), 549 bytes captured (4392 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 229, Ack: 3061, Len: 483
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 483]
+    Sequence number: 229    (relative sequence number)
+    [Next sequence number: 712    (relative sequence number)]
+    Acknowledgment number: 3061    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x018 (PSH, ACK)
+    Window size value: 172
+    [Calculated window size: 22016]
+    [Window size scaling factor: 128]
+    Checksum: 0xde57 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0xde57]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    [Reassembled PDU in frame: 17]
+    TCP segment data (483 bytes)
+
+     16 2.961652520    172.20.10.7           103.57.226.18         TCP      66     44528 → 80 [ACK] Seq=3061 Ack=712 Win=31360 Len=0 TSval=89227266 TSecr=1971629335
+
+Frame 16: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 3061, Ack: 712, Len: 0
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 3061    (relative sequence number)
+    Acknowledgment number: 712    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 245
+    [Calculated window size: 31360]
+    [Window size scaling factor: 128]
+    Checksum: 0x7bf8 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x7bf8]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     17 2.961656872    103.57.226.18         172.20.10.7           HTTP/XML 71     HTTP/1.1 200 OK 
+
+Frame 17: 71 bytes on wire (568 bits), 71 bytes captured (568 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 712, Ack: 3061, Len: 5
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 5]
+    Sequence number: 712    (relative sequence number)
+    [Next sequence number: 717    (relative sequence number)]
+    Acknowledgment number: 3061    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x018 (PSH, ACK)
+    Window size value: 172
+    [Calculated window size: 22016]
+    [Window size scaling factor: 128]
+    Checksum: 0x391e [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x391e]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    TCP segment data (5 bytes)
+[3 Reassembled TCP Segments (716 bytes): #13(228), #15(483), #17(5)]
+Hypertext Transfer Protocol
+    HTTP/1.1 200 OK\r\n
+        [Expert Info (Chat/Sequence): HTTP/1.1 200 OK\r\n]
+            [HTTP/1.1 200 OK\r\n]
+            [Severity level: Chat]
+            [Group: Sequence]
+        Request Version: HTTP/1.1
+        Status Code: 200
+        Response Phrase: OK
+    Date: Wed, 21 Feb 2018 14:00:05 GMT\r\n
+    Server: Apache-Coyote/1.1\r\n
+    Content-Type: application/xml\r\n
+    X-Frame-Options: sameorigin\r\n
+    Keep-Alive: timeout=5, max=5000\r\n
+    Connection: Keep-Alive\r\n
+    Transfer-Encoding: chunked\r\n
+    \r\n
+    [HTTP response 1/2]
+    [Time since request: 1.043662196 seconds]
+    [Request in frame: 9]
+    [Next request in frame: 22]
+    [Next response in frame: 33]
+    HTTP chunked response
+        Data chunk (476 octets)
+            Chunk size: 476 octets
+            Data (476 bytes)
+
+0000  3c 3f 78 6d 6c 20 76 65 72 73 69 6f 6e 3d 22 31   <?xml version="1
+0010  2e 30 22 20 65 6e 63 6f 64 69 6e 67 3d 22 55 54   .0" encoding="UT
+0020  46 2d 38 22 3f 3e 0a 3c 4f 74 70 52 65 73 20 74   F-8"?>.<OtpRes t
+0030  78 6e 3d 22 38 53 61 6d 70 6c 65 43 6c 69 65 6e   xn="8SampleClien
+0040  74 22 20 65 72 72 3d 22 39 39 38 22 20 61 63 74   t" err="998" act
+0050  6e 3d 22 41 32 30 31 22 20 63 6f 64 65 3d 22 62   n="A201" code="b
+0060  30 62 62 64 32 32 31 65 62 39 64 34 30 66 61 62   0bbd221eb9d40fab
+0070  38 30 62 39 39 61 66 63 61 66 36 65 62 35 32 22   80b99afcaf6eb52"
+0080  20 74 73 3d 22 32 30 31 38 2d 30 32 2d 32 31 54    ts="2018-02-21T
+0090  31 39 3a 33 30 3a 30 35 2e 32 30 30 2b 30 35 3a   19:30:05.200+05:
+00a0  33 30 22 20 72 65 74 3d 22 6e 22 20 69 6e 66 6f   30" ret="n" info
+00b0  3d 22 30 31 7b 35 31 39 62 32 37 33 37 66 31 63   ="01{519b2737f1c
+00c0  31 62 66 36 30 34 39 63 35 65 35 33 38 33 62 62   1bf6049c5e5383bb
+00d0  34 36 32 65 39 34 34 66 36 63 34 39 32 33 61 36   462e944f6c4923a6
+00e0  61 32 31 35 65 31 30 33 37 64 35 39 63 38 39 36   a215e1037d59c896
+00f0  63 64 61 35 62 2c 41 2c 32 30 31 38 2d 30 32 2d   cda5b,A,2018-02-
+0100  32 31 54 31 39 3a 33 30 3a 30 33 2c 31 2e 36 2c   21T19:30:03,1.6,
+0110  32 30 65 66 30 66 30 63 38 64 30 65 65 61 39 38   20ef0f0c8d0eea98
+0120  37 37 32 34 31 32 63 65 61 39 62 33 62 39 32 36   772412cea9b3b926
+0130  31 32 65 33 65 35 33 63 62 35 65 35 39 31 35 32   12e3e53cb5e59152
+0140  62 35 37 30 33 31 36 35 66 35 36 65 38 61 35 33   b5703165f56e8a53
+0150  2c 65 66 61 31 66 33 37 35 64 37 36 31 39 34 66   ,efa1f375d76194f
+0160  61 35 31 61 33 35 35 36 61 39 37 65 36 34 31 65   a51a3556a97e641e
+0170  36 31 36 38 35 66 39 31 34 64 34 34 36 39 37 39   61685f914d446979
+0180  64 61 35 30 61 35 35 31 61 34 33 33 33 66 66 64   da50a551a4333ffd
+0190  37 2c 65 66 61 31 66 33 37 35 64 37 36 31 39 34   7,efa1f375d76194
+01a0  66 61 35 31 61 33 35 35 36 61 39 37 65 36 34 31   fa51a3556a97e641
+01b0  65 36 31 36 38 35 66 39 31 34 64 34 34 36 39 37   e61685f914d44697
+01c0  39 64 61 35 30 61 35 35 31 61 34 33 33 33 66 66   9da50a551a4333ff
+01d0  64 37 2c 4e 41 2c 4e 41 7d 22 2f 3e               d7,NA,NA}"/>
+                Data: 3c3f786d6c2076657273696f6e3d22312e302220656e636f...
+                [Length: 476]
+            Chunk boundary: 0d0a
+        End of chunked encoding
+            Chunk size: 0 octets
+        \r\n
+    File Data: 476 bytes
+eXtensible Markup Language
+    <?xml
+    <OtpRes
+        txn="8SampleClient"
+        err="998"
+        actn="A201"
+        code="b0bbd221eb9d40fab80b99afcaf6eb52"
+        ts="2018-02-21T19:30:05.200+05:30"
+        ret="n"
+         [truncated]info="01{519b2737f1c1bf6049c5e5383bb462e944f6c4923a6a215e1037d59c896cda5b,A,2018-02-21T19:30:03,1.6,20ef0f0c8d0eea98772412cea9b3b92612e3e53cb5e59152b5703165f56e8a53,efa1f375d76194fa51a3556a97e641e61685f914d446979da50a551a4333ff
+
+     18 2.961659399    172.20.10.7           103.57.226.18         TCP      66     44528 → 80 [ACK] Seq=3061 Ack=717 Win=31360 Len=0 TSval=89227266 TSecr=1971629336
+
+Frame 18: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 3061, Ack: 717, Len: 0
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 3061    (relative sequence number)
+    Acknowledgment number: 717    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 245
+    [Calculated window size: 31360]
+    [Window size scaling factor: 128]
+    Checksum: 0x7bf2 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x7bf2]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     19 2.965547832    172.20.10.7           103.57.226.18         TCP      1314   [TCP segment of a reassembled PDU]
+
+Frame 19: 1314 bytes on wire (10512 bits), 1314 bytes captured (10512 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 3061, Ack: 717, Len: 1248
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 1248]
+    Sequence number: 3061    (relative sequence number)
+    [Next sequence number: 4309    (relative sequence number)]
+    Acknowledgment number: 717    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 245
+    [Calculated window size: 31360]
+    [Window size scaling factor: 128]
+    Checksum: 0x6aa8 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x6aa8]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    [Reassembled PDU in frame: 22]
+    TCP segment data (1248 bytes)
+
+     20 2.965560455    172.20.10.7           103.57.226.18         TCP      1314   [TCP segment of a reassembled PDU]
+
+Frame 20: 1314 bytes on wire (10512 bits), 1314 bytes captured (10512 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 4309, Ack: 717, Len: 1248
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 1248]
+    Sequence number: 4309    (relative sequence number)
+    [Next sequence number: 5557    (relative sequence number)]
+    Acknowledgment number: 717    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 245
+    [Calculated window size: 31360]
+    [Window size scaling factor: 128]
+    Checksum: 0x1742 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x1742]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    [Reassembled PDU in frame: 22]
+    TCP segment data (1248 bytes)
+
+     21 2.968364549    172.20.10.7           103.57.226.18         TCP      1314   [TCP segment of a reassembled PDU]
+
+Frame 21: 1314 bytes on wire (10512 bits), 1314 bytes captured (10512 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 5557, Ack: 717, Len: 1248
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 1248]
+    Sequence number: 5557    (relative sequence number)
+    [Next sequence number: 6805    (relative sequence number)]
+    Acknowledgment number: 717    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 245
+    [Calculated window size: 31360]
+    [Window size scaling factor: 128]
+    Checksum: 0x80db [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x80db]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    [Reassembled PDU in frame: 22]
+    TCP segment data (1248 bytes)
+
+     22 2.968369559    172.20.10.7           103.57.226.18         HTTP/XML 144    POST http://developer.uidai.gov.in/auth/public/9/9/MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A HTTP/1.1 
+
+Frame 22: 144 bytes on wire (1152 bits), 144 bytes captured (1152 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 6805, Ack: 717, Len: 78
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 78]
+    Sequence number: 6805    (relative sequence number)
+    [Next sequence number: 6883    (relative sequence number)]
+    Acknowledgment number: 717    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x018 (PSH, ACK)
+    Window size value: 245
+    [Calculated window size: 31360]
+    [Window size scaling factor: 128]
+    Checksum: 0x91bc [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x91bc]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    TCP segment data (78 bytes)
+[4 Reassembled TCP Segments (3822 bytes): #19(1248), #20(1248), #21(1248), #22(78)]
+Hypertext Transfer Protocol
+    POST http://developer.uidai.gov.in/auth/public/9/9/MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A HTTP/1.1\r\n
+        [Expert Info (Chat/Sequence): POST http://developer.uidai.gov.in/auth/public/9/9/MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A HTTP/1.1\r\n]
+            [POST http://developer.uidai.gov.in/auth/public/9/9/MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A HTTP/1.1\r\n]
+            [Severity level: Chat]
+            [Group: Sequence]
+        Request Method: POST
+        Request URI: http://developer.uidai.gov.in/auth/public/9/9/MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A
+        Request Version: HTTP/1.1
+    Host: developer.uidai.gov.in\r\n
+    Content-Type: text/xml\r\n
+    Connection: Keep-Alive\r\n
+    Content-Length: 3603\r\n
+    \r\n
+    [Full request URI: http://developer.uidai.gov.in/auth/public/9/9/MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A]
+    [HTTP request 2/2]
+    [Prev request in frame: 9]
+    [Response in frame: 33]
+    File Data: 3603 bytes
+eXtensible Markup Language
+    <?xml
+    <Auth
+        xmlns="http://www.uidai.gov.in/authentication/uid-auth-request/2.0"
+        ac="public"
+        lk="MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A"
+        rc="Y"
+        sa="public"
+        tid=""
+        txn="8SampleClient"
+        uid="999999990019"
+        ver="2.0">
+        <Uses
+            bio="n"
+            bt="n"
+            otp="y"
+            pa="n"
+            pfa="n"
+            pi="n"
+            pin="n"/>
+        <Meta
+            udc="SampleClientDemo"/>
+        <Skey
+            ci="20200916">
+             [truncated]LU2fYVuaCNErGrWt/GHYyy/frBuJoLpTXS4hWSLg53ptTjoQxSTKVTMbbgxg5CjE\n96IkTLIRZLLRN12R6qRxag1F6mOyXEVV5Jjvyu7/frqr+C5zhZcYBR58GvXTU7du\n+9Jy0B1FH3kcIbVT1g8T6NtVPRSsdhCGLKeTIhpNWr7VDfdlEM6B9l/J8hAK1YUL\nHAwkGgC8FvlawovNENfiP+QItlUWi
+            </Skey>
+        <Hmac>
+            BL1njnC3lf+ekE6v1iyqE3C6kF9s68jOo+nrj1xKH3LO1M1hCeQ40L2zOtCXmRCB
+            </Hmac>
+        <Data
+            type="X">
+            /WqGsxlRE+5fHzn2CrMaHfW29SnCpj9t4mLg1rqJZXtCpYN8/0MjK2qAJR8UBdFk\n6nbCMV8+umFMgNK7oL6jZ7xNcxRCLsniQ+LokGCYYvb04wOBGJBTOP+Dt4ApiB5z\n3xEBbknWWUpsRs6xbYSEveYMcXsoux52b4z0SRy6ZxOKVnlOvgttGCHVWqR2Xi/B\n3fXUUqTCy0YNIZgGeZUKQQ==
+            </Data>
+        <Signature
+            xmlns="http://www.w3.org/2000/09/xmldsig#">
+            <SignedInfo>
+                <CanonicalizationMethod
+                    Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
+                <SignatureMethod
+                    Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
+                <Reference
+                    URI="">
+                    <Transforms>
+                        <Transform
+                            Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+                        </Transforms>
+                    <DigestMethod
+                        Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
+                    <DigestValue>
+                        XMA5PuWN86qZOrNJIHw2cKISipU=
+                        </DigestValue>
+                    </Reference>
+                </SignedInfo>
+            <SignatureValue>
+                 [truncated]m5Q973/vGXwwgi0dss5mKM0bd9K5ENL1cc03lsrSgDnwaHZYg6nvg2JhcaxH4X17\nxNEyghSul4FS8gwtxsGpUvz0bNhyjxp9FD+ymmT/vv3URCRijPmhAE0CeLBd9I1Q\nB5rGpPrd09n8/zzhipjqcYkGuQ1LHiTowFhS+aum2+S6oppPAAxEstjzRgQ1dezV\nexDbGmTw5dk3+EjKquCsnBVYaIGsP
+                </SignatureValue>
+            <KeyInfo>
+                <X509Data>
+                    <X509SubjectName>
+                        C=IN,ST=KA,L=Bangalore,O=Public AUA,OU=Staging Services,CN=Public AUA for Staging Services
+                        </X509SubjectName>
+                    <X509Certificate>
+                         [truncated]MIIDuDCCAqCgAwIBAgIGA7J+eqryMA0GCSqGSIb3DQEBBQUAMIGNMQswCQYDVQQG\nEwJJTjELMAkGA1UECBMCS0ExEjAQBgNVBAcTCUJhbmdhbG9yZTETMBEGA1UEChMK\nUHVibGljIEFVQTEZMBcGA1UECxMQU3RhZ2luZyBTZXJ2aWNlczEtMCsGA1UEAxMk\nUm9vdCBQdWJsaWMgQVVBIGZvciBTd
+                        </X509Certificate>
+                    </X509Data>
+                </KeyInfo>
+            </Signature>
+        </Auth>
+
+     23 3.484348616    103.57.226.18         172.20.10.7           TCP      66     80 → 44528 [ACK] Seq=717 Ack=4309 Win=24576 Len=0 TSval=1971629965 TSecr=89227267
+
+Frame 23: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 717, Ack: 4309, Len: 0
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 717    (relative sequence number)
+    Acknowledgment number: 4309    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 192
+    [Calculated window size: 24576]
+    [Window size scaling factor: 128]
+    Checksum: 0x74d1 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x74d1]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     24 3.560570576    103.57.226.18         172.20.10.7           TCP      66     80 → 44528 [ACK] Seq=717 Ack=5557 Win=27008 Len=0 TSval=1971630003 TSecr=89227267
+
+Frame 24: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 717, Ack: 5557, Len: 0
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 717    (relative sequence number)
+    Acknowledgment number: 5557    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 211
+    [Calculated window size: 27008]
+    [Window size scaling factor: 128]
+    Checksum: 0x6fb8 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x6fb8]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     25 3.560579551    103.57.226.18         172.20.10.7           TCP      66     80 → 44528 [ACK] Seq=717 Ack=6805 Win=29568 Len=0 TSval=1971630040 TSecr=89227267
+
+Frame 25: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 717, Ack: 6805, Len: 0
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 717    (relative sequence number)
+    Acknowledgment number: 6805    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 231
+    [Calculated window size: 29568]
+    [Window size scaling factor: 128]
+    Checksum: 0x6a9f [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x6a9f]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     26 3.560899112    103.57.226.18         172.20.10.7           TCP      66     80 → 44528 [ACK] Seq=717 Ack=6883 Win=29568 Len=0 TSval=1971630041 TSecr=89227267
+
+Frame 26: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 717, Ack: 6883, Len: 0
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 717    (relative sequence number)
+    Acknowledgment number: 6883    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 231
+    [Calculated window size: 29568]
+    [Window size scaling factor: 128]
+    Checksum: 0x6a50 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x6a50]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     27 3.724971370    103.57.226.18         172.20.10.7           TCP      294    [TCP segment of a reassembled PDU]
+
+Frame 27: 294 bytes on wire (2352 bits), 294 bytes captured (2352 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 717, Ack: 6883, Len: 228
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 228]
+    Sequence number: 717    (relative sequence number)
+    [Next sequence number: 945    (relative sequence number)]
+    Acknowledgment number: 6883    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x018 (PSH, ACK)
+    Window size value: 231
+    [Calculated window size: 29568]
+    [Window size scaling factor: 128]
+    Checksum: 0xd0ec [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0xd0ec]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    [Reassembled PDU in frame: 33]
+    TCP segment data (228 bytes)
+
+     28 3.764893668    172.20.10.7           103.57.226.18         TCP      66     44528 → 80 [ACK] Seq=6883 Ack=945 Win=32512 Len=0 TSval=89227467 TSecr=1971630145
+
+Frame 28: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 6883, Ack: 945, Len: 0
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 6883    (relative sequence number)
+    Acknowledgment number: 945    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 254
+    [Calculated window size: 32512]
+    [Window size scaling factor: 128]
+    Checksum: 0x6825 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x6825]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     29 3.773833168    103.57.226.18         172.20.10.7           TCP      1314   [TCP segment of a reassembled PDU]
+
+Frame 29: 1314 bytes on wire (10512 bits), 1314 bytes captured (10512 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 945, Ack: 6883, Len: 1248
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 1248]
+    Sequence number: 945    (relative sequence number)
+    [Next sequence number: 2193    (relative sequence number)]
+    Acknowledgment number: 6883    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 231
+    [Calculated window size: 29568]
+    [Window size scaling factor: 128]
+    Checksum: 0xbad5 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0xbad5]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    [Reassembled PDU in frame: 33]
+    TCP segment data (1248 bytes)
+
+     30 3.773840745    172.20.10.7           103.57.226.18         TCP      66     44528 → 80 [ACK] Seq=6883 Ack=2193 Win=34944 Len=0 TSval=89227469 TSecr=1971630145
+
+Frame 30: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 6883, Ack: 2193, Len: 0
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 6883    (relative sequence number)
+    Acknowledgment number: 2193    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 273
+    [Calculated window size: 34944]
+    [Window size scaling factor: 128]
+    Checksum: 0x6330 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x6330]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     31 3.773844514    103.57.226.18         172.20.10.7           TCP      320    [TCP segment of a reassembled PDU]
+
+Frame 31: 320 bytes on wire (2560 bits), 320 bytes captured (2560 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 2193, Ack: 6883, Len: 254
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 254]
+    Sequence number: 2193    (relative sequence number)
+    [Next sequence number: 2447    (relative sequence number)]
+    Acknowledgment number: 6883    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x018 (PSH, ACK)
+    Window size value: 231
+    [Calculated window size: 29568]
+    [Window size scaling factor: 128]
+    Checksum: 0xa5c8 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0xa5c8]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    [Reassembled PDU in frame: 33]
+    TCP segment data (254 bytes)
+
+     32 3.773847213    172.20.10.7           103.57.226.18         TCP      66     44528 → 80 [ACK] Seq=6883 Ack=2447 Win=37504 Len=0 TSval=89227469 TSecr=1971630145
+
+Frame 32: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 6883, Ack: 2447, Len: 0
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 6883    (relative sequence number)
+    Acknowledgment number: 2447    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 293
+    [Calculated window size: 37504]
+    [Window size scaling factor: 128]
+    Checksum: 0x621e [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x621e]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     33 3.784436014    103.57.226.18         172.20.10.7           HTTP/XML 71     HTTP/1.1 200 OK 
+
+Frame 33: 71 bytes on wire (568 bits), 71 bytes captured (568 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 2447, Ack: 6883, Len: 5
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 5]
+    Sequence number: 2447    (relative sequence number)
+    [Next sequence number: 2452    (relative sequence number)]
+    Acknowledgment number: 6883    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x018 (PSH, ACK)
+    Window size value: 231
+    [Calculated window size: 29568]
+    [Window size scaling factor: 128]
+    Checksum: 0x1efe [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x1efe]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+    TCP segment data (5 bytes)
+[4 Reassembled TCP Segments (1735 bytes): #27(228), #29(1248), #31(254), #33(5)]
+Hypertext Transfer Protocol
+    HTTP/1.1 200 OK\r\n
+        [Expert Info (Chat/Sequence): HTTP/1.1 200 OK\r\n]
+            [HTTP/1.1 200 OK\r\n]
+            [Severity level: Chat]
+            [Group: Sequence]
+        Request Version: HTTP/1.1
+        Status Code: 200
+        Response Phrase: OK
+    Date: Wed, 21 Feb 2018 14:00:06 GMT\r\n
+    Server: Apache-Coyote/1.1\r\n
+    Content-Type: application/xml\r\n
+    X-Frame-Options: sameorigin\r\n
+    Keep-Alive: timeout=5, max=4999\r\n
+    Connection: Keep-Alive\r\n
+    Transfer-Encoding: chunked\r\n
+    \r\n
+    [HTTP response 2/2]
+    [Time since request: 0.816066455 seconds]
+    [Prev request in frame: 9]
+    [Prev response in frame: 17]
+    [Request in frame: 22]
+    HTTP chunked response
+        Data chunk (1495 octets)
+            Chunk size: 1495 octets
+            Data (1495 bytes)
+
+0000  3c 3f 78 6d 6c 20 76 65 72 73 69 6f 6e 3d 22 31   <?xml version="1
+0010  2e 30 22 20 65 6e 63 6f 64 69 6e 67 3d 22 55 54   .0" encoding="UT
+0020  46 2d 38 22 3f 3e 3c 41 75 74 68 52 65 73 20 63   F-8"?><AuthRes c
+0030  6f 64 65 3d 22 62 63 64 63 38 62 65 30 62 35 39   ode="bcdc8be0b59
+0040  35 34 30 30 35 39 64 30 32 66 37 34 30 64 34 33   540059d02f740d43
+0050  66 65 61 33 31 22 20 65 72 72 3d 22 35 30 32 22   fea31" err="502"
+0060  20 69 6e 66 6f 3d 22 30 33 7b 34 39 39 35 31 32    info="03{499512
+0070  33 32 62 31 66 34 35 66 32 38 31 63 37 64 34 66   32b1f45f281c7d4f
+0080  37 30 66 33 63 62 62 63 35 37 63 32 61 66 64 39   70f3cbbc57c2afd9
+0090  63 30 64 36 62 62 35 66 34 34 35 37 38 62 66 31   c0d6bb5f44578bf1
+00a0  33 30 34 64 34 38 36 38 64 34 2c 30 30 30 30 30   304d4868d4,00000
+00b0  30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30   0000000000000000
+00c0  30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30   0000000000000000
+00d0  30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30   0000000000000000
+00e0  30 30 30 30 30 30 30 30 30 30 30 2c 30 31 30 30   00000000000,0100
+00f0  30 30 30 30 30 30 30 30 30 30 31 30 2c 4e 41 2c   000000000010,NA,
+0100  4e 41 2c 4e 41 2c 4e 41 2c 4e 41 2c 4e 41 2c 32   NA,NA,NA,NA,NA,2
+0110  2e 30 2c 32 30 65 66 30 66 30 63 38 64 30 65 65   .0,20ef0f0c8d0ee
+0120  61 39 38 37 37 32 34 31 32 63 65 61 39 62 33 62   a98772412cea9b3b
+0130  39 32 36 31 32 65 33 65 35 33 63 62 35 65 35 39   92612e3e53cb5e59
+0140  31 35 32 62 35 37 30 33 31 36 35 66 35 36 65 38   152b5703165f56e8
+0150  61 35 33 2c 65 66 61 31 66 33 37 35 64 37 36 31   a53,efa1f375d761
+0160  39 34 66 61 35 31 61 33 35 35 36 61 39 37 65 36   94fa51a3556a97e6
+0170  34 31 65 36 31 36 38 35 66 39 31 34 64 34 34 36   41e61685f914d446
+0180  39 37 39 64 61 35 30 61 35 35 31 61 34 33 33 33   979da50a551a4333
+0190  66 66 64 37 2c 65 66 61 31 66 33 37 35 64 37 36   ffd7,efa1f375d76
+01a0  31 39 34 66 61 35 31 61 33 35 35 36 61 39 37 65   194fa51a3556a97e
+01b0  36 34 31 65 36 31 36 38 35 66 39 31 34 64 34 34   641e61685f914d44
+01c0  36 39 37 39 64 61 35 30 61 35 35 31 61 34 33 33   6979da50a551a433
+01d0  33 66 66 64 37 2c 4e 41 2c 4e 41 2c 4e 41 2c 4e   3ffd7,NA,NA,NA,N
+01e0  41 2c 4e 41 2c 4e 41 2c 4e 41 2c 4e 41 2c 4e 41   A,NA,NA,NA,NA,NA
+01f0  2c 4e 41 2c 2c 4e 41 2c 4e 41 2c 4e 41 2c 4e 41   ,NA,,NA,NA,NA,NA
+0200  2c 4e 41 2c 4e 41 7d 22 20 72 65 74 3d 22 6e 22   ,NA,NA}" ret="n"
+0210  20 74 73 3d 22 32 30 31 38 2d 30 32 2d 32 31 54    ts="2018-02-21T
+0220  31 39 3a 33 30 3a 30 36 2e 31 31 38 2b 30 35 3a   19:30:06.118+05:
+0230  33 30 22 20 74 78 6e 3d 22 38 53 61 6d 70 6c 65   30" txn="8Sample
+0240  43 6c 69 65 6e 74 22 3e 3c 53 69 67 6e 61 74 75   Client"><Signatu
+0250  72 65 20 78 6d 6c 6e 73 3d 22 68 74 74 70 3a 2f   re xmlns="http:/
+0260  2f 77 77 77 2e 77 33 2e 6f 72 67 2f 32 30 30 30   /www.w3.org/2000
+0270  2f 30 39 2f 78 6d 6c 64 73 69 67 23 22 3e 3c 53   /09/xmldsig#"><S
+0280  69 67 6e 65 64 49 6e 66 6f 3e 3c 43 61 6e 6f 6e   ignedInfo><Canon
+0290  69 63 61 6c 69 7a 61 74 69 6f 6e 4d 65 74 68 6f   icalizationMetho
+02a0  64 20 41 6c 67 6f 72 69 74 68 6d 3d 22 68 74 74   d Algorithm="htt
+02b0  70 3a 2f 2f 77 77 77 2e 77 33 2e 6f 72 67 2f 54   p://www.w3.org/T
+02c0  52 2f 32 30 30 31 2f 52 45 43 2d 78 6d 6c 2d 63   R/2001/REC-xml-c
+02d0  31 34 6e 2d 32 30 30 31 30 33 31 35 22 2f 3e 3c   14n-20010315"/><
+02e0  53 69 67 6e 61 74 75 72 65 4d 65 74 68 6f 64 20   SignatureMethod 
+02f0  41 6c 67 6f 72 69 74 68 6d 3d 22 68 74 74 70 3a   Algorithm="http:
+0300  2f 2f 77 77 77 2e 77 33 2e 6f 72 67 2f 32 30 30   //www.w3.org/200
+0310  30 2f 30 39 2f 78 6d 6c 64 73 69 67 23 72 73 61   0/09/xmldsig#rsa
+0320  2d 73 68 61 31 22 2f 3e 3c 52 65 66 65 72 65 6e   -sha1"/><Referen
+0330  63 65 20 55 52 49 3d 22 22 3e 3c 54 72 61 6e 73   ce URI=""><Trans
+0340  66 6f 72 6d 73 3e 3c 54 72 61 6e 73 66 6f 72 6d   forms><Transform
+0350  20 41 6c 67 6f 72 69 74 68 6d 3d 22 68 74 74 70    Algorithm="http
+0360  3a 2f 2f 77 77 77 2e 77 33 2e 6f 72 67 2f 32 30   ://www.w3.org/20
+0370  30 30 2f 30 39 2f 78 6d 6c 64 73 69 67 23 65 6e   00/09/xmldsig#en
+0380  76 65 6c 6f 70 65 64 2d 73 69 67 6e 61 74 75 72   veloped-signatur
+0390  65 22 2f 3e 3c 2f 54 72 61 6e 73 66 6f 72 6d 73   e"/></Transforms
+03a0  3e 3c 44 69 67 65 73 74 4d 65 74 68 6f 64 20 41   ><DigestMethod A
+03b0  6c 67 6f 72 69 74 68 6d 3d 22 68 74 74 70 3a 2f   lgorithm="http:/
+03c0  2f 77 77 77 2e 77 33 2e 6f 72 67 2f 32 30 30 31   /www.w3.org/2001
+03d0  2f 30 34 2f 78 6d 6c 65 6e 63 23 73 68 61 32 35   /04/xmlenc#sha25
+03e0  36 22 2f 3e 3c 44 69 67 65 73 74 56 61 6c 75 65   6"/><DigestValue
+03f0  3e 74 38 7a 78 6e 74 67 30 33 46 50 31 61 2b 68   >t8zxntg03FP1a+h
+0400  66 34 56 79 68 54 78 67 51 54 42 64 37 68 69 32   f4VyhTxgQTBd7hi2
+0410  76 2f 4a 48 75 61 55 36 62 37 58 49 3d 3c 2f 44   v/JHuaU6b7XI=</D
+0420  69 67 65 73 74 56 61 6c 75 65 3e 3c 2f 52 65 66   igestValue></Ref
+0430  65 72 65 6e 63 65 3e 3c 2f 53 69 67 6e 65 64 49   erence></SignedI
+0440  6e 66 6f 3e 3c 53 69 67 6e 61 74 75 72 65 56 61   nfo><SignatureVa
+0450  6c 75 65 3e 70 75 2f 53 66 35 61 36 35 6e 4c 48   lue>pu/Sf5a65nLH
+0460  77 76 65 45 47 38 6f 63 79 56 74 33 6b 67 30 2b   wveEG8ocyVt3kg0+
+0470  6d 62 65 79 61 4b 66 61 47 48 74 35 51 44 46 69   mbeyaKfaGHt5QDFi
+0480  4c 33 62 69 51 4d 31 38 6d 57 76 70 38 72 6f 4a   L3biQM18mWvp8roJ
+0490  75 39 64 32 75 4f 33 50 61 6b 50 58 7a 35 73 30   u9d2uO3PakPXz5s0
+04a0  0a 68 58 75 2f 49 44 45 61 5a 79 4a 64 30 72 51   .hXu/IDEaZyJd0rQ
+04b0  58 75 44 75 2b 64 62 63 65 65 6f 57 67 75 4f 69   XuDu+dbceeoWguOi
+04c0  34 4b 5a 43 45 4d 78 72 71 2b 2b 41 55 31 4e 53   4KZCEMxrq++AU1NS
+04d0  54 61 76 71 67 4d 4d 44 75 56 37 50 38 76 4f 4e   TavqgMMDuV7P8vON
+04e0  73 34 46 34 39 54 32 6f 68 62 68 6c 44 0a 6b 43   s4F49T2ohbhlD.kC
+04f0  6b 35 55 48 35 39 75 79 4e 57 48 4c 69 68 78 49   k5UH59uyNWHLihxI
+0500  39 30 61 31 35 74 36 6d 6a 4e 45 78 58 55 76 53   90a15t6mjNExXUvS
+0510  66 4b 75 5a 69 75 2b 56 78 6d 66 72 35 73 57 49   fKuZiu+Vxmfr5sWI
+0520  30 49 4e 55 77 6d 6f 53 53 4f 68 52 69 52 79 33   0INUwmoSSOhRiRy3
+0530  35 35 56 75 6d 6c 50 6f 36 71 0a 41 58 6e 68 79   55VumlPo6q.AXnhy
+0540  4a 63 61 32 75 6f 6a 5a 6b 54 44 44 74 50 35 57   Jca2uojZkTDDtP5W
+0550  4d 39 69 46 56 4e 77 62 31 37 59 4e 56 6f 67 42   M9iFVNwb17YNVogB
+0560  73 2f 6c 6e 2f 79 6a 53 72 62 51 4c 79 34 54 54   s/ln/yjSrbQLy4TT
+0570  4f 49 69 55 74 6d 53 79 61 6e 50 62 44 37 66 38   OIiUtmSyanPbD7f8
+0580  75 4a 37 71 57 35 44 0a 37 54 52 78 33 6d 4e 73   uJ7qW5D.7TRx3mNs
+0590  36 4e 67 57 4c 63 74 6e 41 57 74 46 50 41 64 75   6NgWLctnAWtFPAdu
+05a0  49 58 4b 35 73 75 69 64 59 53 39 37 70 51 3d 3d   IXK5suidYS97pQ==
+05b0  3c 2f 53 69 67 6e 61 74 75 72 65 56 61 6c 75 65   </SignatureValue
+05c0  3e 3c 2f 53 69 67 6e 61 74 75 72 65 3e 3c 2f 41   ></Signature></A
+05d0  75 74 68 52 65 73 3e                              uthRes>
+                Data: 3c3f786d6c2076657273696f6e3d22312e302220656e636f...
+                [Length: 1495]
+            Chunk boundary: 0d0a
+        End of chunked encoding
+            Chunk size: 0 octets
+        \r\n
+    File Data: 1495 bytes
+eXtensible Markup Language
+    <?xml
+    <AuthRes
+        code="bcdc8be0b59540059d02f740d43fea31"
+        err="502"
+         [truncated]info="03{49951232b1f45f281c7d4f70f3cbbc57c2afd9c0d6bb5f44578bf1304d4868d4,0000000000000000000000000000000000000000000000000000000000000000,0100000000000010,NA,NA,NA,NA,NA,NA,2.0,20ef0f0c8d0eea98772412cea9b3b92612e3e53cb5e59152b
+        ret="n"
+        ts="2018-02-21T19:30:06.118+05:30"
+        txn="8SampleClient">
+        <Signature
+            xmlns="http://www.w3.org/2000/09/xmldsig#">
+            <SignedInfo>
+                <CanonicalizationMethod
+                    Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
+                <SignatureMethod
+                    Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
+                <Reference
+                    URI="">
+                    <Transforms>
+                        <Transform
+                            Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+                        </Transforms>
+                    <DigestMethod
+                        Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+                    <DigestValue>
+                        t8zxntg03FP1a+hf4VyhTxgQTBd7hi2v/JHuaU6b7XI=
+                        </DigestValue>
+                    </Reference>
+                </SignedInfo>
+            <SignatureValue>
+                 [truncated]pu/Sf5a65nLHwveEG8ocyVt3kg0+mbeyaKfaGHt5QDFiL3biQM18mWvp8roJu9d2uO3PakPXz5s0\nhXu/IDEaZyJd0rQXuDu+dbceeoWguOi4KZCEMxrq++AU1NSTavqgMMDuV7P8vONs4F49T2ohbhlD\nkCk5UH59uyNWHLihxI90a15t6mjNExXUvSfKuZiu+Vxmfr5sWI0INUwmoSSOhRiRy355Vum
+                </SignatureValue>
+            </Signature>
+        </AuthRes>
+
+     34 3.784440634    172.20.10.7           103.57.226.18         TCP      66     44528 → 80 [ACK] Seq=6883 Ack=2452 Win=37504 Len=0 TSval=89227471 TSecr=1971630146
+
+Frame 34: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 6883, Ack: 2452, Len: 0
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 6883    (relative sequence number)
+    Acknowledgment number: 2452    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 293
+    [Calculated window size: 37504]
+    [Window size scaling factor: 128]
+    Checksum: 0x6216 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x6216]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     35 5.252626507    fe80::437:2e9:a5d5:8747 ff02::1               ICMPv6   142    Router Advertisement from 76:4e:90:1a:88:64
+
+Frame 35: 142 bytes on wire (1136 bits), 142 bytes captured (1136 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IPv6mcast_01 (33:33:00:00:00:01)
+Internet Protocol Version 6, Src: fe80::437:2e9:a5d5:8747, Dst: ff02::1
+Internet Control Message Protocol v6
+
+     36 6.256461383    fe80::cf7b:7dff:27f2:bfe4 fe80::437:2e9:a5d5:8747 DNS      96     Standard query 0x51b1 A daisy.ubuntu.com
+
+Frame 36: 96 bytes on wire (768 bits), 96 bytes captured (768 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 6, Src: fe80::cf7b:7dff:27f2:bfe4, Dst: fe80::437:2e9:a5d5:8747
+User Datagram Protocol, Src Port: 55509, Dst Port: 53
+Domain Name System (query)
+    [Response In: 42]
+    Transaction ID: 0x51b1
+    Flags: 0x0100 Standard query
+    Questions: 1
+    Answer RRs: 0
+    Authority RRs: 0
+    Additional RRs: 0
+    Queries
+
+     37 6.256478847    172.20.10.7           172.20.10.1           DNS      76     Standard query 0x51b1 A daisy.ubuntu.com
+
+Frame 37: 76 bytes on wire (608 bits), 76 bytes captured (608 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 172.20.10.1
+User Datagram Protocol, Src Port: 55840, Dst Port: 53
+Domain Name System (query)
+    [Response In: 39]
+    Transaction ID: 0x51b1
+    Flags: 0x0100 Standard query
+    Questions: 1
+    Answer RRs: 0
+    Authority RRs: 0
+    Additional RRs: 0
+    Queries
+
+     38 6.256495460    172.20.10.7           172.20.10.1           DNS      76     Standard query 0xc68c AAAA daisy.ubuntu.com
+
+Frame 38: 76 bytes on wire (608 bits), 76 bytes captured (608 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 172.20.10.1
+User Datagram Protocol, Src Port: 55840, Dst Port: 53
+Domain Name System (query)
+    [Response In: 40]
+    Transaction ID: 0xc68c
+    Flags: 0x0100 Standard query
+    Questions: 1
+    Answer RRs: 0
+    Authority RRs: 0
+    Additional RRs: 0
+    Queries
+
+     39 6.261322573    172.20.10.1           172.20.10.7           DNS      108    Standard query response 0x51b1 A daisy.ubuntu.com A 162.213.33.164 A 162.213.33.133
+
+Frame 39: 108 bytes on wire (864 bits), 108 bytes captured (864 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 172.20.10.1, Dst: 172.20.10.7
+User Datagram Protocol, Src Port: 53, Dst Port: 55840
+Domain Name System (response)
+    [Request In: 37]
+    [Time: 0.004843726 seconds]
+    Transaction ID: 0x51b1
+    Flags: 0x8180 Standard query response, No error
+    Questions: 1
+    Answer RRs: 2
+    Authority RRs: 0
+    Additional RRs: 0
+    Queries
+    Answers
+        daisy.ubuntu.com: type A, class IN, addr 162.213.33.164
+            Name: daisy.ubuntu.com
+            Type: A (Host Address) (1)
+            Class: IN (0x0001)
+            Time to live: 244
+            Data length: 4
+            Address: 162.213.33.164
+        daisy.ubuntu.com: type A, class IN, addr 162.213.33.133
+            Name: daisy.ubuntu.com
+            Type: A (Host Address) (1)
+            Class: IN (0x0001)
+            Time to live: 244
+            Data length: 4
+            Address: 162.213.33.133
+
+     40 6.262573977    172.20.10.1           172.20.10.7           DNS      137    Standard query response 0xc68c AAAA daisy.ubuntu.com SOA ns1.canonical.com
+
+Frame 40: 137 bytes on wire (1096 bits), 137 bytes captured (1096 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 172.20.10.1, Dst: 172.20.10.7
+User Datagram Protocol, Src Port: 53, Dst Port: 55840
+Domain Name System (response)
+    [Request In: 38]
+    [Time: 0.006078517 seconds]
+    Transaction ID: 0xc68c
+    Flags: 0x8180 Standard query response, No error
+    Questions: 1
+    Answer RRs: 0
+    Authority RRs: 1
+    Additional RRs: 0
+    Queries
+    Authoritative nameservers
+        ubuntu.com: type SOA, class IN, mname ns1.canonical.com
+            Name: ubuntu.com
+            Type: SOA (Start Of a zone of Authority) (6)
+            Class: IN (0x0001)
+            Time to live: 3241
+            Data length: 49
+            Primary name server: ns1.canonical.com
+            Responsible authority's mailbox: hostmaster.canonical.com
+            Serial Number: 2018022109
+            Refresh Interval: 10800 (3 hours)
+            Retry Interval: 3600 (1 hour)
+            Expire limit: 604800 (7 days)
+            Minimum TTL: 3600 (1 hour)
+
+     41 6.264602095    fe80::437:2e9:a5d5:8747 fe80::cf7b:7dff:27f2:bfe4 DNS      128    Standard query response 0x51b1 A daisy.ubuntu.com A 162.213.33.164 A 162.213.33.133
+
+Frame 41: 128 bytes on wire (1024 bits), 128 bytes captured (1024 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 6, Src: fe80::437:2e9:a5d5:8747, Dst: fe80::cf7b:7dff:27f2:bfe4
+User Datagram Protocol, Src Port: 53, Dst Port: 55509
+Domain Name System (response)
+    [Request In: 36]
+    [Time: 0.008140712 seconds]
+    Transaction ID: 0x51b1
+    Flags: 0x8180 Standard query response, No error
+    Questions: 1
+    Answer RRs: 2
+    Authority RRs: 0
+    Additional RRs: 0
+    Queries
+    Answers
+        daisy.ubuntu.com: type A, class IN, addr 162.213.33.164
+            Name: daisy.ubuntu.com
+            Type: A (Host Address) (1)
+            Class: IN (0x0001)
+            Time to live: 244
+            Data length: 4
+            Address: 162.213.33.164
+        daisy.ubuntu.com: type A, class IN, addr 162.213.33.133
+            Name: daisy.ubuntu.com
+            Type: A (Host Address) (1)
+            Class: IN (0x0001)
+            Time to live: 244
+            Data length: 4
+            Address: 162.213.33.133
+
+     42 6.264624825    fe80::cf7b:7dff:27f2:bfe4 fe80::437:2e9:a5d5:8747 ICMPv6   176    Destination Unreachable (Port unreachable)
+
+Frame 42: 176 bytes on wire (1408 bits), 176 bytes captured (1408 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 6, Src: fe80::cf7b:7dff:27f2:bfe4, Dst: fe80::437:2e9:a5d5:8747
+Internet Control Message Protocol v6
+
+     43 8.606445284    103.57.226.18         172.20.10.7           TCP      66     80 → 44528 [FIN, ACK] Seq=2452 Ack=6883 Win=29568 Len=0 TSval=1971635151 TSecr=89227471
+
+Frame 43: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 4, Src: 103.57.226.18, Dst: 172.20.10.7
+Transmission Control Protocol, Src Port: 80, Dst Port: 44528, Seq: 2452, Ack: 6883, Len: 0
+    Source Port: 80
+    Destination Port: 44528
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 2452    (relative sequence number)
+    Acknowledgment number: 6883    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x011 (FIN, ACK)
+    Window size value: 231
+    [Calculated window size: 29568]
+    [Window size scaling factor: 128]
+    Checksum: 0x4ec6 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x4ec6]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+
+     44 8.644894790    172.20.10.7           103.57.226.18         TCP      66     44528 → 80 [ACK] Seq=6883 Ack=2453 Win=37504 Len=0 TSval=89228687 TSecr=1971635151
+
+Frame 44: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 4, Src: 172.20.10.7, Dst: 103.57.226.18
+Transmission Control Protocol, Src Port: 44528, Dst Port: 80, Seq: 6883, Ack: 2453, Len: 0
+    Source Port: 44528
+    Destination Port: 80
+    [Stream index: 1]
+    [TCP Segment Len: 0]
+    Sequence number: 6883    (relative sequence number)
+    Acknowledgment number: 2453    (relative ack number)
+    Header Length: 32 bytes
+    Flags: 0x010 (ACK)
+    Window size value: 293
+    [Calculated window size: 37504]
+    [Window size scaling factor: 128]
+    Checksum: 0x49c8 [correct]
+    [Checksum Status: Good]
+    [Calculated Checksum: 0x49c8]
+    Urgent pointer: 0
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+    [SEQ/ACK analysis]
+
+     45 11.256903755   fe80::cf7b:7dff:27f2:bfe4 fe80::437:2e9:a5d5:8747 ICMPv6   86     Neighbor Solicitation for fe80::437:2e9:a5d5:8747 from 60:67:20:40:fc:e2
+
+Frame 45: 86 bytes on wire (688 bits), 86 bytes captured (688 bits) on interface 0
+Ethernet II, Src: IntelCor_40:fc:e2 (60:67:20:40:fc:e2), Dst: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64)
+Internet Protocol Version 6, Src: fe80::cf7b:7dff:27f2:bfe4, Dst: fe80::437:2e9:a5d5:8747
+Internet Control Message Protocol v6
+
+     46 11.259608386   fe80::437:2e9:a5d5:8747 fe80::cf7b:7dff:27f2:bfe4 ICMPv6   78     Neighbor Advertisement fe80::437:2e9:a5d5:8747 (rtr, sol)
+
+Frame 46: 78 bytes on wire (624 bits), 78 bytes captured (624 bits) on interface 0
+Ethernet II, Src: 76:4e:90:1a:88:64 (76:4e:90:1a:88:64), Dst: IntelCor_40:fc:e2 (60:67:20:40:fc:e2)
+Internet Protocol Version 6, Src: fe80::437:2e9:a5d5:8747, Dst: fe80::cf7b:7dff:27f2:bfe4
+Internet Control Message Protocol v6

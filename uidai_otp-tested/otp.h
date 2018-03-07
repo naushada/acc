@@ -30,7 +30,9 @@ typedef struct {
   int32_t nas_fd;
   uint32_t nas_port;
   uint32_t nas_ip;
-  uint32_t otp_fd;
+  int32_t otp_fd;
+
+  uint8_t uidai_subject_name[1024];
 
   uint8_t private_key_file[128];
   uint8_t public_key_file[128];
@@ -88,7 +90,8 @@ int32_t otp_sign_xml(uint8_t **signed_xml,
 
 int32_t otp_compute_digest(uint8_t *otp_xml, 
                            uint16_t otp_xml_len, 
-                           uint8_t *digest);
+                           uint8_t *digest,
+                           uint32_t *digest_len);
 
 int32_t otp_compute_b64(uint8_t *sha1, 
                         uint16_t sha1_len, 
@@ -108,7 +111,10 @@ int32_t otp_compute_utf8(uint8_t *xml_in,
                          uint8_t *utf8_set_out, 
                          uint16_t *utf8_set_len);
 
-int32_t otp_request_otp(uint8_t *signed_xml, uint16_t signed_xml_len);
+int32_t otp_request_otp(uint8_t *signed_xml, 
+                        uint16_t signed_xml_len,
+                        uint8_t **http_req,
+                        uint32_t *http_req_len);
 
 int32_t otp_recv(int32_t conn_fd, 
                  uint8_t *packet_ptr, 
@@ -116,7 +122,7 @@ int32_t otp_recv(int32_t conn_fd,
 
 int32_t otp_send(int32_t conn_fd, 
                  uint8_t *packet_ptr, 
-                 uint16_t packet_len);
+                 uint32_t packet_len);
 
 int32_t otp_connect_uidai(uint8_t *host_name);
 
