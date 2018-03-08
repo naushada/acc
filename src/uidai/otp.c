@@ -23,8 +23,8 @@ int32_t otp_init(uint8_t *ac,
   strncpy(pOtpCtx->ac, (const char *)ac, strlen((const char *)ac));
   strncpy(pOtpCtx->sa, (const char *)sa, strlen((const char *)sa));
   strncpy(pOtpCtx->lk, (const char *)lk, strlen((const char *)lk));
-  strncpy(pOtpCtx->type, "A", 1);
-  //strncpy(pOtpCtx->type, "M", 1);
+  //strncpy(pOtpCtx->type, "A", 1);
+  strncpy(pOtpCtx->type, "M", 1);
   strncpy(pOtpCtx->ver, "1.6", 3);
 
   /*00 - Send OTP via both SMS & e-mail
@@ -489,12 +489,12 @@ int32_t otp_process_rsp(uint8_t (*param)[2][64],
   assert(txn_ptr != NULL);
   assert(ret_ptr != NULL);
 
-  sscanf(txn_ptr, "%[^_]_%[^_]_%[^_]_",
+  sscanf(txn_ptr, "\"%[^-]-%[^-]-%[^-]-",
                   ext_conn,
                   type,
                   uid);
   memset((void *)status, 0, sizeof(status));
-  if(!strncmp(ret_ptr, "y", 1)) {
+  if(!strncmp(ret_ptr, "\"y\"", 3)) {
     strncpy(status, "status=success", sizeof(status));
   } else {
     err_ptr = uidai_get_param(param, "err");
@@ -582,7 +582,7 @@ int32_t otp_main(int32_t conn_fd,
 
   snprintf(pOtpCtx->txn,
            sizeof(pOtpCtx->txn),
-           "%d_otp_%s_SampleClient",
+           "%d-otp-%s-SampleClient",
            atoi(ext_conn_ptr),
            uid_ptr);
 

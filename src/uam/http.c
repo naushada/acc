@@ -39,6 +39,7 @@ http_req_handler_t g_handler_http[] = {
 int32_t http_process_nas_rsp(int32_t nas_fd, uint8_t *packet_ptr, uint32_t packet_length) {
 
   fprintf(stderr, "\n%s:%d Response from NAS is %s\n", __FILE__, __LINE__, packet_ptr);
+  /*/response?type=otp&uid=9701361361&ext_conn_id=14&status=success*/
   return(0);
 }/*http_process_nas_rsp*/
 
@@ -1317,6 +1318,7 @@ void *http_main(void *argv) {
         } else {
           /*Process the NAS reply*/
           http_process_nas_rsp(pHttpCtx->nas_fd, packet_buffer, packet_length);
+          fprintf(stderr, "\n%s:%d Got the Reply from NAS %s\n", __FILE__, __LINE__, packet_buffer);
         }
       } else {
         for(session = pHttpCtx->session; session; session = session->next) {

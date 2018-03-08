@@ -30,18 +30,17 @@ int32_t uidai_build_ext_rsp(uint8_t (*param)[2][64],
                             uint8_t **rsp_ptr, 
                             uint32_t *rsp_len) {
   uint8_t *txn;
-  uint8_t rsp_type[16];
+  uint8_t rsp_type[50];
 
   memset((void *)rsp_type, 0, sizeof(rsp_type)); 
   txn = uidai_get_param(param, "txn");
-  /*txn format will be <ext_conn_id>_<type>_<subtype>_XXX*/
-  sscanf(txn, "%*[^_]_%s", rsp_type);
+  /*txn format will be <ext_conn_id>-<type>-<subtype>-XXXXXXX*/
+  sscanf(txn, "%*[^-]-%s", rsp_type);
 
-  if(!strncpy(rsp_type, "otp", 3)) {
+  if(!strncmp(rsp_type, "otp", 3)) {
     /*Build otp Response*/
     otp_process_rsp(param, rsp_ptr, rsp_len);
-
-  } else if(!strncpy(rsp_type, "auth", 4)) {
+  } else if(!strncmp(rsp_type, "auth", 4)) {
     /*Build auth Response*/
     auth_process_rsp(param, rsp_ptr, rsp_len);
   }
@@ -56,6 +55,7 @@ int32_t uidai_parse_uidai_rsp(int32_t conn_fd,
                               uint8_t (*param)[2][64]) {
 
   uint8_t *chunked_ptr = NULL;
+  uint8_t *tmp_ptr = NULL;
   uint8_t first_line[512];
   uint8_t *token_ptr = NULL;
   uint8_t attr_name[64];
@@ -71,9 +71,19 @@ int32_t uidai_parse_uidai_rsp(int32_t conn_fd,
   sscanf((const char *)&packet_ptr[chunked_starts_at], "%*[^\n]\r\n%[^\n]", chunked_ptr);
 
   /*The delimeter is space*/
-  token_ptr = strtok(chunked_ptr, " ");
+  tmp_ptr = chunked_ptr;
+  token_ptr = strtok(tmp_ptr, " ");
   /*Start of the response*/
   while((token_ptr = strtok(NULL, " "))) {
+    memset((void *)attr_name, 0, sizeof(attr_name));
+    memset((void *)attr_value, 0, sizeof(attr_value));
+    sscanf(token_ptr, "%[^=]=", attr_name);
+
+    if(!strncmp(attr_name, "info", 4)) {
+      break;
+    }
+
+    memset((void *)attr_name, 0, sizeof(attr_name));
     sscanf((const char *)token_ptr, "%[^=]=%s", attr_name, attr_value);
 
     strncpy((char *)param[idx][0], attr_name, strlen((const char *)attr_name));
@@ -129,7 +139,7 @@ int32_t uidai_process_uidai_rsp(int32_t conn_fd,
   /*Request was success*/
   if((!strncmp(status, "OK", 2)) && (200 == status_code)) {
 
-    while(line_ptr != NULL) {
+    while(line_ptr) {
 
       /*+1 because of \r in each line*/
       offset += strlen((const char *)line_ptr) + 1;
@@ -171,7 +181,7 @@ int32_t uidai_process_uidai_rsp(int32_t conn_fd,
                             chunked_len, 
                             param);
 
-      for(offset = 0; offset < param_count; offset++) {
+      for(offset = 0; param[offset][0][0]; offset++) {
         fprintf(stderr, "\nname %s value %s\n", param[offset][0], param[offset][1]);
       }
 
@@ -366,6 +376,7 @@ int32_t uidai_process_req(int32_t conn_fd,
   uint32_t rsp_len = 0;
   uidai_ctx_t *pUidaiCtx = &uidai_ctx_g;
 
+  fprintf(stderr, "\n%s:%d Request Received %s\n", __FILE__, __LINE__, packet_ptr);
   sscanf((const char *)packet_ptr, 
          "%*[^?]?type=%[^&]&", 
          req_type);
@@ -388,10 +399,10 @@ int32_t uidai_process_req(int32_t conn_fd,
       uidai_connect_uidai();
     }
 
+    fprintf(stderr, "\n%s:%d xml Request is \n%s", __FILE__, __LINE__, rsp_ptr);
     uidai_send(pUidaiCtx->uidai_fd, rsp_ptr, rsp_len);
     free(rsp_ptr);
     rsp_ptr = NULL;
-
   }
 
   return(0);
@@ -567,7 +578,9 @@ int32_t uidai_init(uint32_t ip_addr,
 
   memset((void *)pUidaiCtx->uidai_host_name, 0, sizeof(pUidaiCtx->uidai_host_name));
   strncpy(pUidaiCtx->uidai_host_name, uidai_host, strlen(uidai_host));
+
   pUidaiCtx->uidai_port = uidai_port;
+  pUidaiCtx->uidai_fd = -1;
 
   memset((void *)pUidaiCtx->public_fname, 0, sizeof(pUidaiCtx->public_fname));
   strncpy(pUidaiCtx->public_fname, public_fname, strlen(public_fname));
@@ -644,11 +657,11 @@ void *uidai_main(void *tid) {
           /*Request received from Access Controller /NAS*/
           memset((void *)buffer, 0, sizeof(buffer));
           buffer_len = sizeof(buffer);
-          uidai_recv(connected_fd, buffer, &buffer_len, 0);
+          uidai_recv(session->ext_conn, buffer, &buffer_len, 0);
 
           if(buffer_len) {
-            uidai_process_req(connected_fd, buffer, buffer_len);
             fprintf(stderr, "\n%s:%d received for uidai Server %s\n", __FILE__, __LINE__, buffer);
+            uidai_process_req(session->ext_conn, buffer, buffer_len);
           } else {
             session->ext_conn = 0;
           }
@@ -669,7 +682,6 @@ void *uidai_main(void *tid) {
         if(buffer_len) {
           uint8_t *rsp_ptr = NULL;
           uint32_t rsp_len = 0;
-          uint32_t conn_id = 0;
 
           memset((void *)buffer, 0, sizeof(buffer));
           buffer_len = sizeof(buffer);
@@ -677,14 +689,16 @@ void *uidai_main(void *tid) {
                      buffer, 
                      &buffer_len, 
                      0);
+          fprintf(stderr, "\n%s:%d Response from UIDAI is %s\n", __FILE__, __LINE__, buffer);
           uidai_process_uidai_rsp(pUidaiCtx->uidai_fd, 
                                   buffer, 
                                   buffer_len, 
                                   &rsp_ptr, 
                                   &rsp_len);
 
-          if(rsp_len) {
-            uidai_send(conn_id, rsp_ptr, rsp_len);
+          if(rsp_len && pUidaiCtx->session->ext_conn) {
+            fprintf(stderr, "\n%s:%d response sent to uam %s\n", __FILE__, __LINE__, rsp_ptr);
+            uidai_send(pUidaiCtx->session->ext_conn, rsp_ptr, rsp_len);
             free(rsp_ptr);
           }
 
