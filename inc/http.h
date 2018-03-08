@@ -120,7 +120,7 @@ int32_t http_process_aadhaar_auth_otp_req(uint32_t conn_id,
                                           uint8_t **response_ptr,
                                           uint32_t *response_len_ptr);
 
-int32_t http_process_aadhaar_otp_req(uint32_t conn_id,
+int32_t http_process_aadhaar_uid_req(uint32_t conn_id,
                                      uint8_t **response_ptr,
                                      uint32_t *response_len_ptr);
 

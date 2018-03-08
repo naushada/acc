@@ -192,7 +192,8 @@ int32_t uidai_add_session(uidai_session_t **head, uint32_t conn_fd) {
   new->next = NULL;
 
   if(!curr) {
-    (*head) = new;  
+    (*head) = new;
+    return(0);
   }
 
   while(curr->next) {
@@ -574,6 +575,9 @@ int32_t uidai_init(uint32_t ip_addr,
   memset((void *)pUidaiCtx->private_fname, 0, sizeof(pUidaiCtx->private_fname));
   strncpy(pUidaiCtx->private_fname, private_fname, strlen(private_fname));
 
+  util_init(pUidaiCtx->public_fname,
+            pUidaiCtx->private_fname);
+
   otp_init(ac, 
            sa, 
            lk, 
@@ -644,6 +648,7 @@ void *uidai_main(void *tid) {
 
           if(buffer_len) {
             uidai_process_req(connected_fd, buffer, buffer_len);
+            fprintf(stderr, "\n%s:%d received for uidai Server %s\n", __FILE__, __LINE__, buffer);
           } else {
             session->ext_conn = 0;
           }

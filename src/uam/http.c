@@ -23,7 +23,7 @@ http_req_handler_t g_handler_http[] = {
   {"/login_with_mobile_no.html", 26, http_process_login_with_mobile_no_req},
   {"/index.html",                11, http_process_login_req},
   {"/aadhaar_ui.html",           16, http_process_aadhaar_ui_req},
-  {"/aadhaar_otp.html",          17, http_process_aadhaar_otp_req},
+  {"/aadhaar_uid.html",          17, http_process_aadhaar_uid_req},
   {"/aadhaar_auth_otp.html",     22, http_process_aadhaar_auth_otp_req},
 
   /*New callback to be inserted above this*/
@@ -91,8 +91,12 @@ int32_t http_send_to_nas(uint32_t conn_id, uint8_t *req, uint32_t req_len) {
     session->nas_rsp = 0;
   }
 
-  http_send(pHttpCtx->nas_fd, req, req_len);
-
+  if(http_send(pHttpCtx->nas_fd, req, req_len) < 0) {
+    fprintf(stderr, "\n%s:%d Send to NAS Failed\n", __FILE__, __LINE__);
+    return(-1);
+  }
+  fprintf(stderr, "\n%s:%d Request %s\n", __FILE__, __LINE__,req);
+  return(0);
 }/*http_send_to_nas*/
 
 void http_print_session(void) {
@@ -364,6 +368,10 @@ int32_t http_send(int32_t fd,
 
   do {
     ret = send(fd, (void *)&packet_ptr[offset], (packet_length - offset), 0);
+  
+    if(ret < 0) {
+      return(ret);
+    }
     
     offset += ret;
     if(!(packet_length - offset)) {
@@ -685,10 +693,10 @@ int32_t http_process_aadhaar_auth_otp_req(uint32_t conn_id,
                           refresh_uri);
   } else {
     /*Response from NAS has been received*/
-
+    /*Propmt for OTP value*/
   }
   
-
+ return(0);
 }/*http_process_aadhaar_auth_otp_req*/
 
 int32_t http_parse_aadhaar_ui_req(uint32_t conn_id, 
@@ -755,16 +763,17 @@ int32_t http_parse_aadhaar_ui_req(uint32_t conn_id,
                  "&ver=1.6&conn_id=",
                  conn_id,
                  " HTTP/1.1\r\n",
-                 "Connection: keep-alive\r\n"
+                 "Connection: keep-alive\r\n",
                  "Content-Length:0\r\n");
 
   memcpy((void *)req_ptr, response_qs, ret);
   *req_len_ptr = ret;
+  fprintf(stderr, "\n%s:%d nas request %s\n", __FILE__, __LINE__, response_qs);
   return(0);
 }/*http_parse_aadhaar_ui_req*/
 
 
-int32_t http_process_aadhaar_otp_req(uint32_t conn_id,
+int32_t http_process_aadhaar_uid_req(uint32_t conn_id,
                                      uint8_t **response_ptr,
                                      uint32_t *response_len_ptr) {
   uint8_t html[512];
@@ -825,7 +834,7 @@ int32_t http_process_aadhaar_otp_req(uint32_t conn_id,
   *response_len_ptr = ret + html_body_len; 
 #endif
   return(0);
-}/*http_process_aadhaar_otp_req*/
+}/*http_process_aadhaar_uid_req*/
 
 int32_t http_process_aadhaar_ui_req(uint32_t conn_id,
                                     uint8_t **response_ptr,
@@ -844,7 +853,7 @@ int32_t http_process_aadhaar_ui_req(uint32_t conn_id,
                            /*For Responsive Web Page*/
                            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
                            "</head>",
-                           "<body><form method=GET action=/aadhaar_otp.html>",
+                           "<body><form method=GET action=/aadhaar_uid.html>",
                            "<center><table><tr><td><input type=text name=aadhaar_no placeholder=\"Enter 12 digits aadhaar\"></td>",
                            "</tr><tr><td><input type=checkbox name=\"rc\" checked>Consent</td>",
                            "<td><input type=submit value=\"Generate OTP\">",

@@ -238,7 +238,7 @@ int32_t nat_query_cache(uint16_t dest_port,
           *src_ip = utility_ip_str_to_int(record[0][3]);
         }
       } else {
-
+#if 0
         if((mac_addr) && (src_port) && (src_ip)) {
           fprintf(stderr, "\n%s:%d no Row found for ip_address %s and nat_port %d\n%s\n", 
                           __FILE__,
@@ -247,6 +247,7 @@ int32_t nat_query_cache(uint16_t dest_port,
                           dest_port,
                           sql_query);
         }
+#endif
       }
     }
   }

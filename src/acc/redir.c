@@ -85,14 +85,12 @@ int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri) {
 
   uint8_t uidai_req[512];
   int32_t ret = -1;
-  uint8_t param[16][1][64];
+  uint8_t param[16][2][64];
   uint8_t *subtype;
   uint8_t *subsubtype;
 
   memset((void *)uidai_req, 0, sizeof(uidai_req));
   memset((void *)param, 0, sizeof(param));
-  memset((void *)subtype, 0, sizeof(subtype));
-  memset((void *)subsubtype, 0, sizeof(subsubtype));
 
   redir_parse_aadhaar_req(param, uri);
   subtype = redir_get_param(param, "subtype");
@@ -116,9 +114,13 @@ int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri) {
     uint8_t *ext_conn_id = NULL;
     uint8_t *rc = NULL;
 
+    uid = redir_get_param(param, "aadhaar_no");
+    ext_conn_id = redir_get_param(param, "conn_id");
+    rc = redir_get_param(param, "rc");
+
     ret = snprintf(uidai_req, 
                    sizeof(uidai_req),
-                   "%s%s%s%d%s"
+                   "%s%s%s%s%s"
                    "%s%s",
                    "/request?type=otp&uid=",
                    uid,
@@ -129,6 +131,7 @@ int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri) {
                    "&ver=1.6");
   }
 
+  fprintf(stderr, "\n%s:%d Being sent to uidaiC %s\n", __FILE__, __LINE__, uidai_req);
   redir_send_to_uidai(conn_id, uidai_req, ret);  
   return(0);  
 }/*redir_process_aadhaar_req*/
@@ -257,11 +260,12 @@ int32_t redir_process_response_callback_req(uint32_t conn_id,
 
   redir_session_t *session = redir_get_session(conn_id);
   redir_process_response_callback_uri(conn_id, session->uri);
+#if 0
   redir_process_wait_req(conn_id, 
                          response_ptr, 
                          response_len_ptr, 
                          "/time_out");
-  
+#endif
   return(0);
 }/*redir_process_response_callback_req*/
 
