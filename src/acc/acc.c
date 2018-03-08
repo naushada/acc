@@ -181,6 +181,9 @@ int32_t acc_init_conf(int32_t row, uint8_t (*record)[16][32]) {
     } else if(!strncmp(record[idx][0], "redir_ip", 8)) {
       pAccCtx->redir_ip = utility_ip_str_to_int(record[idx][1]);
    
+    } else if(!strncmp(record[idx][0], "uidaiC_port", 11)) {
+      pAccCtx->uidaiC_port = atoi(record[idx][1]);
+   
     }
 
   }
@@ -260,7 +263,7 @@ int32_t acc_main(char *argv[]) {
   subscriber_init(ACC_CON_AUTH_STATUS_TABLE);
 
   /* The Flow of message is 
-   * DHCP <--> TUN <--> WAN Interface
+   * LAN <--> TUN <--> WAN Interface
    * It is tunnel mode communication.
    */
   tun_init(pAccCtx->ip_addr, 
@@ -279,6 +282,7 @@ int32_t acc_main(char *argv[]) {
              pAccCtx->uamS_ip,
              pAccCtx->uamS_port,
              pAccCtx->radiusC_port,
+             pAccCtx->uidaiC_port,
              ACC_CON_AUTH_STATUS_TABLE,
              ACC_IP_ALLOCATION_TABLE); 
 
@@ -329,11 +333,6 @@ int32_t acc_main(char *argv[]) {
            pAccCtx->uamS_port,
            pAccCtx->redir_port);
 
-  pthread_create(&pAccCtx->tid[4], 
-                 NULL, 
-                 dhcp_main, 
-                 (void *)pAccCtx->tid[4]);
-
   uidai_init(pAccCtx->ip_addr,
              8989,
              "developer.uidai.gov.in",
@@ -344,11 +343,16 @@ int32_t acc_main(char *argv[]) {
              "../keys/uidai_auth_stage.cer",
              "../keys/Staging_Signature_PrivateKey.p12");
 
-  pthread_create(&pAccCtx->tid[5], 
+  pthread_create(&pAccCtx->tid[4], 
                  NULL, 
                  uidai_main, 
+                 (void *)pAccCtx->tid[4]);
+
+  pthread_create(&pAccCtx->tid[5], 
+                 NULL, 
+                 dhcp_main, 
                  (void *)pAccCtx->tid[5]);
-  
+ 
 }/*acc_main*/
 
 /** @brief This function is the main function for executable 

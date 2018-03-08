@@ -249,6 +249,11 @@ int32_t uidai_remove_session(uint32_t conn_id) {
   uidai_session_t *curr = pUidaiCtx->session;
   uidai_session_t *next = NULL;
 
+  if(!curr) {
+    /*The list is empty, nothing to be removed*/
+    return(0);
+  }
+
   /*Element to be deleted at begining*/
   if(curr && !curr->next) {
     /*only one node*/
@@ -269,7 +274,7 @@ int32_t uidai_remove_session(uint32_t conn_id) {
     prev = curr;
     curr = curr->next;
   }
-
+  
   /*element is found at last node*/
   if(!curr->next) {
     if(conn_id == curr->ext_conn) {
@@ -545,8 +550,7 @@ int32_t uidai_init(uint32_t ip_addr,
   
   addr.sin_family = AF_INET;
   addr.sin_port = htons(port);
-  //inet_aton(ip_addr, addr.sin_addr);
-  addr.sin_addr.s_addr = htonl(addr.sin_addr.s_addr);
+  addr.sin_addr.s_addr = htonl(ip_addr);
 
   memset((void *)addr.sin_zero, 0, sizeof(addr.sin_zero));
  
@@ -558,7 +562,6 @@ int32_t uidai_init(uint32_t ip_addr,
   listen(fd, 5/*number of simultaneous connection*/);
   pUidaiCtx->fd = fd;
   pUidaiCtx->port = port;
-  memset((void *)pUidaiCtx->ip, 0, sizeof(pUidaiCtx->ip));
   pUidaiCtx->ip = ip_addr;
 
   memset((void *)pUidaiCtx->uidai_host_name, 0, sizeof(pUidaiCtx->uidai_host_name));
@@ -567,6 +570,7 @@ int32_t uidai_init(uint32_t ip_addr,
 
   memset((void *)pUidaiCtx->public_fname, 0, sizeof(pUidaiCtx->public_fname));
   strncpy(pUidaiCtx->public_fname, public_fname, strlen(public_fname));
+
   memset((void *)pUidaiCtx->private_fname, 0, sizeof(pUidaiCtx->private_fname));
   strncpy(pUidaiCtx->private_fname, private_fname, strlen(private_fname));
 

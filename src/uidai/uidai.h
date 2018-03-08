@@ -12,8 +12,8 @@ typedef struct session uidai_session_t;
 typedef struct {
 
   /*host name in the form of URI*/
-  uint8_t uidai_host_name[255];
-  uint16_t uidai_port;
+  uint8_t uidai_host_name[128];
+  uint32_t uidai_port;
   int32_t uidai_fd;
 
   /*TCP Connection B/W acc- access Controller and uidai task*/
@@ -23,8 +23,8 @@ typedef struct {
   uint8_t ac[16];
   uint8_t sa[16];
   uint8_t lk[64];
-  uint8_t public_fname[255];
-  uint8_t private_fname[255];
+  uint8_t public_fname[128];
+  uint8_t private_fname[128];
   uidai_session_t *session;
 }uidai_ctx_t;
 

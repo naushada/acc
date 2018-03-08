@@ -39,8 +39,12 @@ typedef struct {
   uint32_t uam_ip;
   uint16_t uam_port;
   int32_t redir_fd;
+  /*radiusC port & fd*/
   uint16_t radiusC_port;
   int32_t radiusC_fd;
+  /*uidaiC port & fd*/
+  uint16_t uidaiC_port;
+  int32_t uidaiC_fd;
 
   /*Holds the Name of connection Status Table*/
   uint8_t conn_auth_status_table[128];
@@ -85,6 +89,7 @@ int32_t redir_init(uint32_t redir_listen_ip,
                    uint32_t uam_ip, 
                    uint16_t uam_port,
                    uint16_t radiusC_port,
+                   uint16_t uidaiC_port,
                    uint8_t *conn_status_table,
                    uint8_t *ip_allocation_table);
 
@@ -131,4 +136,20 @@ int32_t redir_process_auth_response(uint32_t conn_id,
                                     uint8_t **response_ptr,
                                     uint16_t *response_len_ptr,
                                     uint8_t *location_ptr);
+
+int32_t redir_process_uidai_response(uint32_t conn_id, 
+                                     uint8_t *packet_buffer, 
+                                     uint32_t packet_length);
+
+int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri);
+
+int32_t redir_parse_aadhaar_req(uint8_t (*param)[2][64], uint8_t *uri);
+
+uint8_t *redir_get_param(uint8_t (*param)[2][64], uint8_t *arg);
+
+int32_t redir_send_to_uidai(uint32_t conn_id, 
+                            uint8_t *uidai_req, 
+                            uint32_t uidai_req_len);
+
+int32_t redir_uidaiC_connect(void);
 #endif /* __REDIR_H__ */

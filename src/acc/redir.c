@@ -29,6 +29,117 @@ redir_req_handler_t g_handler_redir[] = {
   {NULL,                   0, NULL}
 };
 
+int32_t redir_send_to_uidai(uint32_t conn_id, uint8_t *uidai_req, uint32_t uidai_req_len) {
+  
+ redir_ctx_t *pRedirCtx = &redir_ctx_g;
+
+  if(pRedirCtx->uidaiC_fd < 0) {
+    redir_uidaiC_connect(); 
+  } 
+
+  if(pRedirCtx->uidaiC_fd > 0) {
+    redir_send(pRedirCtx->uidaiC_fd, uidai_req, uidai_req_len); 
+  }
+
+  return(0);
+}/*redir_send_to_uidai*/
+
+int32_t redir_parse_aadhaar_req(uint8_t (*param)[2][64], uint8_t *uri) {
+  uint8_t *line_ptr;
+  uint8_t tmp_uri[512];
+  uint32_t idx = 0;
+
+  memset((void *)tmp_uri, 0, sizeof(tmp_uri));
+
+  sscanf(uri, "%*[^?]?%s", tmp_uri);
+
+  line_ptr = strtok(tmp_uri, "&");
+  while(line_ptr) {
+    sscanf(line_ptr, "%[^=]=%s",
+                      param[idx][0],
+                      param[idx][1]);
+    line_ptr = strtok(NULL, "&");
+    idx++;  
+  }
+
+  /*NULL terminated the array*/
+  param[idx][0][0] = '\0';
+  param[idx][1][0] = '\0';
+
+}/*redir_parse_aadhaar_req*/
+
+uint8_t *redir_get_param(uint8_t (*param)[2][64], uint8_t *arg) {
+
+  uint32_t idx;
+
+  for(idx = 0; param[idx][0]; idx++) {
+    if(!strncmp(param[idx][0], arg, strlen(arg))) {
+      return(param[idx][1]);
+    }    
+  }
+  
+  return(NULL);
+}/*redir_get_param*/
+
+int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri) {
+
+  uint8_t uidai_req[512];
+  int32_t ret = -1;
+  uint8_t param[16][1][64];
+  uint8_t *subtype;
+  uint8_t *subsubtype;
+
+  memset((void *)uidai_req, 0, sizeof(uidai_req));
+  memset((void *)param, 0, sizeof(param));
+  memset((void *)subtype, 0, sizeof(subtype));
+  memset((void *)subsubtype, 0, sizeof(subsubtype));
+
+  redir_parse_aadhaar_req(param, uri);
+  subtype = redir_get_param(param, "subtype");
+
+  if(!strncmp(subtype, "auth", 4)) {
+    subsubtype = redir_get_param(param, "subsubtype");
+
+    if(!(strncmp(subsubtype, "otp", 3))) {
+      /*Prepare uidai auth with OTP value*/
+
+    } else if(!(strncmp(subsubtype, "pi", 2))) {
+      /*Prepare uidai auth with pi value*/
+
+    } else if(!(strncmp(subsubtype, "pa", 2))) {
+      /*Prepare uidai auth with pa value*/
+    }
+
+  } else {
+    /*Prepare uidai request for OTP*/
+    uint8_t *uid = NULL;
+    uint8_t *ext_conn_id = NULL;
+    uint8_t *rc = NULL;
+
+    ret = snprintf(uidai_req, 
+                   sizeof(uidai_req),
+                   "%s%s%s%d%s"
+                   "%s%s",
+                   "/request?type=otp&uid=",
+                   uid,
+                   "&ext_conn_id=",
+                   ext_conn_id,
+                   "&rc=",
+                   rc,
+                   "&ver=1.6");
+  }
+
+  redir_send_to_uidai(conn_id, uidai_req, ret);  
+  return(0);  
+}/*redir_process_aadhaar_req*/
+
+int32_t redir_process_uidai_response(uint32_t conn_id, 
+                                     uint8_t *packet_buffer, 
+                                     uint32_t packet_length) {
+
+  fprintf(stderr, "\n%s:%d UIDAI received response %s\n", __FILE__, __LINE__, packet_buffer);
+  return(0);
+}/*redir_process_uidai_response*/
 
 int32_t redir_process_rejected_req(uint32_t conn_id,
                                    uint8_t **response_ptr,
@@ -278,6 +389,33 @@ int32_t redir_process_wait_req(uint32_t conn_id,
 
 }/*redir_process_wait_req*/
 
+int32_t redir_uidaiC_connect(void) {
+  redir_ctx_t *pRedirCtx = &redir_ctx_g;
+  int32_t fd;
+  int32_t ret = -1;
+  struct sockaddr_in uidaiC;
+  socklen_t addr_len = sizeof(uidaiC);
+
+  fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+  if(fd < 0) {
+    fprintf(stderr, "\n%s:%d socket creation Failed\n", __FILE__, __LINE__);
+    return(-1);
+  }
+
+  uidaiC.sin_family = AF_INET;
+  uidaiC.sin_addr.s_addr = htonl(pRedirCtx->redir_listen_ip);
+  uidaiC.sin_port = htons(pRedirCtx->uidaiC_port);
+
+  memset((void *)uidaiC.sin_zero, 0, sizeof(uidaiC.sin_zero));
+
+  if(!(ret = connect(fd, (struct sockaddr *)&uidaiC, addr_len))) {
+    pRedirCtx->uidaiC_fd = fd;
+  }
+
+  return(ret);
+}/*redir_uidaiC_connect*/
+
 int32_t redir_radiusC_connect(void) {
   redir_ctx_t *pRedirCtx = &redir_ctx_g;
   int32_t fd;
@@ -374,8 +512,11 @@ int32_t redir_process_response_callback_uri(uint32_t conn_id,
   } else if(!strncmp((const char *)auth_type, "twitter", 7)) {
  
   } else if(!strncmp((const char *)auth_type, "aadhaar", 7)) {
-    
+
+    redir_process_aadhaar_req(conn_id, uri); 
   }
+
+  return(0);
 }/*redir_process_response_callback_uri*/
 
 int32_t redir_recv(int32_t fd, 
@@ -770,12 +911,15 @@ int32_t redir_process_req(uint32_t conn_id,
 
   redir_process_uri(conn_id, &redir_ptr, &redir_len);
 
-  if(redir_send(conn_id, redir_ptr, redir_len) < 0) {
-    perror("redir send Failed:");
-    return(-1); 
+  if(redir_len) {
+    if(redir_send(conn_id, redir_ptr, redir_len) < 0) {
+      perror("redir send Failed:");
+      return(-1); 
+    }
+
+    free(redir_ptr);
   }
 
-  free(redir_ptr);
   return(0);
 }/*redir_process_req*/
 
@@ -816,6 +960,7 @@ int32_t redir_init(uint32_t redir_listen_ip,
                    uint32_t uam_ip, 
                    uint16_t uam_port,
                    uint16_t radiusC_port,
+                   uint16_t uidaiC_port,
                    uint8_t *conn_auth_status_table,
                    uint8_t *ip_allocation_table) {
 
@@ -861,6 +1006,8 @@ int32_t redir_init(uint32_t redir_listen_ip,
   pRedirCtx->uam_ip = uam_ip;
   pRedirCtx->uam_port = uam_port;
   pRedirCtx->radiusC_port = radiusC_port;
+  pRedirCtx->uidaiC_port = uidaiC_port;
+  pRedirCtx->uidaiC_fd = -1;
   pRedirCtx->redir_fd = fd;
 
   pRedirCtx->session = NULL;
@@ -913,11 +1060,17 @@ void *redir_main(void *argv) {
     max_fd = redir_get_max_fd(pRedirCtx->session);
 
     if(pRedirCtx->radiusC_fd > 0) {
-
       FD_SET(pRedirCtx->radiusC_fd, &rd);
       max_fd = (max_fd > pRedirCtx->radiusC_fd) ? 
                 max_fd : 
                 pRedirCtx->radiusC_fd;
+    }
+
+    if(pRedirCtx->uidaiC_fd > 0) {
+      FD_SET(pRedirCtx->uidaiC_fd, &rd);
+      max_fd = (max_fd > pRedirCtx->uidaiC_fd) ? 
+                max_fd : 
+                pRedirCtx->uidaiC_fd;
     }
 
     max_fd = (max_fd > pRedirCtx->redir_fd ? 
@@ -975,6 +1128,20 @@ void *redir_main(void *argv) {
                                          packet_buffer,
                                          packet_length);
         }
+      } else if((pRedirCtx->uidaiC_fd > 0) && (FD_ISSET(pRedirCtx->uidaiC_fd, &rd))) {
+        /*Process Request/Response for uidai*/
+        memset((void *)packet_buffer, 0, sizeof(packet_buffer));
+        packet_length = 0;
+        redir_recv(pRedirCtx->uidaiC_fd, packet_buffer, &packet_length);
+
+        if(!packet_length) {
+          close(pRedirCtx->uidaiC_fd);
+          pRedirCtx->uidaiC_fd = -1;
+
+        } else {
+          redir_process_uidai_response(pRedirCtx->uidaiC_fd, packet_buffer, packet_length);
+        }
+
       } else {
 
         for(session = pRedirCtx->session; session != NULL; session = session->next) {

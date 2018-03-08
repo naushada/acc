@@ -2,8 +2,8 @@
 
 TUN=tun0
 ADDR=10.100.16.1
-WAN=wlan0
-DHCPIF=eth0
+WAN=eth0
+DHCPIF=wlan0
 UAMPORT=8080
 NAS_PORT=54005
 iptables -I INPUT -i lo -j ACCEPT

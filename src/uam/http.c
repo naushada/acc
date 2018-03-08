@@ -22,6 +22,9 @@ http_req_handler_t g_handler_http[] = {
   {"/register.html",             14, http_process_register_req},
   {"/login_with_mobile_no.html", 26, http_process_login_with_mobile_no_req},
   {"/index.html",                11, http_process_login_req},
+  {"/aadhaar_ui.html",           16, http_process_aadhaar_ui_req},
+  {"/aadhaar_otp.html",          17, http_process_aadhaar_otp_req},
+  {"/aadhaar_auth_otp.html",     22, http_process_aadhaar_auth_otp_req},
 
   /*New callback to be inserted above this*/
   {"/",                           1, http_process_login_req},
@@ -33,6 +36,65 @@ http_req_handler_t g_handler_http[] = {
 /********************************************************************
  *Function Definition
  ********************************************************************/
+int32_t http_process_nas_rsp(int32_t nas_fd, uint8_t *packet_ptr, uint32_t packet_length) {
+
+  fprintf(stderr, "\n%s:%d Response from NAS is %s\n", __FILE__, __LINE__, packet_ptr);
+  return(0);
+}/*http_process_nas_rsp*/
+
+int32_t http_connect_nas(void) {
+  http_ctx_t *pHttpCtx = &g_http_ctx;
+  int32_t fd;
+  int32_t ret = -1;
+  struct sockaddr_in addr;
+  size_t addr_len = sizeof(addr);
+
+  fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+  if(fd < 0) {
+    fprintf(stderr, "\n%s:%d socket Creation Failed\n", __FILE__, __LINE__);
+    return(-1);
+  }
+
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(pHttpCtx->nas_ip);
+  addr.sin_port = htons(pHttpCtx->nas_port);
+  memset((void *)addr.sin_zero, 0, sizeof(addr.sin_zero));
+
+  ret = connect(fd, (struct sockaddr *)&addr, addr_len);
+
+  if(ret < 0) {
+    fprintf(stderr, "\n%s:%d connection to nas failed\n", __FILE__, __LINE__);
+    return(-2);
+  }
+
+  pHttpCtx->nas_fd = fd;
+
+  return(0);
+}/*http_connect_nas*/
+
+int32_t http_send_to_nas(uint32_t conn_id, uint8_t *req, uint32_t req_len) {
+  http_ctx_t *pHttpCtx = &g_http_ctx;
+  http_session_t *session = NULL;
+
+  if(pHttpCtx->nas_fd < 0) {
+
+    if(http_connect_nas() < 0) {
+      fprintf(stderr, "\n%s:%d Connection to nas failed\n", __FILE__, __LINE__);
+      return(-1);
+    }
+  }
+
+  session = http_get_session(conn_id);
+  if(session) {
+    /*Response is not yet received*/
+    session->nas_rsp = 0;
+  }
+
+  http_send(pHttpCtx->nas_fd, req, req_len);
+
+}/*http_send_to_nas*/
+
 void http_print_session(void) {
   http_ctx_t *pHttpCtx = &g_http_ctx;
   http_session_t *tmp_session = pHttpCtx->session;
@@ -104,7 +166,7 @@ http_session_t *http_get_session(uint32_t conn_id) {
   /*Always preserve the start address of the session*/
   http_session_t *tmp_session = pHttpCtx->session;
   
-  while(NULL != tmp_session) {
+  while(tmp_session) {
     if(conn_id == tmp_session->conn) {
       return(tmp_session);
     }
@@ -281,7 +343,7 @@ int32_t http_decode_perct_digit(uint8_t *dest_ptr, uint8_t *src_ptr) {
  ********************************************************************/
 int32_t http_recv(int32_t fd, 
                    uint8_t *packet_ptr, 
-                   uint16_t *packet_length) {
+                   uint32_t *packet_length) {
   int32_t  ret = -1;
   uint16_t max_length = 3000;
   do {
@@ -296,7 +358,7 @@ int32_t http_recv(int32_t fd,
 
 int32_t http_send(int32_t fd, 
                    uint8_t *packet_ptr, 
-                   uint16_t packet_length) {
+                   uint32_t packet_length) {
   int32_t  ret = -1;
   uint16_t offset = 0;
 
@@ -437,7 +499,7 @@ int32_t http_parse_req(uint32_t conn_id,
 
 int32_t http_process_image_req(uint32_t conn_id,
                                uint8_t **response_ptr, 
-                               uint16_t *response_len_ptr) {
+                               uint32_t *response_len_ptr) {
   uint32_t fd;
   struct stat statbuff;
   uint8_t http_header[255];
@@ -490,7 +552,7 @@ int32_t http_process_image_req(uint32_t conn_id,
 
 int32_t http_process_wait_req(uint32_t conn_id,
                               uint8_t **response_ptr, 
-                              uint16_t *response_len_ptr,
+                              uint32_t *response_len_ptr,
                               uint8_t *refresh_uri) {
   uint8_t html_body[255];
   uint16_t html_body_len;
@@ -541,7 +603,7 @@ int32_t http_process_wait_req(uint32_t conn_id,
 
 int32_t http_process_auth_failed_req(uint32_t conn_id,
                                      uint8_t **response_ptr,
-                                     uint16_t *response_len_ptr) {
+                                     uint32_t *response_len_ptr) {
   uint8_t html_body[255];
   uint16_t html_body_len;
   int32_t ret = -1;
@@ -590,7 +652,7 @@ int32_t http_process_auth_failed_req(uint32_t conn_id,
 
 int32_t http_process_login_req(uint32_t conn_id,
                                uint8_t **response_ptr, 
-                               uint16_t *response_len_ptr) {
+                               uint32_t *response_len_ptr) {
   uint8_t *refresh_uri = "/ui.html";
 
   http_process_wait_req(conn_id,
@@ -600,9 +662,223 @@ int32_t http_process_login_req(uint32_t conn_id,
   return(0);
 }/*http_process_login_req*/
 
+int32_t http_process_aadhaar_auth_otp_req(uint32_t conn_id,
+                                          uint8_t **response_ptr,
+                                          uint32_t *response_len_ptr) {
+
+  http_ctx_t *pHttpCtx = &g_http_ctx;
+  uint8_t *refresh_uri = "/aadhaar_auth_otp.html";
+  http_session_t *session = NULL;
+
+  session = http_get_session(conn_id);
+
+  if(!session) {
+    fprintf(stderr, "\n%s:%d connection not found\n", __FILE__, __LINE__);
+    return(-1);
+  }
+
+  if(!session->nas_rsp) {
+    /*Making Browser to wait for response*/
+    http_process_wait_req(conn_id,
+                          response_ptr,
+                          response_len_ptr,
+                          refresh_uri);
+  } else {
+    /*Response from NAS has been received*/
+
+  }
+  
+
+}/*http_process_aadhaar_auth_otp_req*/
+
+int32_t http_parse_aadhaar_ui_req(uint32_t conn_id, 
+                                  uint8_t *req_ptr, 
+                                  uint32_t *req_len_ptr) {
+
+  uint8_t param_name[255];
+  uint8_t param_value[255];
+  uint8_t qs[1024];
+  int32_t ret = -1;
+  uint8_t *line_ptr = NULL;
+  uint8_t response_qs[2024];
+  /*Aadhaar Number*/
+  uint8_t aadhaar_no[16];
+  /*Resident Consent*/
+  uint8_t rc[4];
+  http_session_t *session = NULL;
+  http_ctx_t *pHttpCtx = &g_http_ctx;
+  
+  /*Send Request to Auth Client to Authneticate the USER*/
+  memset((void *)response_qs, 0, sizeof(response_qs));
+  memset((void *)qs, 0, sizeof(qs));
+
+  session = http_get_session(conn_id);
+
+  ret = sscanf((const char *)session->uri,
+               "%*[^?]?%s",
+               qs);
+ 
+  line_ptr = strtok(qs, "&");
+
+  do {
+    memset((void *)param_name, 0, sizeof(param_name));
+    memset((void *)param_value, 0, sizeof(param_value));
+
+    ret = sscanf((const char *)line_ptr,
+                "%[^=]=%s",
+                 param_name,
+                 param_value);
+
+    if(!strncmp((const char *)param_name, "aadhaar_no", 10)) {
+      memset((void *)aadhaar_no, 0, sizeof(aadhaar_no));
+      memcpy((void *)aadhaar_no, param_value, strlen(param_value)); 
+
+    } else if(!strncmp((const char *)param_name, "rc", 2)) {
+      memset((void *)rc, 0, sizeof(rc));
+      /*Copy the rc value*/
+      if(!strncmp(param_value, "on", 2)) {
+        strncpy(rc, "y", 1);
+      } else {
+        strncpy(rc, "n", 1);
+      }
+    }
+  }while(NULL != (line_ptr = strtok(NULL, "&"))); 
+
+  ret = snprintf(response_qs, 
+                 sizeof(response_qs),
+                 "%s%s%s%s%s"
+                 "%d%s%s%s",
+                 "GET /response_callback?auth_type=aadhaar&subtype=otp&aadhaar_no=",
+                 aadhaar_no,
+                 "&rc=",
+                 rc,
+                 "&ver=1.6&conn_id=",
+                 conn_id,
+                 " HTTP/1.1\r\n",
+                 "Connection: keep-alive\r\n"
+                 "Content-Length:0\r\n");
+
+  memcpy((void *)req_ptr, response_qs, ret);
+  *req_len_ptr = ret;
+  return(0);
+}/*http_parse_aadhaar_ui_req*/
+
+
+int32_t http_process_aadhaar_otp_req(uint32_t conn_id,
+                                     uint8_t **response_ptr,
+                                     uint32_t *response_len_ptr) {
+  uint8_t html[512];
+  uint32_t html_body_len;
+  int32_t ret = -1;
+  uint8_t req[512];
+  uint32_t req_len;
+  uint8_t *refresh_uri = "/aadhaar_auth_otp.html";
+
+  memset((void *)req, 0, sizeof(req));
+  req_len = 0;
+  http_parse_aadhaar_ui_req(conn_id, req, &req_len);
+  /*send to NAS*/
+  http_send_to_nas(conn_id, req, req_len);
+
+  /*Making Browser to wait for response*/
+  http_process_wait_req(conn_id,
+                        response_ptr,
+                        response_len_ptr,
+                        refresh_uri);
+#if 0
+  memset((void *)html, 0, sizeof(html));
+  html_body_len = snprintf((char *)html, 
+                           sizeof(html),
+                           "%s%s%s%s%s"
+                           "%s%s%s",
+                           "<html><head><title></title>",
+                           /*For Responsive Web Page*/
+                           "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
+                           "</head>",
+                           "<body><form method=GET action=/aadhaar_otp.html>",
+                           "<center><table><tr><td><input type=text name=otp placeholder=\"Enter OTP\"></td>",
+                           "<tr><td><input type=submit value=\"Submit OTP\">",
+                           "</td><td><input type=submit value=\"Resend OTP\"</td>",
+                           "</tr></table></center></form></body></html>");
+
+  (*response_ptr) = (uint8_t *)malloc(html_body_len + 255/*For Http Header*/);
+
+  if(!(*response_ptr)) {
+    fprintf(stderr, "\n%s:%d Memory Allocation Failed\n", __FILE__, __LINE__);
+    return(-1);
+  }
+
+  memset((void *)(*response_ptr), 0, (255 + html_body_len));
+
+  ret = snprintf((char *)(*response_ptr),
+                 (255 + html_body_len),
+                 "%s%s%s%s%d"
+                 "%s",
+                 "HTTP/1.1 200 OK\r\n",
+                 "Content-Type: text/html\r\n",
+                 "Connection: Keep-Alive\r\n",
+                 "Content-Length: ",
+                 html_body_len,
+                 "\r\n\r\n");
+  memcpy((void *)&(*response_ptr)[ret], (const void *)html, html_body_len);
+
+  *response_len_ptr = ret + html_body_len; 
+#endif
+  return(0);
+}/*http_process_aadhaar_otp_req*/
+
+int32_t http_process_aadhaar_ui_req(uint32_t conn_id,
+                                    uint8_t **response_ptr,
+                                    uint32_t *response_len_ptr) {
+  uint8_t html[512];
+  uint32_t html_body_len;
+  int32_t ret = -1;
+
+  memset((void *)html, 0, sizeof(html));
+
+  html_body_len = snprintf((char *)html, 
+                           sizeof(html),
+                           "%s%s%s%s%s"
+                           "%s%s%s",
+                           "<html><head><title></title>",
+                           /*For Responsive Web Page*/
+                           "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
+                           "</head>",
+                           "<body><form method=GET action=/aadhaar_otp.html>",
+                           "<center><table><tr><td><input type=text name=aadhaar_no placeholder=\"Enter 12 digits aadhaar\"></td>",
+                           "</tr><tr><td><input type=checkbox name=\"rc\" checked>Consent</td>",
+                           "<td><input type=submit value=\"Generate OTP\">",
+                           "</td></tr></table></center></form></body></html>");
+
+  (*response_ptr) = (uint8_t *)malloc(html_body_len + 255/*For Http Header*/);
+
+  if(!(*response_ptr)) {
+    fprintf(stderr, "\n%s:%d Memory Allocation Failed\n", __FILE__, __LINE__);
+    return(-1);
+  }
+
+  memset((void *)(*response_ptr), 0, (255 + html_body_len));
+
+  ret = snprintf((char *)(*response_ptr),
+                 (255 + html_body_len),
+                 "%s%s%s%s%d"
+                 "%s",
+                 "HTTP/1.1 200 OK\r\n",
+                 "Content-Type: text/html\r\n",
+                 "Connection: Keep-Alive\r\n",
+                 "Content-Length: ",
+                 html_body_len,
+                 "\r\n\r\n");
+  memcpy((void *)&(*response_ptr)[ret], (const void *)html, html_body_len);
+
+  *response_len_ptr = ret + html_body_len; 
+
+  return(0);
+}/*http_process_aadhaar_ui_req*/
+
 int32_t http_process_ui_req(uint32_t conn_id,
                             uint8_t **response_ptr, 
-                            uint16_t *response_len_ptr) {
+                            uint32_t *response_len_ptr) {
 
   uint8_t html_body[1<<15];
   uint16_t html_body_len;
@@ -635,7 +911,7 @@ int32_t http_process_ui_req(uint32_t conn_id,
                            "<tr><td><img src=../img/sign-in-with-twitter-gray.png></td></tr>",
                            /*Logo Dimension is gouverned by face book*/
                            "<tr><td><img src=../img/fb_logo.png height=28px width=200px></td></tr>",
-                           "<tr><td><img src=../img/aadhaar-logo_en-GB.png></tr></td>",
+                           "<tr><td><a href=/aadhaar_ui.html><img src=../img/aadhaar-logo_en-GB.png></a></tr></td>",
                            "</table></center></body></html>"); 
 
   (*response_ptr) = (uint8_t *)malloc(html_body_len + 255/*For Http Header*/);
@@ -666,14 +942,14 @@ int32_t http_process_ui_req(uint32_t conn_id,
 
 int32_t http_process_register_req(uint32_t conn_id,
                                   uint8_t **response_ptr, 
-                                  uint16_t *response_len_ptr) {
+                                  uint32_t *response_len_ptr) {
 
   return(0);
 }/*http_process_register_req*/
 
 int32_t http_process_sign_in_req(uint32_t conn_id,
                                  uint8_t **response_ptr, 
-                                 uint16_t *response_len_ptr) {
+                                 uint32_t *response_len_ptr) {
   uint8_t param_name[255];
   uint8_t param_value[255];
   uint8_t qs[1024];
@@ -762,7 +1038,7 @@ int32_t http_process_sign_in_req(uint32_t conn_id,
 
 int32_t http_process_redirect_req(uint32_t conn_id,
                                   uint8_t **response_ptr,
-                                  uint16_t *response_len_ptr,
+                                  uint32_t *response_len_ptr,
                                   uint8_t *location_uri) {
 
   (*response_ptr) = (uint8_t *) malloc(2048);
@@ -798,7 +1074,7 @@ int32_t http_process_redirect_req(uint32_t conn_id,
 
 int32_t http_process_login_with_mobile_no_req(uint32_t conn_id,
                                               uint8_t **response_ptr, 
-                                              uint16_t *response_len_ptr) {
+                                              uint32_t *response_len_ptr) {
 
   return(0);
 
@@ -806,7 +1082,7 @@ int32_t http_process_login_with_mobile_no_req(uint32_t conn_id,
 
 int32_t http_process_uri(uint32_t conn_id,
                          uint8_t **response_ptr,
-                         uint16_t *response_len_ptr) {
+                         uint32_t *response_len_ptr) {
 
   uint16_t idx;
   http_ctx_t *pHttpCtx = &g_http_ctx;
@@ -829,11 +1105,11 @@ int32_t http_process_uri(uint32_t conn_id,
                           
 int32_t http_process_req(uint32_t conn_id, 
                          uint8_t *packet_ptr, 
-                         uint16_t packet_length) {
+                         uint32_t packet_length) {
 
   /*Build temporary HTTP Response*/
   uint8_t *http_ptr = NULL;
-  uint16_t http_len = 0;
+  uint32_t http_len = 0;
   int32_t ret = -1;
 
   fprintf(stderr, "\n%s:%d (conn_id %d) %s", 
@@ -912,6 +1188,7 @@ int32_t http_init(uint32_t uam_ip,
   /*Connect with radiusC - Radius Client*/
   pHttpCtx->nas_ip = nas_ip;
   pHttpCtx->nas_port = nas_port;
+  pHttpCtx->nas_fd = -1;
 
   return(0); 
 }/*http_init*/
@@ -952,7 +1229,7 @@ void *http_main(void *argv) {
   struct sockaddr_in peer_addr;
   size_t peer_addr_len = sizeof(peer_addr);
   uint8_t packet_buffer[3000];
-  uint16_t packet_length;
+  uint32_t packet_length;
   fd_set rd;
   uint16_t max_fd;
   http_session_t *session = NULL;
@@ -972,8 +1249,17 @@ void *http_main(void *argv) {
     http_set_fd(pHttpCtx->session, &rd);
 
     max_fd = http_get_max_fd(pHttpCtx->session);
-    max_fd = (max_fd > pHttpCtx->uam_fd) ? max_fd : pHttpCtx->uam_fd;
-   
+    max_fd = (max_fd > pHttpCtx->uam_fd) ? 
+              max_fd : 
+              pHttpCtx->uam_fd;
+ 
+    if(pHttpCtx->nas_fd > 0) { 
+      FD_SET(pHttpCtx->nas_fd, &rd);
+      max_fd = (max_fd > pHttpCtx->nas_fd) ? 
+                max_fd : 
+                pHttpCtx->nas_fd;
+    }
+
     max_fd += 1;
     ret = select(max_fd, &rd, NULL, NULL, &to);
     
@@ -1008,6 +1294,21 @@ void *http_main(void *argv) {
           close(new_conn);
         }
 
+      } else if((pHttpCtx->nas_fd > 0) && (FD_ISSET(pHttpCtx->nas_fd, &rd))) {
+        /*Process nas reply*/
+        /*Either connection is closed or data has been received.*/
+        memset((void *)packet_buffer, 0, sizeof(packet_buffer));
+        packet_length = 0;
+        http_recv(pHttpCtx->nas_fd, packet_buffer, &packet_length);
+
+        if(!packet_length) {
+          /*Closing the connected conn_id*/
+          close(pHttpCtx->nas_fd);
+          pHttpCtx->nas_fd = -1;
+        } else {
+          /*Process the NAS reply*/
+          http_process_nas_rsp(pHttpCtx->nas_fd, packet_buffer, packet_length);
+        }
       } else {
         for(session = pHttpCtx->session; session; session = session->next) {
 
