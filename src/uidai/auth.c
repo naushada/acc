@@ -15,17 +15,17 @@ int32_t auth_process_rsp(uint8_t (*param)[2][64],
   uint8_t *ret_ptr = NULL;
   uint8_t *txn_ptr = NULL;
   uint8_t *err_ptr = NULL;
-  uint8_t ext_conn[8];
-  uint8_t type[16];
-  uint8_t subtype[16];
+  uint8_t conn_id[8];
+  uint8_t uam_conn[8];
+  uint8_t redir_conn[8];
   uint8_t uid[14];
   uint8_t status[64];
   uint32_t rsp_size = 512;
 
   /*Initialize the auto variables*/
-  memset((void *)ext_conn, 0, sizeof(ext_conn));
-  memset((void *)type, 0, sizeof(type));
-  memset((void *)subtype, 0, sizeof(subtype));
+  memset((void *)conn_id, 0, sizeof(conn_id));
+  memset((void *)uam_conn, 0, sizeof(uam_conn));
+  memset((void *)redir_conn, 0, sizeof(redir_conn));
   memset((void *)uid, 0, sizeof(uid));
 
   ret_ptr = uidai_get_param(param, "ret");
@@ -34,17 +34,19 @@ int32_t auth_process_rsp(uint8_t (*param)[2][64],
   assert(txn_ptr != NULL);
   assert(ret_ptr != NULL);
 
-  sscanf(txn_ptr, "%[^_]_%[^_]_%[^_]_%[^_]_",
-                  ext_conn,
-                  type,
-                  subtype,
+  sscanf(txn_ptr, "\"%[^-]-%[^-]-%[^-]-%[^-]-",
+                  uam_conn,
+                  redir_conn,
+                  conn_id,
                   uid);
   memset((void *)status, 0, sizeof(status));
+
   if(!strncmp(ret_ptr, "y", 1)) {
     strncpy(status, "status=success", sizeof(status));
   } else {
     err_ptr = uidai_get_param(param, "err");
     assert(err_ptr != NULL);
+
     snprintf(status, 
              sizeof(status),
              "%s%s",
@@ -61,16 +63,15 @@ int32_t auth_process_rsp(uint8_t (*param)[2][64],
   *rsp_len = snprintf((*rsp_ptr), 
                       rsp_size,
                       "%s%s%s%s%s"
-                      "%s%s%s%s%s",
+                      "%s%s%s%s",
                       "/response?type=",
-                      type,
-                      "subtype=",
-                      subtype,
+                      "auth",
                       "&uid=",
                       uid,
                       "&ext_conn_id=",
-                      ext_conn,
-                      "&",
+                      uam_conn,
+                      "&conn_id=",
+                      redir_conn,
                       status);
   
   return(0);
@@ -227,7 +228,7 @@ int32_t auth_init(const uint8_t *ac,
   strncpy(pAuthCtx->version, "2.0", 3);
   strncpy(pAuthCtx->rc, "Y", 1);
   strncpy(pAuthCtx->uidai_host_name, host_name, strlen(host_name));
-  strncpy(pAuthCtx->tid, "", 1);
+  strncpy(pAuthCtx->tid, "public", 6);
   strncpy(pAuthCtx->txn, "DemoClient", 10);
   memset((void *)pAuthCtx->iv, 0, sizeof(pAuthCtx->iv));
   memset((void *)pAuthCtx->aad, 0, sizeof(pAuthCtx->aad));
@@ -1110,7 +1111,7 @@ int32_t auth_auth_xml(uint8_t *auth_xml,
   return(0);
 }/*auth_auth_xml*/
 
-int32_t auth_req_auth(uint8_t **req_xml, 
+int32_t auth_req_auth(uint8_t *req_xml, 
                       uint32_t req_xml_size, 
                       uint32_t *req_xml_len, 
                       uint8_t *auth_xml,
@@ -1120,7 +1121,7 @@ int32_t auth_req_auth(uint8_t **req_xml,
 
   memset((void *)req_xml, 0, req_xml_size);
 
-  *req_xml_len = snprintf(*req_xml, 
+  *req_xml_len = snprintf(req_xml, 
            req_xml_size,
            "%s%s%s%s%s"
            "%s%s%c%s%c"
@@ -1205,8 +1206,8 @@ int32_t auth_auth_pi_xml(uint8_t *auth_xml, uint32_t auth_xml_size, uint8_t (*pi
 }/*auth_auth_pi_xml*/
 
 int32_t auth_process_auth_pi_req(int32_t conn_fd, 
-                                 uint8_t *req_ptr,
-                                 uint8_t **req_xml,
+                                 const uint8_t *req_ptr,
+                                 uint8_t *req_xml,
                                  uint32_t req_xml_size,
                                  uint32_t *req_xml_len) {
  
@@ -1271,35 +1272,43 @@ int32_t auth_process_auth_pi_req(int32_t conn_fd,
 }/*auth_process_auth_pi_req*/
 
 int32_t auth_process_auth_otp_req(int32_t conn_fd, 
-                                  uint8_t *req_ptr,
-                                  uint8_t **req_xml,
+                                  const uint8_t *req_ptr,
+                                  uint8_t *req_xml,
                                   uint32_t req_xml_size,
                                   uint32_t *req_xml_len) {
 
   /*"/request?type=auth&subtype=otp&otp-value=123456&uid=999999990019&txn=8SampleClient";*/
-  uint8_t otp_value[32];
-  uint8_t uid[16];
-  uint8_t txn[64];
   uint8_t ts[32];
   uint16_t ts_size = sizeof(ts);
-  uint8_t auth_xml[6000];
-  uint16_t auth_xml_size = sizeof(auth_xml);
+  uint8_t *auth_xml;
+  uint16_t auth_xml_size = 6000;
   uint8_t pid_otp_xml[256];
+  uint8_t param[16][2][64];
+  uint8_t *uid = NULL;
+  uint8_t *otp_value = NULL;
+  uint8_t *uam_conn = NULL;
+  uint8_t *redir_conn = NULL;
   auth_ctx_t *pAuthCtx = &auth_ctx_g;
  
-  memset((void *)otp_value, 0, sizeof(otp_value));
-  memset((void *)uid, 0, sizeof(uid));
-  memset((void *)txn, 0, sizeof(txn));
+  memset((void *)ts, 0, sizeof(ts));
+  memset((void *)param, 0, sizeof(param));
+  uidai_parse_req(param, req_ptr); 
+ 
+  /*Retrieve vale from parsed param*/ 
+  uid = uidai_get_param(param, "uid");
+  otp_value = uidai_get_param(param, "otp_value");
+  uam_conn = uidai_get_param(param, "ext_conn_id");
+  redir_conn = uidai_get_param(param, "conn_id");
   
-  sscanf(req_ptr, 
-         "%*[^?]?%*[^&]&%*[^&]&%*[^=]=%[^&]&%*[^=]=%[^&]&%*[^=]=%s",
-         otp_value,
-         uid,
-         txn);
-  fprintf(stderr, "\n%s:%d otp_value %s uid %s txn %s\n", __FILE__, __LINE__, otp_value, uid, txn);
+  snprintf(pAuthCtx->txn,
+           sizeof(pAuthCtx->txn),
+           "%d-%d-%d-%s-SampleClient",
+           atoi(uam_conn),
+           atoi(redir_conn),
+           conn_fd,
+           uid);
+
   strncpy(pAuthCtx->uid, uid, strlen(uid));
-  strncpy(pAuthCtx->txn, txn, strlen(txn));
-  
   auth_compute_ts(ts, ts_size);
 
   /*PID for OTP XML*/
@@ -1307,6 +1316,10 @@ int32_t auth_process_auth_otp_req(int32_t conn_fd,
                sizeof(pid_otp_xml), 
                otp_value, 
                ts);
+
+  auth_xml = (uint8_t *)malloc(auth_xml_size);
+  assert(auth_xml != NULL);
+  memset((void *)auth_xml, 0, auth_xml_size);
 
   auth_auth_xml(auth_xml,
                 auth_xml_size,
@@ -1320,12 +1333,13 @@ int32_t auth_process_auth_otp_req(int32_t conn_fd,
                 auth_xml, 
                 uid);
 
+  free(auth_xml);
   return(0);
 }/*auth_process_auth_otp_req*/
 
 int32_t auth_process_req(int32_t conn_fd, 
-                         uint8_t *req_ptr,
-                         uint8_t **req_xml,
+                         const uint8_t *req_ptr,
+                         uint8_t *req_xml,
                          uint32_t req_xml_size,
                          uint32_t *req_xml_len) {
 
@@ -1369,7 +1383,7 @@ int32_t auth_process_req(int32_t conn_fd,
 }/*auth_process_req*/
 
 int32_t auth_main(int32_t conn_fd, 
-                  uint8_t *req_ptr, 
+                  const uint8_t *req_ptr, 
                   uint32_t req_len, 
                   uint8_t **rsp_ptr, 
                   uint32_t *rsp_len) {
@@ -1386,7 +1400,7 @@ int32_t auth_main(int32_t conn_fd,
 
   auth_process_req(conn_fd, 
                    req_ptr, 
-                   rsp_ptr, 
+                   *rsp_ptr, 
                    rsp_ptr_size, 
                    rsp_len);
 

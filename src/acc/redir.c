@@ -81,6 +81,44 @@ uint8_t *redir_get_param(uint8_t (*param)[2][64], uint8_t *arg) {
   return(NULL);
 }/*redir_get_param*/
 
+
+int32_t redir_build_auth_otp_req(uint8_t (*param)[2][64], uint8_t *uidai_req, uint32_t conn_id) {
+
+  /*Prepare uidai request for OTP*/
+  uint8_t *uid = NULL;
+  uint8_t *ext_conn_id = NULL;
+  uint8_t *rc = NULL;
+  uint8_t *otp = NULL;
+  uint8_t *ver = NULL;
+  int32_t ret = -1;
+
+  uid = redir_get_param(param, "aadhaar_no");
+  ext_conn_id = redir_get_param(param, "conn_id");
+  rc = redir_get_param(param, "rc");
+  otp = redir_get_param(param, "otp_value");
+  ver = redir_get_param(param, "ver");
+
+  ret = sprintf(uidai_req, 
+                "%s%s%s%s%s"
+                "%s%s%s%s%d"
+                "%s%s",
+                "/request?type=auth&subtype=otp&uid=",
+                uid,
+                "&ext_conn_id=",
+                ext_conn_id,
+                "&rc=",
+                rc,
+                "&ver=",
+                ver,
+                "&conn_id=",
+                conn_id,
+                "&otp_value=",
+                otp);
+
+  return(ret);
+}/*redir_build_auth_otp_req*/
+
+
 int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri) {
 
   uint8_t uidai_req[512];
@@ -100,6 +138,8 @@ int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri) {
 
     if(!(strncmp(subsubtype, "otp", 3))) {
       /*Prepare uidai auth with OTP value*/
+      redir_build_auth_otp_req(param, uidai_req, conn_id);
+      ret = strlen(uidai_req);
 
     } else if(!(strncmp(subsubtype, "pi", 2))) {
       /*Prepare uidai auth with pi value*/
@@ -121,14 +161,15 @@ int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri) {
     ret = snprintf(uidai_req, 
                    sizeof(uidai_req),
                    "%s%s%s%s%s"
-                   "%s%s",
+                   "%s%s%d",
                    "/request?type=otp&uid=",
                    uid,
                    "&ext_conn_id=",
                    ext_conn_id,
                    "&rc=",
                    rc,
-                   "&ver=1.6");
+                   "&ver=1.6&conn_id=",
+                   conn_id);
   }
 
   fprintf(stderr, "\n%s:%d Being sent to uidaiC %s\n", __FILE__, __LINE__, uidai_req);
@@ -139,8 +180,76 @@ int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri) {
 int32_t redir_process_uidai_response(uint32_t conn_id, 
                                      uint8_t *packet_buffer, 
                                      uint32_t packet_length) {
+  redir_ctx_t *pRedirCtx = &redir_ctx_g;
+  uint8_t *tmp_ptr = NULL;
+  uint8_t param[8][2][64];
+  uint8_t *uam_conn_id = NULL;
+  uint8_t *status = NULL;
+  uint8_t *rsp_ptr = NULL;
+  uint32_t rsp_len = 0;
+  
+  tmp_ptr = (uint8_t *)malloc(packet_length);
+  assert(tmp_ptr != NULL);
+  memset((void *)tmp_ptr, 0, packet_length);
+  memcpy((void *)tmp_ptr, packet_buffer, packet_length);
+
+  redir_parse_aadhaar_req(param, tmp_ptr); 
+  free(tmp_ptr);
 
   fprintf(stderr, "\n%s:%d UIDAI received response %s\n", __FILE__, __LINE__, packet_buffer);
+  /*/response?type=otp&uid=9701361361&ext_conn_id=14&status=success&conn_id=20*/
+  uam_conn_id = redir_get_param(param, "conn_id");
+  status = redir_get_param(param, "status");
+
+  /*allocate and init to zero*/
+  rsp_ptr = malloc(512);
+  assert(rsp_ptr != NULL);
+  memset((void *)rsp_ptr, 0, 512);
+
+  if(!strncmp(status, "success", 7)) {
+    rsp_len = snprintf(rsp_ptr, 
+                       512,    
+                       "%s%s%s%s%s"
+                       "%s%s%s",
+                       "/response?type=",
+                       redir_get_param(param, "type"),
+                       "&uid=",
+                       redir_get_param(param, "uid"),
+                       "&conn_id=",
+                       redir_get_param(param, "ext_conn_id"),
+                       "&status=",
+                       redir_get_param(param, "status"));
+  } else {
+    
+    rsp_len = snprintf(rsp_ptr, 
+                       512,    
+                       "%s%s%s%s%s"
+                       "%s%s%s%s%s",
+                       "/response?type=",
+                       redir_get_param(param, "type"),
+                       "&uid=",
+                       redir_get_param(param, "uid"),
+                       "&conn_id=",
+                       redir_get_param(param, "ext_conn_id"),
+                       "&status=",
+                       redir_get_param(param, "status"),
+                       "&reason=",
+                       redir_get_param(param, "reason"));
+  }
+
+  if(!strncmp(redir_get_param(param, "type"), "auth", 4)) {
+    rsp_len = snprintf((char *)&rsp_ptr[rsp_len],
+                       (512 - rsp_len),
+                       "%s%s",
+                       "&subtype=",
+                       redir_get_param(param, "subtype"));
+  } 
+
+  rsp_len = strlen(rsp_ptr);
+  fprintf(stderr, "\n%s:%d UIDAI response sent to UAM  %s\n", __FILE__, __LINE__, rsp_ptr);
+  redir_send(atoi(uam_conn_id), rsp_ptr, rsp_len);
+  free(rsp_ptr);
+ 
   return(0);
 }/*redir_process_uidai_response*/
 
@@ -260,6 +369,7 @@ int32_t redir_process_response_callback_req(uint32_t conn_id,
 
   redir_session_t *session = redir_get_session(conn_id);
   redir_process_response_callback_uri(conn_id, session->uri);
+  
 #if 0
   redir_process_wait_req(conn_id, 
                          response_ptr, 
@@ -1133,7 +1243,7 @@ void *redir_main(void *argv) {
                                          packet_length);
         }
       } else if((pRedirCtx->uidaiC_fd > 0) && (FD_ISSET(pRedirCtx->uidaiC_fd, &rd))) {
-        /*Process Request/Response for uidai*/
+        /*Process Request/Response for uidai server*/
         memset((void *)packet_buffer, 0, sizeof(packet_buffer));
         packet_length = 0;
         redir_recv(pRedirCtx->uidaiC_fd, packet_buffer, &packet_length);
@@ -1148,7 +1258,8 @@ void *redir_main(void *argv) {
 
       } else {
 
-        for(session = pRedirCtx->session; session != NULL; session = session->next) {
+        for(session = pRedirCtx->session; session; session = session->next) {
+
           if(FD_ISSET(session->conn, &rd)) {
             /*Either connection is closed or data has been received.*/
             memset((void *)packet_buffer, 0, sizeof(packet_buffer));

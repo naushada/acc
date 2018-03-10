@@ -123,7 +123,7 @@ int32_t otp_process_rsp(uint8_t (*param)[2][64],
  *
  */
 int32_t otp_main(int32_t conn_fd, 
-                 uint8_t *packet_ptr, 
+                 const uint8_t *packet_ptr, 
                  uint32_t packet_len, 
                  uint8_t **rsp_ptr, 
                  uint32_t *rsp_len);

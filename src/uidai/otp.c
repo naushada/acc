@@ -471,29 +471,32 @@ int32_t otp_process_rsp(uint8_t (*param)[2][64],
   uint8_t *ret_ptr = NULL;
   uint8_t *txn_ptr = NULL;
   uint8_t *err_ptr = NULL;
-  uint32_t idx = 0;
-  uint8_t ext_conn[8];
-  uint8_t type[16];
+  uint8_t uam_conn_id[8];
+  uint8_t redir_conn_id[8];
+  uint8_t conn_id[8];
   uint8_t uid[14];
   uint8_t status[64];
   uint32_t rsp_size = 512;
 
   /*Initialize the auto variables*/
-  memset((void *)ext_conn, 0, sizeof(ext_conn));
-  memset((void *)type, 0, sizeof(type));
   memset((void *)uid, 0, sizeof(uid));
+  memset((void *)uam_conn_id, 0, sizeof(uam_conn_id));
+  memset((void *)redir_conn_id, 0, sizeof(redir_conn_id));
+  memset((void *)conn_id, 0, sizeof(conn_id));
+  memset((void *)status, 0, sizeof(status));
 
   ret_ptr = uidai_get_param(param, "ret");
   txn_ptr = uidai_get_param(param, "txn");
-  /*extracting element from txn*/ 
   assert(txn_ptr != NULL);
   assert(ret_ptr != NULL);
 
-  sscanf(txn_ptr, "\"%[^-]-%[^-]-%[^-]-",
-                  ext_conn,
-                  type,
+  /*extracting element from txn*/ 
+  sscanf(txn_ptr, "\"%[^-]-%[^-]-%[^-]-%[^-]-",
+                  uam_conn_id,
+                  redir_conn_id,
+                  conn_id,
                   uid);
-  memset((void *)status, 0, sizeof(status));
+
   if(!strncmp(ret_ptr, "\"y\"", 3)) {
     strncpy(status, "status=success", sizeof(status));
   } else {
@@ -511,19 +514,21 @@ int32_t otp_process_rsp(uint8_t (*param)[2][64],
   assert(*rsp_ptr != NULL);
 
   memset((void *)(*rsp_ptr), 0, rsp_size);
-  /*/response?type=otp&uid=xxxxxxxxxxxx&ext_conn_id=dddd&status=success/failed&reason=err_code*/
+  /*/response?type=otp&uid=xxxxxxxxxxxx&ext_conn_id=dddd&status=success/failed&reason=err_code&conn_id=YYYYY*/
   *rsp_len = snprintf((*rsp_ptr), 
                       rsp_size,
                       "%s%s%s%s%s"
-                      "%s%s%s",
+                      "%s%s%s%s%s",
                       "/response?type=",
-                      type,
+                      "otp",
                       "&uid=",
                       uid,
                       "&ext_conn_id=",
-                      ext_conn,
+                      uam_conn_id,
                       "&",
-                      status);
+                      status,
+                      "&conn_id=",
+                      redir_conn_id);
   
   return(0);
 }/*otp_process_rsp*/
@@ -542,7 +547,7 @@ int32_t otp_process_rsp(uint8_t (*param)[2][64],
  *
  */
 int32_t otp_main(int32_t conn_fd, 
-                 uint8_t *packet_ptr, 
+                 const uint8_t *packet_ptr, 
                  uint32_t packet_len, 
                  uint8_t **rsp_ptr, 
                  uint32_t *rsp_len) {
@@ -550,40 +555,31 @@ int32_t otp_main(int32_t conn_fd,
   otp_ctx_t *pOtpCtx = &otp_ctx_g;
   uint8_t *req_ptr = NULL;
   uint16_t req_len = 0;
-  uint8_t *param_str = NULL;
-  uint8_t otp_param[16][2][64];
-  uint16_t otp_idx = 0;
-  uint8_t param_value[64];
+  uint8_t param[16][2][64];
   uint8_t *uid_ptr = NULL;
   uint8_t *ext_conn_ptr = NULL;
+  uint8_t *conn_id_ptr = NULL;
 
   /* The Request would be of form
-   * /request?type=otp&uid=xxxxxxxxxxxx&ext_conn_id=dddd
+   * /request?type=otp&uid=xxxxxxxxxxxx&ext_conn_id=dddd&conn_id=
+   * ext_conn_id is the socket connection at which user is connected to UAM
+   * conn_id is the socket connection at which UAM is connected to redir
    */
-  param_str = strtok(packet_ptr, "&");
-  memset((void *)otp_param, 0, sizeof(otp_param));
+  memset((void *)param, 0, sizeof(param));
+  /*/request?type=otp&uid=9701361361&ext_conn_id=15&rc=y&ver=1.6&conn_id=20*/
+  uidai_parse_req(param, packet_ptr);
 
-  do {
-    sscanf(param_str, "%[^=]=%s", 
-                      otp_param[otp_idx][0], 
-                      otp_param[otp_idx][1]);
-    otp_idx++;
-
-  }while(param_str = strtok(NULL, "&"));
-
-  /*Make sure that last row is terminated with NULL character*/
-  otp_param[otp_idx][0][0] = '\0';
-  otp_param[otp_idx][1][0] = '\0';
-
-  uid_ptr = uidai_get_param(otp_param, "uid");
-  ext_conn_ptr = uidai_get_param(otp_param, "ext_conn_id");
-  
+  uid_ptr = uidai_get_param(param, "uid");
+  ext_conn_ptr = uidai_get_param(param, "ext_conn_id");
+  conn_id_ptr = uidai_get_param(param, "conn_id");
   strncpy(pOtpCtx->uid, uid_ptr, strlen(uid_ptr));
 
   snprintf(pOtpCtx->txn,
            sizeof(pOtpCtx->txn),
-           "%d-otp-%s-SampleClient",
+           "%d-%d-%d-%s-SampleClient",
            atoi(ext_conn_ptr),
+           atoi(conn_id_ptr),
+           conn_fd,
            uid_ptr);
 
   otp_sign_xml(&req_ptr, 

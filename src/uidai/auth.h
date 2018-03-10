@@ -111,21 +111,15 @@ int32_t auth_auth_otp_xml(uint8_t *auth_otp_xml,
                           uint32_t auth_otp_xml_size, 
                           uint8_t *pid_xml);
 
-int32_t auth_req_auth(uint8_t **req_xml, 
+int32_t auth_req_auth(uint8_t *req_xml, 
                       uint32_t req_xml_size, 
                       uint32_t *req_xml_len, 
                       uint8_t *auth_xml,
                       uint8_t *uid);
 
-int32_t auth_process_req(int32_t conn_fd, 
-                         uint8_t *req_ptr,
-                         uint8_t **req_xml,
-                         uint32_t req_xml_size,
-                         uint32_t *req_xml_len);
-
 int32_t auth_process_auth_otp_req(int32_t conn_fd, 
-                                  uint8_t *req_ptr,
-                                  uint8_t **req_xml,
+                                  const uint8_t *req_ptr,
+                                  uint8_t *req_xml,
                                   uint32_t req_xml_size,
                                   uint32_t *req_xml_len);
 
@@ -141,8 +135,8 @@ int32_t auth_cipher_ex(uint8_t *data,
                        int32_t *ciphered_data_len);
 
 int32_t auth_process_auth_pi_req(int32_t conn_fd, 
-                                 uint8_t *req_ptr,
-                                 uint8_t **req_xml,
+                                 const uint8_t *req_ptr,
+                                 uint8_t *req_xml,
                                  uint32_t req_xml_size,
                                  uint32_t *req_xml_len);
 
@@ -150,12 +144,17 @@ uint8_t *auth_get_pi_param(uint8_t (*pi_param)[2][64],
                            const uint8_t *param_name);
 
 int32_t auth_main(int32_t conn_fd, 
-                  uint8_t *req_ptr, 
+                  const uint8_t *req_ptr, 
                   uint32_t req_len, 
                   uint8_t **rsp_ptr, 
                   uint32_t *rsp_len);
 
 int32_t auth_process_rsp(uint8_t (*param)[2][64], uint8_t **rsp_ptr, uint32_t *rsp_len);
   
+int32_t auth_process_req(int32_t conn_fd, 
+                         const uint8_t *req_ptr,
+                         uint8_t *req_xml,
+                         uint32_t req_xml_size,
+                         uint32_t *req_xml_len);
 
 #endif /* __AUTH_H__ */

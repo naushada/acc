@@ -22,9 +22,16 @@ http_req_handler_t g_handler_http[] = {
   {"/register.html",             14, http_process_register_req},
   {"/login_with_mobile_no.html", 26, http_process_login_with_mobile_no_req},
   {"/index.html",                11, http_process_login_req},
+  /*Prompt for Aadhaar Number*/
   {"/aadhaar_ui.html",           16, http_process_aadhaar_ui_req},
+  /*Provide the Aadhaar Number*/
   {"/aadhaar_uid.html",          17, http_process_aadhaar_uid_req},
+  /*Provide the OTP value*/
+  {"/aadhaar_otp.html",          17, http_process_aadhaar_otp_req},
+  /*Authentication based on OTP*/
   {"/aadhaar_auth_otp.html",     22, http_process_aadhaar_auth_otp_req},
+  /*Final Response of Auth*/
+  {"/aadhaar_auth.html",         18, http_process_aadhaar_auth_req},
 
   /*New callback to be inserted above this*/
   {"/",                           1, http_process_login_req},
@@ -36,10 +43,121 @@ http_req_handler_t g_handler_http[] = {
 /********************************************************************
  *Function Definition
  ********************************************************************/
-int32_t http_process_nas_rsp(int32_t nas_fd, uint8_t *packet_ptr, uint32_t packet_length) {
+int32_t http_process_aadhaar_auth_req(uint32_t conn_id, 
+                                      uint8_t **response_ptr, 
+                                      uint32_t *response_len_ptr) {
+
+  uint8_t *refresh_uri = "/aadhaar_auth.html";
+  fprintf(stderr, "\n%s:%d to be written\n", __FILE__, __LINE__);
+  http_process_wait_req(conn_id,
+                        response_ptr,
+                        response_len_ptr,
+                        refresh_uri);
+  return(0);
+}/*http_process_aadhaar_auth_req*/
+
+int32_t http_process_aadhaar_auth_otp_req(uint32_t conn_id, 
+                                          uint8_t **response_ptr, 
+                                          uint32_t *response_len_ptr) {
+  uint8_t req[512];
+  uint32_t req_len;
+  uint8_t *refresh_uri = "/aadhaar_auth.html";
+
+  memset((void *)req, 0, sizeof(req));
+  req_len = 0;
+  http_build_aadhaar_auth_otp_req(conn_id, req, &req_len);
+  fprintf(stderr, "\n%s:%d Auth %s\n", __FILE__, __LINE__, req);
+  /*send to NAS*/
+  http_send_to_nas(conn_id, req, req_len);
+
+  /*Making Browser to wait for response*/
+  http_process_wait_req(conn_id,
+                        response_ptr,
+                        response_len_ptr,
+                        refresh_uri);
+  return(0);
+}/*http_process_aadhaar_auth_otp_req*/
+
+int32_t http_parse_param(uint8_t (*param)[2][64], uint8_t *rsp_ptr) {
+  uint8_t *line_ptr;
+  uint8_t tmp_uri[512];
+  uint32_t idx = 0;
+
+  memset((void *)tmp_uri, 0, sizeof(tmp_uri));
+
+  sscanf(rsp_ptr, "%*[^?]?%s", tmp_uri);
+
+  line_ptr = strtok(tmp_uri, "&");
+
+  while(line_ptr) {
+    sscanf(line_ptr, "%[^=]=%s",
+                      param[idx][0],
+                      param[idx][1]);
+    line_ptr = strtok(NULL, "&");
+    idx++;  
+  }
+
+  /*NULL terminated the array*/
+  param[idx][0][0] = '\0';
+  param[idx][1][0] = '\0';
+
+}/*http_parse_param*/
+
+uint8_t *http_get_param(uint8_t (*param)[2][64], uint8_t *arg) {
+
+  uint32_t idx;
+
+  for(idx = 0; param[idx][0]; idx++) {
+    if(!strncmp(param[idx][0], arg, strlen(arg))) {
+      return(param[idx][1]);
+    }    
+  }
+  
+  return(NULL);
+}/*http_get_param*/
+
+
+int32_t http_process_nas_rsp(int32_t nas_fd, 
+                             uint8_t *packet_ptr, 
+                             uint32_t packet_length) {
+
+  http_ctx_t *pHttpCtx = &g_http_ctx;
+  http_session_t *session = NULL;
+  uint8_t *conn_id_ptr = NULL;
+  uint8_t *uid_ptr = NULL;
+  uint8_t *status_ptr = NULL;
+  uint8_t *reason_ptr = NULL;
+  uint8_t param[8][2][64];
+
+  /*/response?type=otp&uid=9701361361&conn_id=14&status=success*/
+  memset((void *)param, 0, sizeof(param));
+  http_parse_param(param, packet_ptr);
+
+  conn_id_ptr = http_get_param(param, "conn_id");
+  uid_ptr = http_get_param(param, "uid");
+  status_ptr = http_get_param(param, "status");
+
+  if(!strncmp(status_ptr, "failed", 6)) {
+    reason_ptr = http_get_param(param, "reason");
+    memset((void *)session->uidai_param.reason, 0, sizeof(session->uidai_param.reason));
+    strncpy(session->uidai_param.reason, reason_ptr, strlen(reason_ptr));
+  }
+
+  session = http_get_session(atoi(conn_id_ptr));
+  assert(session != NULL);
+
+  memset((void *)session->uidai_param.uid, 0, sizeof(session->uidai_param.uid));
+  strncpy(session->uidai_param.uid, uid_ptr, strlen(uid_ptr));
+   
+  memset((void *)session->uidai_param.status, 0, sizeof(session->uidai_param.status));
+  strncpy(session->uidai_param.status, status_ptr, strlen(status_ptr));
+
+
+  /*Response has been received*/
+  session->uidai_param.uidai_rsp = 1;
 
   fprintf(stderr, "\n%s:%d Response from NAS is %s\n", __FILE__, __LINE__, packet_ptr);
-  /*/response?type=otp&uid=9701361361&ext_conn_id=14&status=success*/
+
   return(0);
 }/*http_process_nas_rsp*/
 
@@ -89,7 +207,7 @@ int32_t http_send_to_nas(uint32_t conn_id, uint8_t *req, uint32_t req_len) {
   session = http_get_session(conn_id);
   if(session) {
     /*Response is not yet received*/
-    session->nas_rsp = 0;
+    session->uidai_param.uidai_rsp = 0;
   }
 
   if(http_send(pHttpCtx->nas_fd, req, req_len) < 0) {
@@ -671,36 +789,73 @@ int32_t http_process_login_req(uint32_t conn_id,
   return(0);
 }/*http_process_login_req*/
 
-int32_t http_process_aadhaar_auth_otp_req(uint32_t conn_id,
-                                          uint8_t **response_ptr,
-                                          uint32_t *response_len_ptr) {
+int32_t http_build_aadhaar_auth_otp_req(uint32_t conn_id, uint8_t *req, uint32_t *req_len) {
+
+  uint8_t param[4][2][64];
+  uint8_t *otp_value_ptr = NULL;
+  http_session_t *session = NULL;
+  session = http_get_session(conn_id);
+  assert(session != NULL);
+  
+  memset((void *)param, 0, sizeof(param));
+  http_parse_param(param, session->uri);
+
+  otp_value_ptr = http_get_param(param, "otp_value");
+  /*GET /response_callback?auth_type=aadhaar&subtype=auth&subsubtype=otp&aadhaar_no=9701361361&otp_value=XXXX&rc=y&ver=2.0&conn_id=14 HTTP/1.1*/
+  sprintf(req,
+          "%s%s%s%s%s"
+          "%s%d%s%s%s",
+          "GET /response_callback?auth_type=aadhaar&subtype=auth&subsubtype=otp&aadhaar_no=",
+          session->uidai_param.uid,
+          "&otp_value=",
+           otp_value_ptr,
+          "&rc=y&ver=2.0&",
+          "conn_id=",
+          conn_id,
+          " HTTP/1.1\r\n",
+          "Connection: Keep-Alive\r\n",
+          "Content-Length: 0\r\n");
+
+  *req_len = strlen(req);
+  return(0); 
+}/*http_build_aadhaar_auth_otp_req*/
+
+int32_t http_process_aadhaar_otp_req(uint32_t conn_id,
+                                     uint8_t **response_ptr,
+                                     uint32_t *response_len_ptr) {
+  uint8_t req[512];
+  uint32_t req_len;
+  uint8_t *refresh_uri = "/aadhaar_otp.html";
 
   http_ctx_t *pHttpCtx = &g_http_ctx;
-  uint8_t *refresh_uri = "/aadhaar_auth_otp.html";
   http_session_t *session = NULL;
 
+  /*update that otp auth response has not yet received*/
   session = http_get_session(conn_id);
+  assert(session != NULL);
 
-  if(!session) {
-    fprintf(stderr, "\n%s:%d connection not found\n", __FILE__, __LINE__);
-    return(-1);
-  }
-
-  if(!session->nas_rsp) {
+  if(!session->uidai_param.uidai_rsp) {
     /*Making Browser to wait for response*/
     http_process_wait_req(conn_id,
                           response_ptr,
                           response_len_ptr,
                           refresh_uri);
   } else {
-    /*Response from NAS has been received*/
-    /*Propmt for OTP value*/
+   /*Prompt for OTP value*/
+   http_build_otp_in_form(response_ptr, response_len_ptr);
   }
+#if 0
+  memset((void *)req, 0, sizeof(req));
+  req_len = 0;
+  http_parse_aadhaar_otp_req(conn_id, req, &req_len);
+  /*send to NAS*/
+  http_send_to_nas(conn_id, req, req_len);
+#endif
   
  return(0);
-}/*http_process_aadhaar_auth_otp_req*/
+}/*http_process_aadhaar_otp_req*/
 
-int32_t http_parse_aadhaar_ui_req(uint32_t conn_id, 
+int32_t http_parse_aadhaar_uid_req(uint32_t conn_id, 
                                   uint8_t *req_ptr, 
                                   uint32_t *req_len_ptr) {
 
@@ -771,32 +926,16 @@ int32_t http_parse_aadhaar_ui_req(uint32_t conn_id,
   *req_len_ptr = ret;
   fprintf(stderr, "\n%s:%d nas request %s\n", __FILE__, __LINE__, response_qs);
   return(0);
-}/*http_parse_aadhaar_ui_req*/
+}/*http_parse_aadhaar_uid_req*/
 
-
-int32_t http_process_aadhaar_uid_req(uint32_t conn_id,
-                                     uint8_t **response_ptr,
-                                     uint32_t *response_len_ptr) {
+int32_t http_build_otp_in_form(uint8_t **response_ptr,
+                               uint32_t *response_len_ptr) {
   uint8_t html[512];
   uint32_t html_body_len;
   int32_t ret = -1;
-  uint8_t req[512];
-  uint32_t req_len;
-  uint8_t *refresh_uri = "/aadhaar_auth_otp.html";
 
-  memset((void *)req, 0, sizeof(req));
-  req_len = 0;
-  http_parse_aadhaar_ui_req(conn_id, req, &req_len);
-  /*send to NAS*/
-  http_send_to_nas(conn_id, req, req_len);
-
-  /*Making Browser to wait for response*/
-  http_process_wait_req(conn_id,
-                        response_ptr,
-                        response_len_ptr,
-                        refresh_uri);
-#if 0
   memset((void *)html, 0, sizeof(html));
+
   html_body_len = snprintf((char *)html, 
                            sizeof(html),
                            "%s%s%s%s%s"
@@ -805,11 +944,11 @@ int32_t http_process_aadhaar_uid_req(uint32_t conn_id,
                            /*For Responsive Web Page*/
                            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
                            "</head>",
-                           "<body><form method=GET action=/aadhaar_otp.html>",
-                           "<center><table><tr><td><input type=text name=otp placeholder=\"Enter OTP\"></td>",
-                           "<tr><td><input type=submit value=\"Submit OTP\">",
-                           "</td><td><input type=submit value=\"Resend OTP\"</td>",
-                           "</tr></table></center></form></body></html>");
+                           "<body><form method=GET action=/aadhaar_auth_otp.html>",
+                           "<center><table><tr><td><input type=text name=otp_value placeholder=\"Enter received OTP\"></td>",
+                           "</tr><tr><td><input type=submit value=\"Submit OTP\"></td>",
+                           "<td><input type=button value=\"Resent OTP\">",
+                           "</td></tr></table></center></form></body></html>");
 
   (*response_ptr) = (uint8_t *)malloc(html_body_len + 255/*For Http Header*/);
 
@@ -833,7 +972,28 @@ int32_t http_process_aadhaar_uid_req(uint32_t conn_id,
   memcpy((void *)&(*response_ptr)[ret], (const void *)html, html_body_len);
 
   *response_len_ptr = ret + html_body_len; 
-#endif
+
+  return(0);
+}/*http_build_otp_in_form*/
+
+int32_t http_process_aadhaar_uid_req(uint32_t conn_id,
+                                     uint8_t **response_ptr,
+                                     uint32_t *response_len_ptr) {
+  uint8_t req[512];
+  uint32_t req_len;
+  uint8_t *refresh_uri = "/aadhaar_otp.html";
+
+  memset((void *)req, 0, sizeof(req));
+  req_len = 0;
+  http_parse_aadhaar_uid_req(conn_id, req, &req_len);
+  /*send to NAS*/
+  http_send_to_nas(conn_id, req, req_len);
+
+  /*Making Browser to wait for response*/
+  http_process_wait_req(conn_id,
+                        response_ptr,
+                        response_len_ptr,
+                        refresh_uri);
   return(0);
 }/*http_process_aadhaar_uid_req*/
 
