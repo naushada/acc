@@ -42,16 +42,21 @@ int32_t auth_process_rsp(uint8_t (*param)[2][64],
   memset((void *)status, 0, sizeof(status));
 
   if(!strncmp(ret_ptr, "y", 1)) {
-    strncpy(status, "status=success", sizeof(status));
+    strncpy(status, "&status=success", sizeof(status));
   } else {
+    uint8_t err_str[16];
     err_ptr = uidai_get_param(param, "err");
     assert(err_ptr != NULL);
+   
+    memset((void *)err_str, 0, sizeof(err_str));
+    /*lop off the double quotes*/
+    sscanf(err_ptr, "\"%[^\"]\"", err_str);
 
     snprintf(status, 
              sizeof(status),
              "%s%s",
-             "status=failed&reason=", 
-             err_ptr);
+             "&status=failed&reason=", 
+             err_str);
   }
 
   /*Build final response*/

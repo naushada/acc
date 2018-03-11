@@ -47,7 +47,7 @@ uint8_t *uidai_get_param(uint8_t (*param)[2][64],
 
   uint32_t idx;
 
-  for(idx = 0; param[idx][0]; idx++) {
+  for(idx = 0; param[idx][0][0]; idx++) {
     if(!strncmp(param[idx][0], param_name, strlen(param[idx][0]))) {
       return(param[idx][1]);
     }
@@ -74,7 +74,7 @@ int32_t uidai_build_ext_rsp(uint8_t (*param)[2][64],
   /*txn format will be <uam_conn_id>-<redir_conn_id>-<uidai_conn_id>-<uid>-XXXXXXX*/
   sscanf(txn, "%*[^-]-%*[^-]-%[^-]-", conn_id);
   *conn_id_ptr = atoi(conn_id);
-
+  fprintf(stderr, "\n%s:%d conn_id_ptr %d\n", __FILE__, __LINE__, *conn_id_ptr);
   session = uidai_get_session(pUidaiCtx->session, *conn_id_ptr);
   assert(session != NULL);
   fprintf(stderr, "\n%s:%d session->req_type %s\n", __FILE__, __LINE__,session->req_type);
@@ -88,9 +88,10 @@ int32_t uidai_build_ext_rsp(uint8_t (*param)[2][64],
     auth_process_rsp(param, rsp_ptr, rsp_len);
     /*Add the subtype in response*/
     sprintf(&(*rsp_ptr)[*rsp_len],
-            "%s",
+            "&subtype=%s",
             session->req_subtype);
     *rsp_len = strlen(*rsp_ptr);
+
     fprintf(stderr, "\n%s:%d auth rsp %s\n", __FILE__, __LINE__, *rsp_ptr);        
   }
 
@@ -117,8 +118,10 @@ int32_t uidai_parse_uidai_rsp(int32_t conn_fd,
   assert(chunked_ptr != NULL);
 
   memset((void *)chunked_ptr, 0, chunked_len);
-  sscanf((const char *)&packet_ptr[chunked_starts_at], "%*[^\n]\r\n%[^\n]", chunked_ptr);
+  //sscanf((const char *)&packet_ptr[chunked_starts_at], "%*[^\n]\r\n%[^\n]", chunked_ptr);
+  memcpy((void *)chunked_ptr, (void *)&packet_ptr[chunked_starts_at], chunked_len);
 
+  //fprintf(stderr, "\n%s:%d chunked data %s\n", __FILE__, __LINE__, chunked_ptr);
   /*The delimeter is space*/
   tmp_ptr = chunked_ptr;
   token_ptr = strtok(tmp_ptr, " ");
@@ -172,7 +175,7 @@ int32_t uidai_process_uidai_rsp(int32_t conn_fd,
   uint8_t is_response_chunked = 0;
   uint16_t chunked_len = 0;
   uint8_t hex_str[8];
-  uint8_t param[16][2][64];
+  uint8_t param[32][2][64];
   uint16_t param_count;
   uint8_t status[8];
   uint32_t status_code;
@@ -220,7 +223,6 @@ int32_t uidai_process_uidai_rsp(int32_t conn_fd,
     }
 
     if(is_response_chunked) {
-      uint8_t rsp_type[16];
       /*Get the chunked length*/
       memset((void *)hex_str, 0, sizeof(hex_str));
       snprintf(hex_str, sizeof(hex_str), "0x%s", line_ptr);
@@ -228,7 +230,6 @@ int32_t uidai_process_uidai_rsp(int32_t conn_fd,
 
       /*Copy the first chunked length*/
       memset((void *)param, 0, sizeof(param));
-      memset((void *)rsp_type, 0, sizeof(rsp_type));
       uidai_parse_uidai_rsp(conn_fd, 
                             packet_ptr, 
                             offset, 
@@ -700,7 +701,7 @@ void *uidai_main(void *tid) {
   fd_set rd;
   int32_t max_fd = 0;
   struct timeval to;
-  uint8_t buffer[1500];
+  uint8_t *buffer= NULL;
   uidai_ctx_t *pUidaiCtx = &uidai_ctx_g;
   uint32_t buffer_len;
   int32_t connected_fd = -1;
@@ -710,6 +711,9 @@ void *uidai_main(void *tid) {
   uidai_session_t *session = NULL;
 
   FD_ZERO(&rd);
+  buffer_len = 3500;
+  buffer = (uint8_t *)malloc(buffer_len);
+  assert(buffer != NULL);
 
   for(;;) {
     to.tv_sec = 2;
@@ -743,8 +747,8 @@ void *uidai_main(void *tid) {
       for(session = pUidaiCtx->session; session; session = session->next) { 
         if((session->conn_id > 0) && FD_ISSET(session->conn_id, &rd)) {
           /*Request received from Access Controller /NAS*/
-          memset((void *)buffer, 0, sizeof(buffer));
-          buffer_len = sizeof(buffer);
+          memset((void *)buffer, 0, 3500);
+          buffer_len = 3500;
           uidai_recv(session->conn_id, buffer, &buffer_len, 0);
 
           if(buffer_len) {
@@ -759,8 +763,8 @@ void *uidai_main(void *tid) {
       if((pUidaiCtx->uidai_fd > 0) && (FD_ISSET(pUidaiCtx->uidai_fd, &rd))) { 
         /*Response UIDAI Server*/
         do {
-          memset((void *)buffer, 0, sizeof(buffer));
-          buffer_len = sizeof(buffer);
+          memset((void *)buffer, 0, 3500);
+          buffer_len = 3500;
           uidai_recv(pUidaiCtx->uidai_fd, buffer, &buffer_len, MSG_PEEK);
           wait_for_more_data = uidai_pre_process_uidai_rsp(pUidaiCtx->uidai_fd, 
                                                            buffer, 
@@ -772,8 +776,8 @@ void *uidai_main(void *tid) {
           uint32_t rsp_len = 0;
           uint32_t conn_id = 0;
 
-          memset((void *)buffer, 0, sizeof(buffer));
-          buffer_len = sizeof(buffer);
+          memset((void *)buffer, 0, 3500);
+          buffer_len = 3500;
           uidai_recv(pUidaiCtx->uidai_fd, 
                      buffer, 
                      &buffer_len, 

@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <assert.h>
 #include <fcntl.h>
 #include <syslog.h>
 #include <errno.h>
@@ -12,8 +13,6 @@
 
 #include <sys/time.h>
 #include <sys/un.h>
-//#include <sys/socket.h>
-//#include <sys/types.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <linux/tcp.h>

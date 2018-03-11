@@ -469,6 +469,7 @@ int32_t otp_process_rsp(uint8_t (*param)[2][64],
                         uint8_t **rsp_ptr, 
                         uint32_t *rsp_len) {
   uint8_t *ret_ptr = NULL;
+  uint8_t *act_ptr = NULL;
   uint8_t *txn_ptr = NULL;
   uint8_t *err_ptr = NULL;
   uint8_t uam_conn_id[8];
@@ -500,13 +501,30 @@ int32_t otp_process_rsp(uint8_t (*param)[2][64],
   if(!strncmp(ret_ptr, "\"y\"", 3)) {
     strncpy(status, "status=success", sizeof(status));
   } else {
+    uint8_t tmp_err[8];
+    uint8_t tmp_actn[8];
+    uint8_t tmp_str[128];
+
+    memset((void *)tmp_err, 0, sizeof(tmp_err));
     err_ptr = uidai_get_param(param, "err");
     assert(err_ptr != NULL);
+    sscanf(err_ptr, "\"%[^\"]\"", tmp_err);
+
     snprintf(status, 
              sizeof(status),
              "%s%s",
              "status=failed&reason=", 
-             err_ptr);
+             tmp_err);
+
+    act_ptr = uidai_get_param(param, "actn");
+    if(act_ptr) {
+      fprintf(stderr, "\n%s:%d act_ptr %s\n", __FILE__, __LINE__, act_ptr);
+      memset((void *)tmp_actn, 0, sizeof(tmp_actn));
+      memset((void *)tmp_str, 0, sizeof(tmp_str));
+      sscanf(act_ptr, "\"%[^\"]\"", tmp_actn); 
+      snprintf(tmp_str, sizeof(tmp_str), "&actn=%s", tmp_actn);
+      strcat(status, tmp_str);
+    }
   }
 
   /*Build final response*/

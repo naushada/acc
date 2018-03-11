@@ -46,14 +46,10 @@ int32_t redir_send_to_uidai(uint32_t conn_id, uint8_t *uidai_req, uint32_t uidai
 
 int32_t redir_parse_aadhaar_req(uint8_t (*param)[2][64], uint8_t *uri) {
   uint8_t *line_ptr;
-  uint8_t tmp_uri[512];
   uint32_t idx = 0;
 
-  memset((void *)tmp_uri, 0, sizeof(tmp_uri));
+  line_ptr = strtok(uri, "&");
 
-  sscanf(uri, "%*[^?]?%s", tmp_uri);
-
-  line_ptr = strtok(tmp_uri, "&");
   while(line_ptr) {
     sscanf(line_ptr, "%[^=]=%s",
                       param[idx][0],
@@ -72,7 +68,7 @@ uint8_t *redir_get_param(uint8_t (*param)[2][64], uint8_t *arg) {
 
   uint32_t idx;
 
-  for(idx = 0; param[idx][0]; idx++) {
+  for(idx = 0; param[idx][0][0]; idx++) {
     if(!strncmp(param[idx][0], arg, strlen(arg))) {
       return(param[idx][1]);
     }    
@@ -182,7 +178,7 @@ int32_t redir_process_uidai_response(uint32_t conn_id,
                                      uint32_t packet_length) {
   redir_ctx_t *pRedirCtx = &redir_ctx_g;
   uint8_t *tmp_ptr = NULL;
-  uint8_t param[8][2][64];
+  uint8_t param[16][2][64];
   uint8_t *uam_conn_id = NULL;
   uint8_t *status = NULL;
   uint8_t *rsp_ptr = NULL;
@@ -191,13 +187,15 @@ int32_t redir_process_uidai_response(uint32_t conn_id,
   tmp_ptr = (uint8_t *)malloc(packet_length);
   assert(tmp_ptr != NULL);
   memset((void *)tmp_ptr, 0, packet_length);
-  memcpy((void *)tmp_ptr, packet_buffer, packet_length);
+  //memcpy((void *)tmp_ptr, packet_buffer, packet_length);
+  sscanf(packet_buffer, "%*[^?]?%s", tmp_ptr);
 
   redir_parse_aadhaar_req(param, tmp_ptr); 
   free(tmp_ptr);
 
   fprintf(stderr, "\n%s:%d UIDAI received response %s\n", __FILE__, __LINE__, packet_buffer);
   /*/response?type=otp&uid=9701361361&ext_conn_id=14&status=success&conn_id=20*/
+  /*/response?type=otp&uid=429182154684&ext_conn_id=14&status=failed&reason=998&actn=A202&conn_id=20*/
   uam_conn_id = redir_get_param(param, "conn_id");
   status = redir_get_param(param, "status");
 
@@ -220,7 +218,7 @@ int32_t redir_process_uidai_response(uint32_t conn_id,
                        "&status=",
                        redir_get_param(param, "status"));
   } else {
-    
+    uint8_t *actn_ptr = redir_get_param(param, "actn"); 
     rsp_len = snprintf(rsp_ptr, 
                        512,    
                        "%s%s%s%s%s"
@@ -235,6 +233,10 @@ int32_t redir_process_uidai_response(uint32_t conn_id,
                        redir_get_param(param, "status"),
                        "&reason=",
                        redir_get_param(param, "reason"));
+    if(actn_ptr) {
+      strcat(rsp_ptr, "&actn=");
+      strcat(rsp_ptr, actn_ptr);
+    }
   }
 
   if(!strncmp(redir_get_param(param, "type"), "auth", 4)) {
@@ -988,6 +990,22 @@ int32_t redir_process_redirect_req(uint32_t conn_id,
 
 }/*redir_process_redirect_req*/
 
+int32_t redir_is_connection_close(uint32_t conn_id) {
+  redir_session_t *session = NULL;
+  uint32_t idx;
+
+  session = redir_get_session(conn_id);
+  assert(session != NULL);
+
+  for(idx = 0; idx < session->mime_header_count; idx++) {
+    if((!strncmp(session->mime_header[idx][0], "Connection", 10)) && 
+       (!strncmp(session->mime_header[idx][1], "close", 5))) {
+      return(1);
+    }
+  }   
+
+  return(0);
+}/*redir_is_connection_close*/
 
 int32_t redir_process_uri(uint32_t conn_id,
                           uint8_t **response_ptr,
@@ -1023,7 +1041,13 @@ int32_t redir_process_req(uint32_t conn_id,
 
   redir_parse_req(conn_id, packet_ptr, packet_length);
 
-  redir_process_uri(conn_id, &redir_ptr, &redir_len);
+  if(redir_is_connection_close(conn_id)) {
+    /*Connection is being closed*/
+    return(1);
+ 
+  } else {
+    redir_process_uri(conn_id, &redir_ptr, &redir_len);
+  }
 
   if(redir_len) {
     if(redir_send(conn_id, redir_ptr, redir_len) < 0) {
@@ -1202,6 +1226,16 @@ void *redir_main(void *argv) {
                           (struct sockaddr *)&peer_addr, 
                           (socklen_t *)&peer_addr_len);
 
+        fprintf(stderr, "\n%s:%d New Connection received conn %d ip %s (port %d)\n", 
+                   __FILE__,
+                   __LINE__,
+                   new_conn, 
+                   inet_ntoa(peer_addr.sin_addr),
+                   ntohs(peer_addr.sin_port));
+
+        session = redir_add_session(new_conn); 
+        session->peer_addr = peer_addr;
+#if 0
         if(peer_addr.sin_addr.s_addr) {
           session = redir_add_session(new_conn); 
           session->peer_addr = peer_addr;
@@ -1227,7 +1261,7 @@ void *redir_main(void *argv) {
                           ntohs(peer_addr.sin_port));
           close(new_conn);
         }
-        
+#endif 
       } else if((pRedirCtx->radiusC_fd > 0) && (FD_ISSET(pRedirCtx->radiusC_fd, &rd))) {
         /*Process RadiusS Response*/
         memset((void *)packet_buffer, 0, sizeof(packet_buffer));
@@ -1266,7 +1300,10 @@ void *redir_main(void *argv) {
             packet_length = 0;
             redir_recv(session->conn, packet_buffer, &packet_length);
 
-            if(!packet_length) {
+            if((!packet_length) || 
+               redir_process_req(session->conn, 
+                                packet_buffer, 
+                                packet_length)) {
               fprintf(stderr, "\n%s:%d src port %d being closed for zero length\n", 
                           __FILE__,
                           __LINE__,
@@ -1274,17 +1311,6 @@ void *redir_main(void *argv) {
               /*Closing the connected conn_id*/
               close(session->conn);
               session->conn = 0;
-
-            } else {
-              fprintf(stderr, "\n%s:%d (conn_id %d) %s\n",
-                              __FILE__,
-                              __LINE__,
-                             session->conn,
-                             packet_buffer);
-
-              redir_process_req(session->conn, 
-                                packet_buffer, 
-                                packet_length);
             }
           }  
         }

@@ -10,6 +10,15 @@ typedef struct {
                          uint32_t *response_len_ptr);
 }http_req_handler_t;
 
+typedef struct {
+  /*could hold either mobile/Aadhaar Number*/
+  uint8_t uid[14];
+  uint8_t status[16];
+  /*Reason of failure*/
+  uint8_t reason[32];
+  uint8_t uidai_rsp;
+}http_uidai_rsp_param_t;
+
 struct http_session_t {
   uint32_t conn;
   struct sockaddr_in peer_addr;
@@ -19,8 +28,8 @@ struct http_session_t {
   uint8_t url[1024];
   uint16_t mime_header_count;
   uint8_t mime_header[16][2][255];
-  /*Response from NAS is success or Failure*/
-  uint8_t nas_rsp;
+  /*Holds the response parameters from uidai response*/
+  http_uidai_rsp_param_t uidai_param;
   struct http_session_t *next;
 
 };
@@ -116,9 +125,9 @@ int32_t http_process_aadhaar_ui_req(uint32_t conn_id,
                                     uint8_t **response_ptr,
                                     uint32_t *response_len_ptr);
 
-int32_t http_process_aadhaar_auth_otp_req(uint32_t conn_id,
-                                          uint8_t **response_ptr,
-                                          uint32_t *response_len_ptr);
+int32_t http_process_aadhaar_otp_req(uint32_t conn_id,
+                                     uint8_t **response_ptr,
+                                     uint32_t *response_len_ptr);
 
 int32_t http_process_aadhaar_uid_req(uint32_t conn_id,
                                      uint8_t **response_ptr,
@@ -127,4 +136,31 @@ int32_t http_process_aadhaar_uid_req(uint32_t conn_id,
 
 http_session_t *http_get_session(uint32_t conn_id);
 
+int32_t http_build_otp_in_form(uint8_t **response_ptr,
+                               uint32_t *response_len_ptr);
+
+int32_t http_process_aadhaar_auth_otp_req(uint32_t conn_id, 
+                                          uint8_t **response_ptr, 
+                                          uint32_t *response_len_ptr);
+
+int32_t http_process_wait_req(uint32_t conn_id,
+                              uint8_t **response_ptr, 
+                              uint32_t *response_len_ptr,
+                              uint8_t *refresh_uri);
+
+int32_t http_process_aadhaar_auth_req(uint32_t conn_id, 
+                                      uint8_t **response_ptr, 
+                                      uint32_t *response_len_ptr);
+
+int32_t http_build_aadhaar_auth_otp_req(uint32_t conn_id, 
+                                        uint8_t *req, 
+                                        uint32_t *req_len);
+
+int32_t http_send_to_nas(uint32_t conn_id, 
+                         uint8_t *req, 
+                         uint32_t req_len);
+
+int32_t http_parse_aadhaar_uid_req(uint32_t conn_id, 
+                                  uint8_t *req_ptr, 
+                                  uint32_t *req_len_ptr);
 #endif /* __HTTP_H__ */

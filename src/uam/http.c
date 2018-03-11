@@ -48,7 +48,6 @@ int32_t http_process_aadhaar_auth_req(uint32_t conn_id,
                                       uint32_t *response_len_ptr) {
 
   uint8_t *refresh_uri = "/aadhaar_auth.html";
-  fprintf(stderr, "\n%s:%d to be written\n", __FILE__, __LINE__);
   http_process_wait_req(conn_id,
                         response_ptr,
                         response_len_ptr,
@@ -101,13 +100,14 @@ int32_t http_parse_param(uint8_t (*param)[2][64], uint8_t *rsp_ptr) {
   param[idx][0][0] = '\0';
   param[idx][1][0] = '\0';
 
+  return(0);
 }/*http_parse_param*/
 
 uint8_t *http_get_param(uint8_t (*param)[2][64], uint8_t *arg) {
 
   uint32_t idx;
 
-  for(idx = 0; param[idx][0]; idx++) {
+  for(idx = 0; param[idx][0][0]; idx++) {
     if(!strncmp(param[idx][0], arg, strlen(arg))) {
       return(param[idx][1]);
     }    
@@ -137,14 +137,17 @@ int32_t http_process_nas_rsp(int32_t nas_fd,
   uid_ptr = http_get_param(param, "uid");
   status_ptr = http_get_param(param, "status");
 
-  if(!strncmp(status_ptr, "failed", 6)) {
-    reason_ptr = http_get_param(param, "reason");
-    memset((void *)session->uidai_param.reason, 0, sizeof(session->uidai_param.reason));
-    strncpy(session->uidai_param.reason, reason_ptr, strlen(reason_ptr));
-  }
-
   session = http_get_session(atoi(conn_id_ptr));
   assert(session != NULL);
+
+  if(!strncmp(status_ptr, "failed", 6)) {
+    reason_ptr = http_get_param(param, "reason");
+
+    if(reason_ptr) {
+      memset((void *)session->uidai_param.reason, 0, sizeof(session->uidai_param.reason));
+      strncpy(session->uidai_param.reason, reason_ptr, strlen(reason_ptr));
+    }
+  }
 
   memset((void *)session->uidai_param.uid, 0, sizeof(session->uidai_param.uid));
   strncpy(session->uidai_param.uid, uid_ptr, strlen(uid_ptr));
@@ -156,7 +159,7 @@ int32_t http_process_nas_rsp(int32_t nas_fd,
   /*Response has been received*/
   session->uidai_param.uidai_rsp = 1;
 
-  fprintf(stderr, "\n%s:%d Response from NAS is %s\n", __FILE__, __LINE__, packet_ptr);
+  fprintf(stderr, "\n%s:%d Response received from NAS is %s\n", __FILE__, __LINE__, packet_ptr);
 
   return(0);
 }/*http_process_nas_rsp*/
@@ -214,7 +217,9 @@ int32_t http_send_to_nas(uint32_t conn_id, uint8_t *req, uint32_t req_len) {
     fprintf(stderr, "\n%s:%d Send to NAS Failed\n", __FILE__, __LINE__);
     return(-1);
   }
+
   fprintf(stderr, "\n%s:%d Request %s\n", __FILE__, __LINE__,req);
+
   return(0);
 }/*http_send_to_nas*/
 
@@ -507,6 +512,7 @@ int32_t http_is_connection_closed(uint32_t conn_id) {
   uint16_t idx;
   http_ctx_t *pHttpCtx = &g_http_ctx;
   http_session_t *session = http_get_session(conn_id);
+  assert(session != NULL);
 
   for(idx = 0; idx < session->mime_header_count; idx++) {
     if((!strncmp(session->mime_header[idx][0], "Connection", 10)) &&
@@ -534,13 +540,10 @@ int32_t http_parse_req(uint32_t conn_id,
 
   http_ctx_t *pHttpCtx = &g_http_ctx;
   http_session_t *session = http_get_session(conn_id);
+  assert(session != NULL);
 
   tmp_ptr = (uint8_t *)malloc(packet_length);
-
-  if(!tmp_ptr) {
-    fprintf(stderr, "\n%s:%d Allocation of Memory failed\n", __FILE__, __LINE__);
-    return(-1);
-  }
+  assert(tmp_ptr != NULL);
 
   memset((void *)tmp_ptr, 0, packet_length);
   memcpy(tmp_ptr, packet_ptr, packet_length);
