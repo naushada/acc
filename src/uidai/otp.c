@@ -23,8 +23,8 @@ int32_t otp_init(uint8_t *ac,
   strncpy(pOtpCtx->ac, (const char *)ac, strlen((const char *)ac));
   strncpy(pOtpCtx->sa, (const char *)sa, strlen((const char *)sa));
   strncpy(pOtpCtx->lk, (const char *)lk, strlen((const char *)lk));
-  //strncpy(pOtpCtx->type, "A", 1);
-  strncpy(pOtpCtx->type, "M", 1);
+  strncpy(pOtpCtx->type, "A", 1);
+  //strncpy(pOtpCtx->type, "M", 1);
   strncpy(pOtpCtx->ver, "1.6", 3);
 
   /*00 - Send OTP via both SMS & e-mail

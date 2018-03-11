@@ -78,6 +78,47 @@ uint8_t *redir_get_param(uint8_t (*param)[2][64], uint8_t *arg) {
 }/*redir_get_param*/
 
 
+int32_t redir_build_auth_pi_req(uint8_t (*param)[2][64], uint8_t *uidai_req, uint32_t conn_id) {
+
+  /*Prepare uidai request for OTP*/
+  uint8_t *uid = NULL;
+  uint8_t *ext_conn_id = NULL;
+  uint8_t *rc = NULL;
+  uint8_t *name = NULL;
+  uint8_t *ver = NULL;
+  uint8_t *ms = NULL;
+  int32_t ret = -1;
+
+  uid = redir_get_param(param, "aadhaar_no");
+  ext_conn_id = redir_get_param(param, "conn_id");
+  rc = redir_get_param(param, "rc");
+  name = redir_get_param(param, "name");
+  ver = redir_get_param(param, "ver");
+  ms = redir_get_param(param, "ms");
+
+  ret = sprintf(uidai_req, 
+                "%s%s%s%s%s"
+                "%s%s%s%s%d"
+                "%s%s%s%s",
+                "/request?type=auth&subtype=pi&uid=",
+                uid,
+                "&ext_conn_id=",
+                ext_conn_id,
+                "&rc=",
+                rc,
+                "&ver=",
+                ver,
+                "&conn_id=",
+                conn_id,
+                "&name=",
+                name,
+                "&ms=",
+                ms);
+
+  return(ret);
+}/*redir_build_auth_pi_req*/
+
+
 int32_t redir_build_auth_otp_req(uint8_t (*param)[2][64], uint8_t *uidai_req, uint32_t conn_id) {
 
   /*Prepare uidai request for OTP*/
@@ -139,6 +180,8 @@ int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri) {
 
     } else if(!(strncmp(subsubtype, "pi", 2))) {
       /*Prepare uidai auth with pi value*/
+      redir_build_auth_pi_req(param, uidai_req, conn_id);
+      ret = strlen(uidai_req);
 
     } else if(!(strncmp(subsubtype, "pa", 2))) {
       /*Prepare uidai auth with pa value*/

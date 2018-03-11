@@ -30,6 +30,7 @@ http_req_handler_t g_handler_http[] = {
   {"/aadhaar_otp.html",          17, http_process_aadhaar_otp_req},
   /*Authentication based on OTP*/
   {"/aadhaar_auth_otp.html",     22, http_process_aadhaar_auth_otp_req},
+  {"/aadhaar_auth_pi.html",      21, http_process_aadhaar_auth_pi_req},
   /*Final Response of Auth*/
   {"/aadhaar_auth.html",         18, http_process_aadhaar_auth_req},
 
@@ -43,6 +44,71 @@ http_req_handler_t g_handler_http[] = {
 /********************************************************************
  *Function Definition
  ********************************************************************/
+int32_t http_build_aadhaar_auth_pi_req(uint32_t conn_id, uint8_t *req, uint32_t *req_len) {
+
+  uint8_t param[8][2][64];
+  uint8_t *uid_ptr = NULL;
+  uint8_t *name_ptr = NULL;
+  uint8_t *mv_ptr = NULL;
+  http_session_t *session = NULL;
+  session = http_get_session(conn_id);
+  assert(session != NULL);
+  
+  memset((void *)param, 0, sizeof(param));
+  fprintf(stderr, "\n%s:%d uri %s\n", __FILE__, __LINE__, session->uri);
+  http_parse_param(param, session->uri);
+
+  uid_ptr = http_get_param(param, "uid");
+  name_ptr = http_get_param(param, "r_name");
+  mv_ptr = http_get_param(param, "ms");
+  /*GET /response_callback?auth_type=aadhaar&subtype=auth&subsubtype=otp&aadhaar_no=9701361361&otp_value=XXXX&rc=y&ver=2.0&conn_id=14 HTTP/1.1*/
+  sprintf(req,
+          "%s%s%s%s%s"
+          "%s%s%s%d%s"
+          "%s%s",
+          "GET /response_callback?auth_type=aadhaar&subtype=auth&subsubtype=pi&aadhaar_no=",
+          uid_ptr,
+          "&name=",
+           name_ptr,
+          "&ms=",
+          mv_ptr,
+          "&rc=y&ver=2.0&",
+          "conn_id=",
+          conn_id,
+          " HTTP/1.1\r\n",
+          "Connection: Keep-Alive\r\n",
+          "Content-Length: 0\r\n");
+
+  *req_len = strlen(req);
+
+  return(0);
+}/*http_build_aadhaar_auth_pi_req*/
+
+int32_t http_process_aadhaar_auth_pi_req(uint32_t conn_id, 
+                                         uint8_t **response_ptr,
+                                         uint32_t *response_len_ptr) {
+  uint8_t *req = NULL;
+  uint32_t req_len;
+  uint8_t *refresh_uri = "/aadhaar_auth.html";
+
+  req = (uint8_t *)malloc(1024);
+  assert(req != NULL);
+  memset((void *)req, 0, 1024);
+  req_len = 0;
+  http_build_aadhaar_auth_pi_req(conn_id, req, &req_len);
+  fprintf(stderr, "\n%s:%d Auth %s\n", __FILE__, __LINE__, req);
+  /*send to NAS*/
+  http_send_to_nas(conn_id, req, req_len);
+  free(req);
+  req = NULL;
+  /*Making Browser to wait for response*/
+  http_process_wait_req(conn_id,
+                        response_ptr,
+                        response_len_ptr,
+                        refresh_uri);
+ 
+}/*http_process_aadhaar_auth_pi_req*/
+
 int32_t http_process_aadhaar_auth_req(uint32_t conn_id, 
                                       uint8_t **response_ptr, 
                                       uint32_t *response_len_ptr) {
@@ -933,7 +999,7 @@ int32_t http_parse_aadhaar_uid_req(uint32_t conn_id,
 
 int32_t http_build_otp_in_form(uint8_t **response_ptr,
                                uint32_t *response_len_ptr) {
-  uint8_t html[512];
+  uint8_t html[1024];
   uint32_t html_body_len;
   int32_t ret = -1;
 
@@ -942,17 +1008,30 @@ int32_t http_build_otp_in_form(uint8_t **response_ptr,
   html_body_len = snprintf((char *)html, 
                            sizeof(html),
                            "%s%s%s%s%s"
+                           "%s%s%s%s%s"
+                           "%s%s%s%s%s"
                            "%s%s%s",
                            "<html><head><title></title>",
                            /*For Responsive Web Page*/
                            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
                            "</head>",
                            "<body><form method=GET action=/aadhaar_auth_otp.html>",
-                           "<center><table><tr><td><input type=text name=otp_value placeholder=\"Enter received OTP\"></td>",
-                           "</tr><tr><td><input type=submit value=\"Submit OTP\"></td>",
-                           "<td><input type=button value=\"Resent OTP\">",
-                           "</td></tr></table></center></form></body></html>");
+                           "<fieldset><legend>OTP</legend>",
+                           "<table><tr><td><input type=text name=otp_value placeholder=\"Enter received OTP\"></td>",
+                           "</tr><tr><td><input type=submit value=\"Submit OTP\"></td></tr>",
+                           "<tr><td><input type=button value=\"Resent OTP\">",
+                           "</td></tr></table></form></fieldset>",
+                           "<form method=GET action=/aadhaar_auth_pi.html>",
+                           "<fieldset><legend>Pi(Personal Identification)</legend>",
+                           "<table><tr><td><input type=text name=uid placeholder=\"Enter 12 digits UID\"></td></tr>",
+                           "<tr><tr><td><input type=test name=r_name placeholder=\"Enter Name\"></td></tr>",
+                           "<tr><td><select name=\"ms\"><option value=\"E\" selected>Exact Matching of Name</option>",
+                           "<option value=\"P\">Partial Matching of Name</option></select></td></tr>",
+                           "<tr><td><input type=submit value=\"Authenticate\">",
+                           "</td></tr></table></form></fieldset>",
+                           "</body></html>");
 
+  fprintf(stderr, "\n%s:%d HTML FORM %s\n", __FILE__, __LINE__, html);
   (*response_ptr) = (uint8_t *)malloc(html_body_len + 255/*For Http Header*/);
 
   if(!(*response_ptr)) {
@@ -1019,8 +1098,8 @@ int32_t http_process_aadhaar_ui_req(uint32_t conn_id,
                            "</head>",
                            "<body><form method=GET action=/aadhaar_uid.html>",
                            "<center><table><tr><td><input type=text name=aadhaar_no placeholder=\"Enter 12 digits aadhaar\"></td>",
-                           "</tr><tr><td><input type=checkbox name=\"rc\" checked>Consent</td>",
-                           "<td><input type=submit value=\"Generate OTP\">",
+                           "</tr><tr><td><input type=checkbox name=\"rc\" checked>I agree.</td></tr>",
+                           "<tr><td><input type=submit value=\"Generate OTP\">",
                            "</td></tr></table></center></form></body></html>");
 
   (*response_ptr) = (uint8_t *)malloc(html_body_len + 255/*For Http Header*/);

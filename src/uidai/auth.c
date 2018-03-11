@@ -396,7 +396,11 @@ int32_t auth_decipher(uint8_t *ciphered_txt,
     return(-1);
   }
 
-  //EVP_CIPHER_CTX_ctrl(x, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL);
+  if(!EVP_CIPHER_CTX_ctrl(x, EVP_CTRL_AEAD_SET_IVLEN, 12, NULL)) {
+    fprintf(stderr, "\n%s:%d Setting of iv len failed \n", __FILE__, __LINE__);
+    EVP_CIPHER_CTX_free(x);
+    return(-2);
+  }
 
   /* Now we can set key and IV */
   if(!EVP_DecryptInit_ex(x, NULL, NULL, pAuthCtx->session_key, pAuthCtx->iv)) {
@@ -405,7 +409,11 @@ int32_t auth_decipher(uint8_t *ciphered_txt,
     return(-2);
   }
 
-  EVP_DecryptUpdate(x, NULL, &tmp_len, pAuthCtx->aad, 16);
+  if(!EVP_DecryptUpdate(x, NULL, &tmp_len, pAuthCtx->aad, 16)) {
+    fprintf(stderr, "\n%s:%d Setting of aad failed \n", __FILE__, __LINE__);
+    EVP_CIPHER_CTX_free(x);
+    return(-2);
+  }
 
   if(!EVP_DecryptUpdate(x, plain_txt, plain_txt_len, ciphered_txt, (ciphered_txt_len - (16 + 19)))) {
     /* Error */
@@ -414,7 +422,11 @@ int32_t auth_decipher(uint8_t *ciphered_txt,
     return 0;
   }
 
-  EVP_CIPHER_CTX_ctrl(x, EVP_CTRL_GCM_SET_TAG, 16, tag);
+  if(!EVP_CIPHER_CTX_ctrl(x, EVP_CTRL_GCM_SET_TAG, 16, tag)) {
+    fprintf(stderr, "\n%s:%d SET TAG Failed \n", __FILE__, __LINE__);
+    EVP_CIPHER_CTX_free(x);
+    return 0;
+  }
 
   if(!EVP_DecryptFinal_ex(x, (plain_txt + *plain_txt_len), &tmp_len)) {
     /* Error */
@@ -553,13 +565,13 @@ int32_t auth_cipher(uint8_t *data,
   //OpenSSL_add_all_ciphers();
 
   /*Initializing Encryption Engine*/
-  if(1 != EVP_EncryptInit_ex(x, EVP_aes_256_gcm(), NULL, NULL, NULL)) {
+  if(!EVP_EncryptInit_ex(x, EVP_aes_256_gcm(), NULL, NULL, NULL)) {
     fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
     EVP_CIPHER_CTX_free(x);
     return(-2);
   }
 
-  if(1 != EVP_CIPHER_CTX_ctrl(x, EVP_CTRL_GCM_SET_IVLEN, 12, NULL)) {
+  if(!EVP_CIPHER_CTX_ctrl(x, EVP_CTRL_GCM_SET_IVLEN, 12, NULL)) {
     fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
     /*Setting of iv Length failed*/
     EVP_CIPHER_CTX_free(x);
@@ -567,13 +579,13 @@ int32_t auth_cipher(uint8_t *data,
   }
 
   /*Initializing symmetric key and iv*/
-  if(1 != EVP_EncryptInit_ex(x, NULL, NULL, pAuthCtx->session_key, pAuthCtx->iv)) {
+  if(!EVP_EncryptInit_ex(x, NULL, NULL, pAuthCtx->session_key, pAuthCtx->iv)) {
     fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
     EVP_CIPHER_CTX_free(x);
     return(-4);
   }
 
-  if(1 != EVP_EncryptUpdate(x, NULL, &tmp_len, pAuthCtx->aad, 16)) {
+  if(!EVP_EncryptUpdate(x, NULL, &tmp_len, pAuthCtx->aad, 16)) {
     fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
     EVP_CIPHER_CTX_free(x);
     return(-5);
@@ -581,7 +593,7 @@ int32_t auth_cipher(uint8_t *data,
 
   while(offset <= data_len - 16) {
 
-    if(1 != EVP_EncryptUpdate(x, &ci_text[offset], &tmp_len, &data[offset], 16)) {
+    if(!EVP_EncryptUpdate(x, &ci_text[offset], &tmp_len, &data[offset], 16)) {
       /* Error */
       fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
       EVP_CIPHER_CTX_free(x);
@@ -591,7 +603,7 @@ int32_t auth_cipher(uint8_t *data,
   }
 
   if(offset < data_len) {
-    if(1 != EVP_EncryptUpdate(x, &ci_text[offset], &tmp_len, &data[offset], (data_len - offset))) {
+    if(!EVP_EncryptUpdate(x, &ci_text[offset], &tmp_len, &data[offset], (data_len - offset))) {
       /* Error */
       fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
       EVP_CIPHER_CTX_free(x);
@@ -600,7 +612,7 @@ int32_t auth_cipher(uint8_t *data,
     offset += tmp_len;
   }
 
-  if(1 != EVP_EncryptFinal_ex(x, &ci_text[offset], &tmp_len)) {
+  if(!EVP_EncryptFinal_ex(x, &ci_text[offset], &tmp_len)) {
     /* Error */
     fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
     EVP_CIPHER_CTX_free(x);
@@ -609,7 +621,7 @@ int32_t auth_cipher(uint8_t *data,
 
   offset += tmp_len;
   /* Get the tag */
-  if(1 != EVP_CIPHER_CTX_ctrl(x, EVP_CTRL_GCM_GET_TAG, 16, tag)) {
+  if(!EVP_CIPHER_CTX_ctrl(x, EVP_CTRL_GCM_GET_TAG, 16, tag)) {
     fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
     EVP_CIPHER_CTX_free(x);
     return(-8);
@@ -1176,11 +1188,26 @@ uint8_t *auth_get_pi_param(uint8_t (*pi_param)[2][64],
   return(NULL);
 }/*auth_get_pi_param*/
 
-int32_t auth_auth_pi_xml(uint8_t *auth_xml, uint32_t auth_xml_size, uint8_t (*pi_param)[2][64]) {
+int32_t auth_auth_pi_xml(uint8_t *auth_xml, uint32_t auth_xml_size, uint8_t (*param)[2][64]) {
   
   auth_ctx_t *pAuthCtx = &auth_ctx_g;
   /*the ts - timestamp format is YYYY-MM-DDThh:mm:ss */
   uint8_t ts[32];
+  uint8_t name_str[256];
+  uint8_t *name_ptr = NULL;
+  uint32_t idx = 0;
+  memset((void *)name_str, 0, sizeof(name_str));
+  name_ptr = uidai_get_param(param, "name");
+
+  while(*name_ptr != '\0') {
+    if(*name_ptr == '+') {
+      name_str[idx++] = ' ';
+      name_ptr++;
+      continue;
+    }
+    name_str[idx++] = *name_ptr;
+    name_ptr++;
+  }
 
   memset((void *)auth_xml, 0, auth_xml_size);
 
@@ -1201,9 +1228,9 @@ int32_t auth_auth_pi_xml(uint8_t *auth_xml, uint32_t auth_xml_size, uint8_t (*pi
            "\" wadh=\"\">\n",
            "  <Demo>\n",
            "    <Pi ms=\"",
-           auth_get_pi_param(pi_param, "ms"),
+           uidai_get_param(param, "ms"),
            "\" name=\"",
-           auth_get_pi_param(pi_param, "name"),
+           name_str,
            "\"/>\n",
            "  </Demo>\n",
            "</Pid>");
@@ -1217,48 +1244,34 @@ int32_t auth_process_auth_pi_req(int32_t conn_fd,
                                  uint32_t *req_xml_len) {
  
   /*"/request?type=auth&subtype=pi&uid=12345678&name=123456&ms=E&cell_no=9701361361&email_id=";*/
-  uint8_t pi[512];
   uint8_t *uid;
   uint8_t auth_xml[6000];
   uint32_t auth_xml_size = sizeof(auth_xml);
-  uint8_t *param_str = NULL;
-  uint8_t pi_param[16][2][64];
-  uint16_t pi_idx = 0;
-  uint8_t param_value[64];
+  uint8_t param[16][2][64];
   uint8_t pid_pi_xml[512];
   auth_ctx_t *pAuthCtx = &auth_ctx_g;
   
+  memset((void *)param, 0, sizeof(param));
+  uidai_parse_req(param, req_ptr); 
  
-  memset((void *)pi, 0, sizeof(pi));
-  memset((void *)uid, 0, sizeof(uid));
- 
-  /*Suppress the character string until ?*/ 
-  sscanf(req_ptr, 
-         "%*[^?]?%s",
-         pi);
+  /*Retrieve vale from parsed param*/ 
+  uid = uidai_get_param(param, "uid");
+  /*/request?type=auth&subtype=pi&uid=999999990019&ext_conn_id=14&rc=y&ver=2.0&conn_id=20&name=Shivshankar+Choudhury&ms=E*/
+  snprintf(pAuthCtx->txn,
+           sizeof(pAuthCtx->txn),
+           "%d-%d-%d-%s-SampleClient",
+           atoi(uidai_get_param(param, "ext_conn_id")),
+           atoi(uidai_get_param(param, "conn_id")),
+           conn_fd,
+           uid);
 
-  fprintf(stderr, "\npi str is %s\n", pi);
-  param_str = strtok(pi, "&");
-  memset((void *)pi_param, 0, sizeof(pi_param));
-
-  do {
-    sscanf(param_str, "%[^=]=%s", pi_param[pi_idx][0], pi_param[pi_idx][1]);
-    pi_idx++;
-
-  }while(param_str = strtok(NULL, "&"));
-
-  /*Make sure that last row is terminated with NULL character*/
-  pi_param[pi_idx][0][0] = '\0';
-  pi_param[pi_idx][1][0] = '\0';
-
-  uid = auth_get_pi_param(pi_param, "uid");
   fprintf(stderr, "\n%s:%d uid %s \n", __FILE__, __LINE__, uid);
   strncpy(pAuthCtx->uid, uid, strlen(uid));
 
   /*Preparing Pi node of the Auth root element*/
   auth_auth_pi_xml(pid_pi_xml,
                    sizeof(pid_pi_xml),
-                   pi_param);
+                   param);
   fprintf(stderr, "\n%s:%d PID XML \n%s\n", __FILE__, __LINE__, pid_pi_xml);
   /*pi attribute of Uses to be set to "y"*/
   auth_auth_xml(auth_xml,
