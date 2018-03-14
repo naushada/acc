@@ -16,6 +16,7 @@ http_ctx_t g_http_ctx;
 http_req_handler_t g_handler_http[] = {
 
   {"/img",                        4, http_process_image_req},
+  {"/favicon.ico",               12, http_process_favicon_req},
   {"/login.html",                11, http_process_login_req},
   {"/ui.html",                    8, http_process_ui_req},
   {"/sign_in.html",              13, http_process_sign_in_req},
@@ -33,6 +34,14 @@ http_req_handler_t g_handler_http[] = {
   {"/aadhaar_auth_pi.html",      21, http_process_aadhaar_auth_pi_req},
   /*Final Response of Auth*/
   {"/aadhaar_auth.html",         18, http_process_aadhaar_auth_req},
+  /*google sign-in*/
+  {"/google_ui.html",            15, http_process_google_ui_req},
+  /*gmail-auth*/
+  {"/gmail_auth.html",           16, http_process_gmail_auth_req},
+  /*twitter sign-in*/
+  {"/twitter_ui.html",           16, http_process_twitter_ui_req},
+  /*fb sign-in*/
+  {"/fb_ui.html",                11, http_process_fb_ui_req},
 
   /*New callback to be inserted above this*/
   {"/",                           1, http_process_login_req},
@@ -44,6 +53,82 @@ http_req_handler_t g_handler_http[] = {
 /********************************************************************
  *Function Definition
  ********************************************************************/
+
+int32_t http_process_gmail_auth_req(uint32_t conn_id,
+                                    uint8_t **response_ptr,
+                                    uint32_t *response_len_ptr) {
+
+  uint8_t *refresh_uri = "/gmail_auth.html";
+  http_session_t *session = NULL;
+  session = http_get_session(conn_id);
+  assert(session != NULL); 
+
+  if(!session->oauth2_param.oauth2_rsp) {
+  
+    /*Making Browser to wait to response for 1sec*/
+    http_process_wait_req(conn_id,
+                        response_ptr,
+                        response_len_ptr,
+                        refresh_uri);
+  } else {
+    http_process_wait_req(conn_id,
+                        response_ptr,
+                        response_len_ptr,
+                        session->oauth2_param.gmail_url);
+    
+  }
+
+  return(0);
+}/*http_process_gmail_auth_req*/
+
+int32_t http_process_google_ui_req(uint32_t conn_id, 
+                                   uint8_t **response_ptr,
+                                   uint32_t *response_len_ptr) {
+
+  /*GET /response_callback?auth_type=gmail&conn_id=14 HTTP/1.1*/
+  uint8_t *req = NULL;
+  uint32_t req_len;
+  uint8_t *refresh_uri = "/gmail_auth.html";
+  http_session_t *session = NULL;
+
+  req = (uint8_t *)malloc(512);
+  assert(req != NULL);
+  memset((void *)req, 0, 512);
+  req_len = 0;
+  req_len = snprintf(req, 
+                     512,
+                     "%s%d%s%s%s",
+                     "GET /response_callback?auth_type=gmail&conn_id=",
+                     conn_id,
+                     " HTTP/1.1\r\n",
+                     "Connection: Keep-Alive\r\n",
+                     "Content-Length: 0\r\n");
+
+  fprintf(stderr, "\n%s:%d Auth gmail %s\n", __FILE__, __LINE__, req);
+  /*send to NAS*/
+  http_send_to_nas(conn_id, req, req_len);
+  free(req);
+  req = NULL;
+
+  session->oauth2_param.oauth2_rsp = 0;
+  /*Making Browser to wait for response*/
+  http_process_wait_req(conn_id,
+                        response_ptr,
+                        response_len_ptr,
+                        refresh_uri);
+  return(0); 
+}/*http_process_google_ui_req*/
+
+int32_t http_process_twitter_ui_req(uint32_t conn_id, 
+                                    uint8_t **response_ptr,
+                                    uint32_t *response_len_ptr) {
+}/*http_process_twitter_ui_req*/
+
+int32_t http_process_fb_ui_req(uint32_t conn_id, 
+                               uint8_t **response_ptr,
+                               uint32_t *response_len_ptr) {
+}/*http_process_fb_ui_req*/
+
 int32_t http_build_aadhaar_auth_pi_req(uint32_t conn_id, uint8_t *req, uint32_t *req_len) {
 
   uint8_t param[8][2][64];
@@ -81,6 +166,7 @@ int32_t http_build_aadhaar_auth_pi_req(uint32_t conn_id, uint8_t *req, uint32_t 
 
   *req_len = strlen(req);
 
+  session->uidai_param.uidai_rsp = 0;
   return(0);
 }/*http_build_aadhaar_auth_pi_req*/
 
@@ -143,6 +229,31 @@ int32_t http_process_aadhaar_auth_otp_req(uint32_t conn_id,
   return(0);
 }/*http_process_aadhaar_auth_otp_req*/
 
+int32_t http_parse_param_ex(uint8_t (*param)[2][255], uint8_t *rsp_ptr) {
+  uint8_t *line_ptr;
+  uint8_t tmp_uri[1024];
+  uint32_t idx = 0;
+
+  memset((void *)tmp_uri, 0, sizeof(tmp_uri));
+
+  sscanf(rsp_ptr, "%*[^?]?%s", tmp_uri);
+  line_ptr = strtok(tmp_uri, "&");
+
+  while(line_ptr) {
+    sscanf(line_ptr, "%[^=]=%s",
+                      param[idx][0],
+                      param[idx][1]);
+    line_ptr = strtok(NULL, "&");
+    idx++;  
+  }
+
+  /*NULL terminated the array*/
+  param[idx][0][0] = '\0';
+  param[idx][1][0] = '\0';
+
+  return(0);
+}/*http_parse_param_ex*/
+
 int32_t http_parse_param(uint8_t (*param)[2][64], uint8_t *rsp_ptr) {
   uint8_t *line_ptr;
   uint8_t tmp_uri[512];
@@ -169,6 +280,19 @@ int32_t http_parse_param(uint8_t (*param)[2][64], uint8_t *rsp_ptr) {
   return(0);
 }/*http_parse_param*/
 
+uint8_t *http_get_param_ex(uint8_t (*param)[2][255], uint8_t *arg) {
+
+  uint32_t idx;
+
+  for(idx = 0; param[idx][0][0]; idx++) {
+    if(!strncmp(param[idx][0], arg, strlen(arg))) {
+      return(param[idx][1]);
+    }    
+  }
+  
+  return(NULL);
+}/*http_get_param_ex*/
+
 uint8_t *http_get_param(uint8_t (*param)[2][64], uint8_t *arg) {
 
   uint32_t idx;
@@ -182,32 +306,60 @@ uint8_t *http_get_param(uint8_t (*param)[2][64], uint8_t *arg) {
   return(NULL);
 }/*http_get_param*/
 
-
-int32_t http_process_nas_rsp(int32_t nas_fd, 
-                             uint8_t *packet_ptr, 
-                             uint32_t packet_length) {
-
-  http_ctx_t *pHttpCtx = &g_http_ctx;
+int32_t http_process_google_rsp(uint8_t *packet_ptr, 
+                                uint32_t packet_length) {
+  uint8_t *type = NULL;
+  uint8_t *location_ptr = NULL;
+  uint8_t *conn_ptr = NULL;
+  uint8_t param[8][2][255];
   http_session_t *session = NULL;
-  uint8_t *conn_id_ptr = NULL;
+
+  /*/response?type=gmail&location=<>&conn_id=14*/
+  memset((void *)param, 0, sizeof(param));
+  http_parse_param_ex(param, packet_ptr);
+
+  location_ptr = http_get_param_ex(param, "location");
+  conn_ptr = http_get_param_ex(param, "conn_id");
+
+  if(!location_ptr || !conn_ptr) {
+    fprintf(stderr, "\n%s:%d getting param failed\n", __FILE__, __LINE__);
+    return(-1);
+  }
+
+  session = http_get_session(atoi(conn_ptr));
+  if(!session) {
+    fprintf(stderr, "\n%s:%d getting session failed\n", __FILE__, __LINE__);
+    return(-2);
+  }  
+
+  session->oauth2_param.gmail_url = (uint8_t *)malloc(512);
+  memset((void *)session->oauth2_param.gmail_url, 0, 512);
+  memcpy((void *)session->oauth2_param.gmail_url, location_ptr, strlen(location_ptr));
+  session->oauth2_param.oauth2_rsp = 1;
+
+  return(0);
+}/*http_process_google_rsp*/
+
+
+int32_t http_process_aadhaar_rsp(uint8_t *packet_ptr,
+                                 uint32_t packet_length,
+                                 uint8_t (*param)[2][255]) {
+
   uint8_t *uid_ptr = NULL;
   uint8_t *status_ptr = NULL;
   uint8_t *reason_ptr = NULL;
-  uint8_t param[8][2][64];
+  uint8_t *conn_id_ptr = NULL;
+  http_session_t *session = NULL;
 
-  /*/response?type=otp&uid=9701361361&conn_id=14&status=success*/
-  memset((void *)param, 0, sizeof(param));
-  http_parse_param(param, packet_ptr);
-
-  conn_id_ptr = http_get_param(param, "conn_id");
-  uid_ptr = http_get_param(param, "uid");
-  status_ptr = http_get_param(param, "status");
+  conn_id_ptr = http_get_param_ex(param, "conn_id");
+  uid_ptr = http_get_param_ex(param, "uid");
+  status_ptr = http_get_param_ex(param, "status");
 
   session = http_get_session(atoi(conn_id_ptr));
   assert(session != NULL);
 
   if(!strncmp(status_ptr, "failed", 6)) {
-    reason_ptr = http_get_param(param, "reason");
+    reason_ptr = http_get_param_ex(param, "reason");
 
     if(reason_ptr) {
       memset((void *)session->uidai_param.reason, 0, sizeof(session->uidai_param.reason));
@@ -221,11 +373,37 @@ int32_t http_process_nas_rsp(int32_t nas_fd,
   memset((void *)session->uidai_param.status, 0, sizeof(session->uidai_param.status));
   strncpy(session->uidai_param.status, status_ptr, strlen(status_ptr));
 
-
   /*Response has been received*/
   session->uidai_param.uidai_rsp = 1;
 
-  fprintf(stderr, "\n%s:%d Response received from NAS is %s\n", __FILE__, __LINE__, packet_ptr);
+  return(0);
+}/*http_process_aadhaar_rsp*/
+
+int32_t http_process_nas_rsp(int32_t nas_fd, 
+                             uint8_t *packet_ptr, 
+                             uint32_t packet_length) {
+
+  uint8_t *auth_type = NULL;
+  uint8_t param[8][2][255];
+
+  /*/response?type=otp&uid=9701361361&conn_id=14&status=success*/
+  memset((void *)param, 0, sizeof(param));
+
+  http_parse_param_ex(param, packet_ptr);
+  auth_type = http_get_param_ex(param, "type");
+  
+  if(!strncmp(auth_type, "otp", 3) || 
+     !strncmp(auth_type, "auth", 4)) {
+    http_process_aadhaar_rsp(packet_ptr, packet_length, param);
+
+  } else if(!strncmp(auth_type, "gmail", 5)) {
+    http_process_google_rsp(packet_ptr, packet_length); 
+  }
+
+  fprintf(stderr, "\n%s:%d Response received from NAS is %s\n", 
+                  __FILE__, 
+                  __LINE__, 
+                  packet_ptr);
 
   return(0);
 }/*http_process_nas_rsp*/
@@ -745,6 +923,58 @@ int32_t http_process_image_req(uint32_t conn_id,
  
 }/*http_process_image_req*/
 
+int32_t http_process_favicon_req(uint32_t conn_id,
+                                 uint8_t **response_ptr, 
+                                 uint32_t *response_len_ptr) {
+  uint32_t fd;
+  struct stat statbuff;
+  uint8_t http_header[255];
+  uint8_t file_name[255];
+  uint16_t tmp_len;
+  http_ctx_t *pHttpCtx = &g_http_ctx;
+  http_session_t *session = http_get_session(conn_id);
+
+  memset((void *)file_name, 0, sizeof(file_name));
+ 
+  snprintf((char *)file_name, sizeof(file_name),
+           "../img%s",
+           session->uri);
+  
+  fd = open(file_name, O_RDONLY);
+
+  if(fd > 0) {
+    fstat(fd, &statbuff);
+    tmp_len = snprintf((char *)http_header,
+                       sizeof(http_header), 
+                       "%s%s%s%d%s"
+                       "%s%s",
+                       "HTTP/1.1 200 OK\r\n",
+                       "Content-Type: image/gif; image/png;image/ico\r\n",
+                       "Content-Length: ",
+                       (int32_t)statbuff.st_size,
+                       "\r\n",
+                       "Connection: Keep-Alive\r\n",
+                       "\r\n");
+
+    (*response_ptr) = (uint8_t *)malloc(statbuff.st_size + tmp_len);
+
+    if(!(*response_ptr)) {
+      fprintf(stderr, "\n%s:%d memory Allocation Failed\n", __FILE__, __LINE__);
+      return(-1);
+    }
+
+    memset((void *)(*response_ptr), 0, (statbuff.st_size + tmp_len));
+    memcpy((void *)(*response_ptr), (const void *)http_header, tmp_len);
+
+    *response_len_ptr = read(fd, (void *)&(*response_ptr)[tmp_len], statbuff.st_size);
+    *response_len_ptr += tmp_len;
+
+    close(fd);
+  }
+  return(0);
+ 
+}/*http_process_favicon_req*/
+
 
 int32_t http_process_wait_req(uint32_t conn_id,
                               uint8_t **response_ptr, 
@@ -993,7 +1223,11 @@ int32_t http_parse_aadhaar_uid_req(uint32_t conn_id,
 
   memcpy((void *)req_ptr, response_qs, ret);
   *req_len_ptr = ret;
+
+  /*makesure that response is not yet received*/
+  session->uidai_param.uidai_rsp = 0;
   fprintf(stderr, "\n%s:%d nas request %s\n", __FILE__, __LINE__, response_qs);
+
   return(0);
 }/*http_parse_aadhaar_uid_req*/
 
@@ -1031,7 +1265,7 @@ int32_t http_build_otp_in_form(uint8_t **response_ptr,
                            "</td></tr></table></form></fieldset>",
                            "</body></html>");
 
-  fprintf(stderr, "\n%s:%d HTML FORM %s\n", __FILE__, __LINE__, html);
+  //fprintf(stderr, "\n%s:%d HTML FORM %s\n", __FILE__, __LINE__, html);
   (*response_ptr) = (uint8_t *)malloc(html_body_len + 255/*For Http Header*/);
 
   if(!(*response_ptr)) {
@@ -1148,7 +1382,7 @@ int32_t http_process_ui_req(uint32_t conn_id,
                            /*For Responsive Web Page*/
                            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
                            "</head>",
-                           "<body><center><table>",
+                           "<body><center><table cellspacing=0 cellpadding=5>",
                            "<tr><form method=GET action=/sign_in.html>",
                            "<td><input type=email name=email_id placeholder=\"E-mail id\"></td>",
                            "</tr><tr><td><input type=password name=password placeholder=\"Password\"></td>",
@@ -1158,11 +1392,11 @@ int32_t http_process_ui_req(uint32_t conn_id,
                            "</tr><tr><form method GET action=/login_with_mobile_no.html>",
                            "<td><input type=text name=mobile_no placeholder=\"10 digits Mobile Number\"></td>",
                            "</tr><tr><td><input type=submit value=\"Sign in\"></td></tr></form>",
-                           /*Image Logog starts*/
-                           "<tr><td><img src=../img/1x/btn_google_signin_dark_normal_web.png></td></tr>",
-                           "<tr><td><img src=../img/sign-in-with-twitter-gray.png></td></tr>",
+                           /*Image Logo starts*/
+                           "<tr><td><a href=/google_ui.html><img src=../img/1x/btn_google_signin_dark_normal_web.png></a></td></tr>",
+                           "<tr><td><a href=/twitter_ui.html><img src=../img/sign-in-with-twitter-gray.png></a></td></tr>",
                            /*Logo Dimension is gouverned by face book*/
-                           "<tr><td><img src=../img/fb_logo.png height=28px width=200px></td></tr>",
+                           "<tr><td><a href=/fb_ui.html><img src=../img/fb_logo.png height=28px width=200px></a></td></tr>",
                            "<tr><td><a href=/aadhaar_ui.html><img src=../img/aadhaar-logo_en-GB.png></a></tr></td>",
                            "</table></center></body></html>"); 
 

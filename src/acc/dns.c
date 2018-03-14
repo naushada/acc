@@ -401,8 +401,22 @@ uint32_t dns_process_dns_query(int16_t fd,
           dns_build_rr_reply(fd, packet_ptr, packet_length);
 
         } else {
-          /*IP is not managed by this DHCP Server*/
-          dns_perform_snat(fd, packet_ptr, packet_length);
+          /*DNS Request for ns1*/
+          uint8_t host_name[32];
+          size_t host_len = sizeof(host_name);
+          memset((void *)host_name, 0, host_len);
+          if(!gethostname(host_name, host_len)) {
+            if(!strncmp(host_name, pDnsCtx->qdata.qname[0].value, strlen(host_name))) {
+              /*DNS Query for ns*/
+              memset((void *)pDnsCtx->host_ip, 0, sizeof(pDnsCtx->host_ip));
+              utility_ip_int_to_str(htonl(pDnsCtx->ns1_ip), pDnsCtx->host_ip);
+              /*Prepare the RR (Resource Record for DNS Reply*/
+              dns_build_rr_reply(fd, packet_ptr, packet_length);
+            }
+          } else {    
+            /*IP is not managed by this DHCP Server*/
+            dns_perform_snat(fd, packet_ptr, packet_length);
+          }
         }
       }
     }

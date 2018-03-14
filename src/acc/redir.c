@@ -29,6 +29,21 @@ redir_req_handler_t g_handler_redir[] = {
   {NULL,                   0, NULL}
 };
 
+int32_t redir_send_to_oauth2(uint32_t conn_id, uint8_t *oauth2_req, uint32_t oauth2_len) {
+ 
+ redir_ctx_t *pRedirCtx = &redir_ctx_g;
+
+  if(pRedirCtx->oauth2_fd < 0) {
+    redir_oauth2_connect(); 
+  } 
+
+  if(pRedirCtx->oauth2_fd > 0) {
+    redir_send(pRedirCtx->oauth2_fd, oauth2_req, oauth2_len); 
+  }
+
+  return(0);
+}/*redir_send_to_oauth2*/
+
 int32_t redir_send_to_uidai(uint32_t conn_id, uint8_t *uidai_req, uint32_t uidai_req_len) {
   
  redir_ctx_t *pRedirCtx = &redir_ctx_g;
@@ -215,6 +230,96 @@ int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri) {
   redir_send_to_uidai(conn_id, uidai_req, ret);  
   return(0);  
 }/*redir_process_aadhaar_req*/
+
+uint8_t *redir_get_oauth2_param(uint8_t *packet_ptr, uint8_t *p_name) {
+
+  uint8_t *param_value = NULL;
+  uint32_t param_max_size = 512;
+  uint8_t *tmp_ptr = NULL;
+  uint8_t *line_ptr = NULL;
+  uint8_t param_name[32];
+  uint8_t is_found = 0;
+
+  param_value = (uint8_t *)malloc(param_max_size);
+  assert(param_value != NULL);
+  tmp_ptr = (uint8_t *)malloc(strlen(packet_ptr));
+  assert(tmp_ptr != NULL);
+  memset((void *)tmp_ptr, 0, strlen(packet_ptr));
+  sscanf(packet_ptr, "%*[^?]?%s", tmp_ptr);  
+
+  line_ptr = strtok(tmp_ptr, "&");
+  while(line_ptr) {
+    memset((void *)param_name, 0, sizeof(param_name));
+    memset((void *)param_value, 0, param_max_size);
+    sscanf(line_ptr, "%[^=]=%s", param_name, param_value);
+    if(!strncmp(param_name, p_name, strlen(p_name))) {
+      is_found = 1;
+      break;  
+    }
+  }
+
+  if(is_found) {
+    free(tmp_ptr);
+    return(param_value);
+  }
+
+  free(tmp_ptr);
+  free(param_value);
+  return(NULL);
+}/*redir_get_oauth2_param*/
+
+
+int32_t redir_process_oauth2_response(uint32_t conn_id, 
+                                      uint8_t *packet_ptr, 
+                                      uint32_t packet_length) {
+  
+  uint8_t *location_ptr = NULL;
+  uint8_t *uam_conn_ptr = NULL;
+  uint8_t *ext_conn_ptr = NULL;
+  uint8_t *subtype_ptr = NULL;
+  uint8_t *rsp_ptr = NULL;
+  uint32_t rsp_size = 1024;
+  uint32_t rsp_len = 0;
+  redir_session_t *session = NULL;
+
+  /*/response?type=gmail&subtype=redirect&location=&ext_conn_id=14&status=success&conn_id=20*/
+  uam_conn_ptr = redir_get_oauth2_param(packet_ptr, "conn_id");
+  assert(uam_conn_ptr != NULL);
+  ext_conn_ptr = redir_get_oauth2_param(packet_ptr, "ext_conn_id");
+  assert(ext_conn_ptr != NULL);
+  location_ptr = redir_get_oauth2_param(packet_ptr, "location");
+  assert(location_ptr != NULL);
+  subtype_ptr = redir_get_oauth2_param(packet_ptr, "subtype");
+  assert(subtype_ptr != NULL);
+ 
+  if(!strncmp(subtype_ptr, "redirect", 8)) {
+    /*Prepare Response*/
+    rsp_ptr = (uint8_t *)malloc(rsp_size);
+    assert(rsp_ptr != NULL);
+    memset((void *)rsp_ptr, 0, rsp_size);
+
+    rsp_len = snprintf(rsp_ptr, 
+                       rsp_size,
+                       "%s%s%s%s%s"
+                       "%s",
+                       "/response?type=gmail&subtype=",
+                       subtype_ptr,
+                       "&location=",
+                       location_ptr,
+                       "&conn_id=",
+                       ext_conn_ptr);
+  }
+  
+  redir_send(atoi(uam_conn_ptr), rsp_ptr, rsp_len);
+  /*Free the allocated memory*/
+  free(uam_conn_ptr);
+  free(ext_conn_ptr);
+  free(subtype_ptr);
+  free(location_ptr);
+  free(rsp_ptr);
+  
+  return(0); 
+}/*redir_process_oauth2_response*/
 
 int32_t redir_process_uidai_response(uint32_t conn_id, 
                                      uint8_t *packet_buffer, 
@@ -548,6 +653,34 @@ int32_t redir_process_wait_req(uint32_t conn_id,
 
 }/*redir_process_wait_req*/
 
+int32_t redir_oauth2_connect(void) {
+  redir_ctx_t *pRedirCtx = &redir_ctx_g;
+  int32_t fd;
+  int32_t ret = -1;
+  struct sockaddr_in oauth2;
+  socklen_t addr_len = sizeof(oauth2);
+
+  fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+  if(fd < 0) {
+    fprintf(stderr, "\n%s:%d socket creation Failed\n", __FILE__, __LINE__);
+    return(-1);
+  }
+
+  oauth2.sin_family = AF_INET;
+  oauth2.sin_addr.s_addr = htonl(pRedirCtx->redir_listen_ip);
+  oauth2.sin_port = htons(pRedirCtx->oauth2_port);
+
+  memset((void *)oauth2.sin_zero, 0, sizeof(oauth2.sin_zero));
+
+  if(!(ret = connect(fd, (struct sockaddr *)&oauth2, addr_len))) {
+    pRedirCtx->oauth2_fd = fd;
+  }
+
+  return(ret);
+
+}/*redir_oauth2_connect*/
+
 int32_t redir_uidaiC_connect(void) {
   redir_ctx_t *pRedirCtx = &redir_ctx_g;
   int32_t fd;
@@ -642,6 +775,31 @@ int32_t redir_build_access_request(uint32_t conn_id,
   return(0); 
 }/*redir_build_access_request*/
 
+int32_t redir_process_gmail_req(uint32_t conn_id, uint8_t *uri) {
+
+  uint8_t *ext_conn_id = NULL;
+  uint8_t param[8][2][64];
+  uint8_t req[256];
+  uint32_t req_len = 0;
+
+  memset((void *)param, 0, sizeof(param));
+  redir_parse_aadhaar_req(param, uri);
+  ext_conn_id = redir_get_param(param, "conn_id");
+
+  memset((void *)req, 0, sizeof(req));
+  req_len = snprintf(req, 
+                     sizeof(req),
+                     "%s%s%s%s%d",
+                     "/request?type=gmail",
+                     "&ext_conn_id=",
+                     ext_conn_id,
+                     "&conn_id=",
+                     conn_id);
+
+  redir_send_to_oauth2(conn_id, req, req_len); 
+  return(0);
+}/*redir_process_gmail_req*/
+
 int32_t redir_process_response_callback_uri(uint32_t conn_id, 
                                             uint8_t *uri) {
 
@@ -667,11 +825,11 @@ int32_t redir_process_response_callback_uri(uint32_t conn_id,
   } else if(!strncmp((const char *)auth_type, "fb", 2)) {
     /*login with Facebook*/
   } else if(!strncmp((const char *)auth_type, "gmail", 5)) {
-    
+    redir_process_gmail_req(conn_id, uri);
+
   } else if(!strncmp((const char *)auth_type, "twitter", 7)) {
  
   } else if(!strncmp((const char *)auth_type, "aadhaar", 7)) {
-
     redir_process_aadhaar_req(conn_id, uri); 
   }
 
@@ -1142,6 +1300,7 @@ int32_t redir_init(uint32_t redir_listen_ip,
                    uint16_t uam_port,
                    uint16_t radiusC_port,
                    uint16_t uidaiC_port,
+                   uint16_t oauth2_port,
                    uint8_t *conn_auth_status_table,
                    uint8_t *ip_allocation_table) {
 
@@ -1189,6 +1348,8 @@ int32_t redir_init(uint32_t redir_listen_ip,
   pRedirCtx->radiusC_port = radiusC_port;
   pRedirCtx->uidaiC_port = uidaiC_port;
   pRedirCtx->uidaiC_fd = -1;
+  pRedirCtx->oauth2_port = oauth2_port;
+  pRedirCtx->oauth2_fd = -1;
   pRedirCtx->redir_fd = fd;
 
   pRedirCtx->session = NULL;
@@ -1254,6 +1415,13 @@ void *redir_main(void *argv) {
                 pRedirCtx->uidaiC_fd;
     }
 
+    if(pRedirCtx->oauth2_fd > 0) {
+      FD_SET(pRedirCtx->oauth2_fd, &rd);
+      max_fd = (max_fd > pRedirCtx->oauth2_fd) ? 
+                max_fd : 
+                pRedirCtx->oauth2_fd;
+    }
+
     max_fd = (max_fd > pRedirCtx->redir_fd ? 
                  max_fd : 
                  pRedirCtx->redir_fd) + 1;
@@ -1278,34 +1446,9 @@ void *redir_main(void *argv) {
 
         session = redir_add_session(new_conn); 
         session->peer_addr = peer_addr;
-#if 0
-        if(peer_addr.sin_addr.s_addr) {
-          session = redir_add_session(new_conn); 
-          session->peer_addr = peer_addr;
-          fprintf(stderr, "\n%s:%d New Connection received conn %d ip %s (port %d)\n", 
-                     __FILE__,
-                     __LINE__,
-                     new_conn, 
-                     inet_ntoa(peer_addr.sin_addr),
-                     ntohs(peer_addr.sin_port));
+      } 
 
-          if(!subscriber_is_authenticated(peer_addr.sin_addr.s_addr)) {
-            /*TCP 3-Way hand shake has happened*/
-            #if 0
-            subscriber_update_conn_status(inet_ntoa(peer_addr.sin_addr),
-                                          "INPROGRESS");
-            #endif
-          }
-        } else {
-          /*Connect Request from 0.0.0.0 ip Address*/
-          fprintf(stderr, "\n%s:%d src port %d being closed\n", 
-                          __FILE__,
-                          __LINE__,
-                          ntohs(peer_addr.sin_port));
-          close(new_conn);
-        }
-#endif 
-      } else if((pRedirCtx->radiusC_fd > 0) && (FD_ISSET(pRedirCtx->radiusC_fd, &rd))) {
+      if((pRedirCtx->radiusC_fd > 0) && (FD_ISSET(pRedirCtx->radiusC_fd, &rd))) {
         /*Process RadiusS Response*/
         memset((void *)packet_buffer, 0, sizeof(packet_buffer));
         packet_length = 0;
@@ -1319,7 +1462,26 @@ void *redir_main(void *argv) {
                                          packet_buffer,
                                          packet_length);
         }
-      } else if((pRedirCtx->uidaiC_fd > 0) && (FD_ISSET(pRedirCtx->uidaiC_fd, &rd))) {
+      } 
+
+      if((pRedirCtx->oauth2_fd > 0) && (FD_ISSET(pRedirCtx->oauth2_fd, &rd))){
+        /*Process Response from oauth2*/
+        memset((void *)packet_buffer, 0, sizeof(packet_buffer));
+        packet_length = 0;
+        redir_recv(pRedirCtx->oauth2_fd, packet_buffer, &packet_length);
+
+        if(!packet_length) {
+          close(pRedirCtx->oauth2_fd);
+          pRedirCtx->oauth2_fd = -1;
+
+        } else {
+          redir_process_oauth2_response(pRedirCtx->oauth2_fd, 
+                                        packet_buffer, 
+                                        packet_length);
+        }
+      }
+
+      if((pRedirCtx->uidaiC_fd > 0) && (FD_ISSET(pRedirCtx->uidaiC_fd, &rd))) {
         /*Process Request/Response for uidai server*/
         memset((void *)packet_buffer, 0, sizeof(packet_buffer));
         packet_length = 0;
@@ -1333,30 +1495,29 @@ void *redir_main(void *argv) {
           redir_process_uidai_response(pRedirCtx->uidaiC_fd, packet_buffer, packet_length);
         }
 
-      } else {
+      }
 
-        for(session = pRedirCtx->session; session; session = session->next) {
+      /*Process request either from UAM or un-authenticated subscriber*/
+      for(session = pRedirCtx->session; session; session = session->next) {
+        if(FD_ISSET(session->conn, &rd)) {
+          /*Either connection is closed or data has been received.*/
+          memset((void *)packet_buffer, 0, sizeof(packet_buffer));
+          packet_length = 0;
+          redir_recv(session->conn, packet_buffer, &packet_length);
 
-          if(FD_ISSET(session->conn, &rd)) {
-            /*Either connection is closed or data has been received.*/
-            memset((void *)packet_buffer, 0, sizeof(packet_buffer));
-            packet_length = 0;
-            redir_recv(session->conn, packet_buffer, &packet_length);
-
-            if((!packet_length) || 
-               redir_process_req(session->conn, 
-                                packet_buffer, 
-                                packet_length)) {
-              fprintf(stderr, "\n%s:%d src port %d being closed for zero length\n", 
+          if((!packet_length) || 
+            redir_process_req(session->conn, 
+                              packet_buffer, 
+                              packet_length)) {
+            fprintf(stderr, "\n%s:%d src port %d being closed for zero length\n", 
                           __FILE__,
                           __LINE__,
                           ntohs(peer_addr.sin_port));
-              /*Closing the connected conn_id*/
-              close(session->conn);
-              session->conn = 0;
-            }
-          }  
-        }
+            /*Closing the connected conn_id*/
+            close(session->conn);
+            session->conn = 0;
+          }
+        }  
       }
     } else if(!ret) {
       //fprintf(stderr, "\n%s:%d Got the timeout\n", __FILE__, __LINE__);

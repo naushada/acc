@@ -19,6 +19,7 @@ typedef struct {
   uint32_t radiusC_ip;
   uint16_t radiusC_port;
   uint16_t uidaiC_port;
+  uint16_t oauth2_port;
   uint32_t radiusS_ip;
   uint16_t cidr;
   uint32_t dns1;

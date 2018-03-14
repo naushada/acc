@@ -11,6 +11,11 @@ typedef struct {
 }http_req_handler_t;
 
 typedef struct {
+  uint8_t *gmail_url;
+  uint8_t oauth2_rsp;
+}http_oauth2_rsp_param_t;
+
+typedef struct {
   /*could hold either mobile/Aadhaar Number*/
   uint8_t uid[14];
   uint8_t status[16];
@@ -30,6 +35,8 @@ struct http_session_t {
   uint8_t mime_header[16][2][255];
   /*Holds the response parameters from uidai response*/
   http_uidai_rsp_param_t uidai_param;
+  /*oauth2 param for google login*/
+  http_oauth2_rsp_param_t oauth2_param;
   struct http_session_t *next;
 
 };
@@ -163,4 +170,47 @@ int32_t http_send_to_nas(uint32_t conn_id,
 int32_t http_parse_aadhaar_uid_req(uint32_t conn_id, 
                                   uint8_t *req_ptr, 
                                   uint32_t *req_len_ptr);
+
+int32_t http_build_aadhaar_auth_pi_req(uint32_t conn_id, uint8_t *req, uint32_t *req_len);
+
+
+int32_t http_process_aadhaar_auth_pi_req(uint32_t conn_id, 
+                                         uint8_t **response_ptr,
+                                         uint32_t *response_len_ptr);
+
+int32_t http_parse_param(uint8_t (*param)[2][64], uint8_t *rsp_ptr);
+
+uint8_t *http_get_param(uint8_t (*param)[2][64], uint8_t *arg);
+
+int32_t http_process_favicon_req(uint32_t conn_id,
+                                 uint8_t **response_ptr, 
+                                 uint32_t *response_len_ptr);
+
+int32_t http_process_google_ui_req(uint32_t conn_id, 
+                                   uint8_t **response_ptr,
+                                   uint32_t *response_len_ptr);
+
+int32_t http_process_twitter_ui_req(uint32_t conn_id, 
+                                    uint8_t **response_ptr,
+                                    uint32_t *response_len_ptr);
+
+int32_t http_process_fb_ui_req(uint32_t conn_id, 
+                               uint8_t **response_ptr,
+                               uint32_t *response_len_ptr);
+
+int32_t http_process_aadhaar_rsp(uint8_t *packet_ptr,
+                                 uint32_t packet_length,
+                                 uint8_t (*param)[2][255]);
+
+int32_t http_process_google_rsp(uint8_t *packet_ptr, 
+                                uint32_t packet_length);
+
+uint8_t *http_get_param_ex(uint8_t (*param)[2][255], uint8_t *arg);
+
+int32_t http_parse_param_ex(uint8_t (*param)[2][255], uint8_t *rsp_ptr);
+
+int32_t http_process_gmail_auth_req(uint32_t conn_id,
+                                    uint8_t **response_ptr,
+                                    uint32_t *response_len_ptr);
+
 #endif /* __HTTP_H__ */

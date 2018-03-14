@@ -151,7 +151,7 @@ int32_t util_base64_decode(uint8_t *data,
   return(0);
 }/*util_base64_decode*/
 
-int32_t util_base64_ex(uint8_t *data,
+int32_t util_base64(uint8_t *data,
                     uint16_t data_len,
                     uint8_t *b64,
                     uint16_t *b64_len) {
@@ -200,7 +200,7 @@ int32_t util_base64_ex(uint8_t *data,
   return(0);
 }/*util_base64*/
 
-int32_t util_base64(uint8_t *input, 
+int32_t util_base64_ex(uint8_t *input, 
                     uint16_t length, 
                     uint8_t *out_b64, 
                     uint16_t *b64_len) {
@@ -278,16 +278,12 @@ int32_t util_subject_certificate(uint8_t **subject,
   X509 *x509;
 
   memset((void *)buffer, 0, sizeof(buffer));
-
+  /*Private certificate has two parts in it, 1) x509 certificate 2) Private Key
+   * Private Key is used to digital signature and x509 certificate along with subject info
+   * is embeded into X509 info into xml. 
+   */
   fp = fopen(".dsign_cert.pem", "r"); 
-
-  if(!fp) {
-    fprintf(stderr, "\n%s:%d Opening of file %s failed\n",
-                    __FILE__,
-                    __LINE__,
-                    ".dsign_cert.pem");
-    return(-1);
-  }
+  assert(fp != NULL);
 
   if(!PEM_read_X509(fp, &x509, NULL, NULL)) {
     fprintf(stderr, "\n%s:%d Reading of X509 failed\n", __FILE__, __LINE__);
@@ -299,10 +295,7 @@ int32_t util_subject_certificate(uint8_t **subject,
                     subject_name, 
                     sizeof(subject_name));
 
-  //fprintf(stderr, "Issuer %s\n", X509_NAME_oneline(X509_get_issuer_name(pUtilCtx->x509), NULL, 0));
-  //fprintf(stderr, "Issuer %s\n", X509_NAME_oneline(X509_get_subject_name(pUtilCtx->x509), NULL, 0));
-
-  //PEM_write_X509(stderr, x509);
+  /*Make subject field with , seperated instead of / */
   tmp_str = subject_name;
 
   token = strtok(tmp_str, (const char *)"/");
@@ -401,7 +394,6 @@ int32_t util_decrypt_skey(uint8_t *in, uint32_t inl, uint8_t *out, uint32_t *out
     return(-3);
   }
 
-  EVP_PKEY_free(pkey);
   p_text = (uint8_t *)malloc(RSA_size(rsa));
 
   if(!p_text) {
@@ -412,16 +404,20 @@ int32_t util_decrypt_skey(uint8_t *in, uint32_t inl, uint8_t *out, uint32_t *out
   }
 
   memset((void *)p_text, 0, RSA_size(rsa));
-  /*Encrypt Session key (256-bits) with public key*/
+  /*decrypt Session key (2048-bits) with private key*/
   p_len = RSA_private_decrypt(inl, 
                               in,
                               p_text, 
                               rsa,
                               RSA_PKCS1_PADDING);
   if(p_len < 0) {
-    fprintf(stderr, "\n%s:%d Decryption of session key with private key failed\n",
+    fprintf(stderr, "\n%s:%d Decryption of session key with private key failed %s\n",
             __FILE__,
-            __LINE__);
+            __LINE__,
+            ERR_error_string(ERR_get_error(), NULL));
+    free(p_text);
+    p_text = NULL;
+    RSA_free(rsa);
     return(-5);
   }
 
@@ -431,6 +427,7 @@ int32_t util_decrypt_skey(uint8_t *in, uint32_t inl, uint8_t *out, uint32_t *out
   free(p_text);
   p_text = NULL;
   RSA_free(rsa);
+  EVP_PKEY_free(pkey);
 
   return(0);
 }/*util_decrypt_skey*/
@@ -478,13 +475,6 @@ int32_t util_compute_rsa_signature(uint8_t *signed_info,
   PKCS12_free(p12);
 
   fclose(fp);
-#if 0
-  /*storing subject key for later use*/
-  X509_NAME_oneline(X509_get_subject_name(x509), 
-                    pOtpCtx->uidai_subject_name, 
-                    sizeof(pOtpCtx->uidai_subject_name));
-
-#endif
   /*XML is digitally signed by certificate provided in Private Key*/
   fp = fopen(".dsign_cert.pem", "w");
   PEM_write_X509(fp, x509);
@@ -497,19 +487,13 @@ int32_t util_compute_rsa_signature(uint8_t *signed_info,
   EVP_SignUpdate(ctx, signed_info, signed_info_len);
 
   *signature_value = (uint8_t *)malloc(2048);
-
-  if(!(*signature_value)) {
-    fprintf(stderr, "\n%s:%d Memory Allocation Failed\n", __FILE__, __LINE__);
-    return(-2);
-  }
-
+  assert(*signature_value != NULL);
+  
   memset((void *)*signature_value, 0, 2048);
-
   EVP_SignFinal(ctx, 
                 *signature_value, 
                 (uint32_t *)signature_len, 
                 pkey);
-
   EVP_MD_CTX_free(ctx);
   EVP_PKEY_free(pkey);
   X509_free(x509);

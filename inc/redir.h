@@ -45,6 +45,9 @@ typedef struct {
   /*uidaiC port & fd*/
   uint16_t uidaiC_port;
   int32_t uidaiC_fd;
+  /*oauth2 port & fd*/
+  uint16_t oauth2_port;
+  int32_t oauth2_fd;
 
   /*Holds the Name of connection Status Table*/
   uint8_t conn_auth_status_table[128];
@@ -90,6 +93,7 @@ int32_t redir_init(uint32_t redir_listen_ip,
                    uint16_t uam_port,
                    uint16_t radiusC_port,
                    uint16_t uidaiC_port,
+                   uint16_t oauth2_port,
                    uint8_t *conn_status_table,
                    uint8_t *ip_allocation_table);
 
@@ -152,4 +156,8 @@ int32_t redir_send_to_uidai(uint32_t conn_id,
                             uint32_t uidai_req_len);
 
 int32_t redir_uidaiC_connect(void);
+
+int32_t redir_oauth2_connect(void);
+
+
 #endif /* __REDIR_H__ */

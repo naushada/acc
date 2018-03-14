@@ -135,6 +135,7 @@ int32_t auth_symmetric_keys(uint8_t *out_ptr, uint32_t out_len) {
     return(-2);
   }
 
+  fprintf(stderr, "\n%s:%d session key\n", __FILE__, __LINE__);
   for(rc = 0; rc < out_len; rc++) {
     fprintf(stderr, "%.2x ", out_ptr[rc]);
   }
@@ -551,18 +552,14 @@ int32_t auth_cipher(uint8_t *data,
   auth_ctx_t *pAuthCtx = &auth_ctx_g;
   EVP_CIPHER_CTX *x;
   int32_t offset = 0;
-  uint8_t ci_text[1024];
+  uint8_t *ci_text = NULL;
   
-  memset((void *)ci_text, 0, sizeof(ci_text));
+  ci_text = (uint8_t *)malloc(1024);
+  assert(ci_text != NULL);
+  memset((void *)ci_text, 0, 1024);
 
   x = EVP_CIPHER_CTX_new();
-
-  if(!x) {
-    fprintf(stderr, "\n%s:%d Instantiation of CIPHER CTX Failed\n",
-                     __FILE__, __LINE__);
-    return(-1);
-  }
-  //OpenSSL_add_all_ciphers();
+  assert(x != NULL);
 
   /*Initializing Encryption Engine*/
   if(!EVP_EncryptInit_ex(x, EVP_aes_256_gcm(), NULL, NULL, NULL)) {
@@ -592,7 +589,6 @@ int32_t auth_cipher(uint8_t *data,
   }
 
   while(offset <= data_len - 16) {
-
     if(!EVP_EncryptUpdate(x, &ci_text[offset], &tmp_len, &data[offset], 16)) {
       /* Error */
       fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
@@ -602,6 +598,7 @@ int32_t auth_cipher(uint8_t *data,
     offset += tmp_len;
   }
 
+  tmp_len = 0;
   if(offset < data_len) {
     if(!EVP_EncryptUpdate(x, &ci_text[offset], &tmp_len, &data[offset], (data_len - offset))) {
       /* Error */
@@ -612,6 +609,7 @@ int32_t auth_cipher(uint8_t *data,
     offset += tmp_len;
   }
 
+  tmp_len = 0;
   if(!EVP_EncryptFinal_ex(x, &ci_text[offset], &tmp_len)) {
     /* Error */
     fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
@@ -630,23 +628,14 @@ int32_t auth_cipher(uint8_t *data,
   memcpy((void *)&ci_text[offset], tag, 16); 
   offset += 16;
   
-  uint8_t tmp_ts[32];
-  uint32_t tmp_ts_len = 0;
-  memset((void *)tmp_ts, 0, sizeof(tmp_ts));
-  //auth_to_char(pAuthCtx->ts, strlen(pAuthCtx->ts), tmp_ts,&tmp_ts_len);
-
-  //memcpy((void *)&ci_text[offset], pAuthCtx->ts, strlen(pAuthCtx->ts));
-  memcpy((void *)&ci_text[offset], pAuthCtx->ts, 19);
-  //memcpy((void *)&ci_text[offset], tmp_ts, tmp_ts_len);
-
-  //offset += strlen(pAuthCtx->ts);
-  offset += 19;
-
+  memcpy((void *)&ci_text[offset], pAuthCtx->ts, strlen(pAuthCtx->ts));
+  offset += strlen(pAuthCtx->ts);
   memcpy((void *)ciphered_data, ci_text, offset);
   *ciphered_data_len = offset;
 
   EVP_CIPHER_CTX_reset(x);
   EVP_CIPHER_CTX_free(x);
+  free(ci_text);
 
   /*Data is encrypted successfully*/
   return(0); 
@@ -704,18 +693,22 @@ int32_t auth_skey(uint8_t *b64_skey, uint16_t b64_skey_size) {
   ASN1_TIME *expiry_date;
   uint8_t not_after[256];
   size_t len = sizeof(not_after);
-  uint8_t *ciphered_session_key;
+  uint8_t *ci_txt;
   uint8_t b64_cipher[512];
   uint16_t b64_cipher_len;
   /*Length of encrypted session key*/
-  int32_t cipher_len;
+  int32_t ci_len = 0;
   uint8_t dd[4];
   uint8_t mm[4];
   uint8_t yyyy[8];
   uint8_t *tmp_ptr = NULL;
   uint16_t idx;
   int32_t rc;
-  uint8_t *mm_str[] = {"Dummy", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", NULL};
+  uint8_t *mm_str[] = {"Dummy", "Jan", "Feb", 
+                       "Mar", "Apr", "May", 
+                       "Jun", "Jul", "Aug", 
+                       "Sep", "Oct", "Nov", 
+                       "Dec", NULL};
 
   memset((void *)pAuthCtx->session_key, 0, sizeof(pAuthCtx->session_key));
   auth_symmetric_keys(pAuthCtx->session_key, sizeof(pAuthCtx->session_key));
@@ -725,20 +718,12 @@ int32_t auth_skey(uint8_t *b64_skey, uint16_t b64_skey_size) {
   memset((void *)dd, 0, sizeof(dd));
 
   fp = fopen(pAuthCtx->public_key, "r");
-
-  if(!fp) {
-    fprintf(stderr, "\n%s:%d Opening of public key file failed\n", __FILE__, __LINE__);
-    return(-1);
-  }
-
+  assert(fp != NULL);
   x509 = X509_new();
   PEM_read_X509(fp, &x509, NULL, NULL);
-
-  if(!x509) {
-    fprintf(stderr, "\n%s:%d Opening of certificate File failed\n", __FILE__, __LINE__);
-    return(-2);
-  }
+  assert(x509 != NULL);
   pkey = X509_get_pubkey(x509);
+  fclose(fp);
 
   /*Retrieve Certificate Expiry date*/
   expiry_date = X509_get_notAfter(x509);
@@ -748,7 +733,6 @@ int32_t auth_skey(uint8_t *b64_skey, uint16_t b64_skey_size) {
   if(!bio) {
     fprintf(stderr, "\n%s:%d Instantiation of BIO failed\n", __FILE__, __LINE__);
     X509_free(x509);
-    fclose(fp);
     return(-2);
   }
 
@@ -756,7 +740,6 @@ int32_t auth_skey(uint8_t *b64_skey, uint16_t b64_skey_size) {
     fprintf(stderr, "\n%s:%d expiry date for bio failed\n", __FILE__, __LINE__);
     BIO_free(bio);
     X509_free(x509);
-    fclose(fp);
     return(-3);
   }
 
@@ -764,7 +747,6 @@ int32_t auth_skey(uint8_t *b64_skey, uint16_t b64_skey_size) {
     fprintf(stderr, "\n%s:%d retrieval of expiry date failed\n", __FILE__, __LINE__);
     BIO_free(bio);
     X509_free(x509);
-    fclose(fp);
     return(-4);
   }
 
@@ -793,48 +775,32 @@ int32_t auth_skey(uint8_t *b64_skey, uint16_t b64_skey_size) {
            idx,
            dd);
 
-  fclose(fp);
-
   rsa = EVP_PKEY_get1_RSA(pkey);
+  assert(rsa != NULL);
 
-  if(!rsa) {
-    fprintf(stderr, "\n%s:%d the RSA is NULL\n", __FILE__, __LINE__);
-    return(-3);
-  }
-#if 0
   fprintf(stderr, "\n%s:%d RSA_bits %d RSA_size %d RSA_flags %d\n", 
                   __FILE__, __LINE__,
                   RSA_bits(rsa), RSA_size(rsa), RSA_flags(rsa));
-#endif
-  ciphered_session_key = (uint8_t *)malloc(RSA_size(rsa));
 
-  if(!ciphered_session_key) {
-    fprintf(stderr, "\n%s:%d memory Allocation failed for ciphered session key\n",
-           __FILE__,
-           __LINE__);
-    return(-4);
-  }
+  ci_txt = (uint8_t *)malloc(RSA_size(rsa));
+  assert(ci_txt != NULL);
 
-  memset((void *)ciphered_session_key, 0, RSA_size(rsa));
+  memset((void *)ci_txt, 0, RSA_size(rsa));
   /*Encrypt Session key (256-bits) with public key*/
-  cipher_len = RSA_public_encrypt(sizeof(pAuthCtx->session_key), 
-                                  pAuthCtx->session_key,
-                                  ciphered_session_key, 
-                                  rsa,
-                                  RSA_PKCS1_PADDING);
-  if(cipher_len < 0) {
+  ci_len = RSA_public_encrypt(sizeof(pAuthCtx->session_key), 
+                              pAuthCtx->session_key,
+                              ci_txt, 
+                              rsa,
+                              RSA_PKCS1_PADDING);
+  if(ci_len < 0) {
     fprintf(stderr, "\n%s:%d Encryption of session key with public key failed\n",
             __FILE__,
             __LINE__);
     return(-5);
   }
 
-  X509_free(x509);
-  RSA_free(rsa);
-  EVP_PKEY_free(pkey);
-
-  util_base64(ciphered_session_key, 
-               cipher_len, 
+  util_base64(ci_txt, 
+               ci_len, 
                b64_cipher, 
                &b64_cipher_len);
 
@@ -847,6 +813,12 @@ int32_t auth_skey(uint8_t *b64_skey, uint16_t b64_skey_size) {
            "\">",
            b64_cipher,
            "</Skey>");
+
+  X509_free(x509);
+  RSA_free(rsa);
+  EVP_PKEY_free(pkey);
+  free(ci_txt);
+  ci_txt = NULL;
 
   return(0); 
 }/*auth_skey*/

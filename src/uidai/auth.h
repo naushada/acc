@@ -42,7 +42,10 @@ typedef struct {
   uint8_t aad[20];
   /*ts - time stamp when PID is formed*/
   uint8_t ts[32];
-  uint8_t uidai_host_name[128];   
+  uint8_t uidai_host_name[128];
+  /*To be removed*/
+  uint8_t b64_skey[2048];
+  uint32_t skey_len;
 }auth_ctx_t;
 
 

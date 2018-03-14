@@ -184,6 +184,9 @@ int32_t acc_init_conf(int32_t row, uint8_t (*record)[16][32]) {
     } else if(!strncmp(record[idx][0], "uidaiC_port", 11)) {
       pAccCtx->uidaiC_port = atoi(record[idx][1]);
    
+    } else if(!strncmp(record[idx][0], "oauth2_port", 11)) {
+      pAccCtx->oauth2_port = atoi(record[idx][1]);
+   
     }
 
   }
@@ -283,6 +286,7 @@ int32_t acc_main(char *argv[]) {
              pAccCtx->uamS_port,
              pAccCtx->radiusC_port,
              pAccCtx->uidaiC_port,
+             pAccCtx->oauth2_port,
              ACC_CON_AUTH_STATUS_TABLE,
              ACC_IP_ALLOCATION_TABLE); 
 
@@ -334,7 +338,7 @@ int32_t acc_main(char *argv[]) {
            pAccCtx->redir_port);
 
   uidai_init(pAccCtx->ip_addr,
-             8989,
+             pAccCtx->uidaiC_port,
              "developer.uidai.gov.in",
              80,
              "public",
