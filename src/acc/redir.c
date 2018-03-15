@@ -252,10 +252,12 @@ uint8_t *redir_get_oauth2_param(uint8_t *packet_ptr, uint8_t *p_name) {
     memset((void *)param_name, 0, sizeof(param_name));
     memset((void *)param_value, 0, param_max_size);
     sscanf(line_ptr, "%[^=]=%s", param_name, param_value);
+
     if(!strncmp(param_name, p_name, strlen(p_name))) {
       is_found = 1;
       break;  
     }
+    line_ptr = strtok(NULL, "&");
   }
 
   if(is_found) {
@@ -273,22 +275,17 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
                                       uint8_t *packet_ptr, 
                                       uint32_t packet_length) {
   
-  uint8_t *location_ptr = NULL;
   uint8_t *uam_conn_ptr = NULL;
-  uint8_t *ext_conn_ptr = NULL;
   uint8_t *subtype_ptr = NULL;
   uint8_t *rsp_ptr = NULL;
   uint32_t rsp_size = 1024;
   uint32_t rsp_len = 0;
+  uint8_t *pArr[20];
   redir_session_t *session = NULL;
 
   /*/response?type=gmail&subtype=redirect&location=&ext_conn_id=14&status=success&conn_id=20*/
   uam_conn_ptr = redir_get_oauth2_param(packet_ptr, "conn_id");
   assert(uam_conn_ptr != NULL);
-  ext_conn_ptr = redir_get_oauth2_param(packet_ptr, "ext_conn_id");
-  assert(ext_conn_ptr != NULL);
-  location_ptr = redir_get_oauth2_param(packet_ptr, "location");
-  assert(location_ptr != NULL);
   subtype_ptr = redir_get_oauth2_param(packet_ptr, "subtype");
   assert(subtype_ptr != NULL);
  
@@ -301,22 +298,40 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
     rsp_len = snprintf(rsp_ptr, 
                        rsp_size,
                        "%s%s%s%s%s"
-                       "%s",
+                       "%s%s%s%s%s"
+                       "%s%s%s%s%s"
+                       "%s%s%s",
                        "/response?type=gmail&subtype=",
                        subtype_ptr,
-                       "&location=",
-                       location_ptr,
+                       "&uri=",
+                       pArr[0] = redir_get_oauth2_param(packet_ptr, "uri"),
+                       "&scope=",
+                       pArr[1] = redir_get_oauth2_param(packet_ptr, "scope"),
+                       "&access_type=",
+                       pArr[2] = redir_get_oauth2_param(packet_ptr, "access_type"),
+                       "&state=",
+                       pArr[3] = redir_get_oauth2_param(packet_ptr, "state"),
+                       "&redirect_uri=",
+                       pArr[4] = redir_get_oauth2_param(packet_ptr, "redirect_uri"),
+                       "&response_type=",
+                       pArr[5] = redir_get_oauth2_param(packet_ptr, "response_type"),
+                       "&client_id=",
+                       pArr[6] = redir_get_oauth2_param(packet_ptr, "client_id"),
                        "&conn_id=",
-                       ext_conn_ptr);
+                       pArr[7] = redir_get_oauth2_param(packet_ptr, "ext_conn_id"));
   }
-  
+
+  fprintf(stderr, "\n%s:%d response ptr %s\n", __FILE__, __LINE__, rsp_ptr);  
   redir_send(atoi(uam_conn_ptr), rsp_ptr, rsp_len);
   /*Free the allocated memory*/
   free(uam_conn_ptr);
-  free(ext_conn_ptr);
   free(subtype_ptr);
-  free(location_ptr);
   free(rsp_ptr);
+  uint32_t idx;
+
+  for(idx = 0; idx < 8; idx++) {
+    free(pArr[idx]);
+  }
   
   return(0); 
 }/*redir_process_oauth2_response*/
@@ -664,7 +679,7 @@ int32_t redir_oauth2_connect(void) {
 
   if(fd < 0) {
     fprintf(stderr, "\n%s:%d socket creation Failed\n", __FILE__, __LINE__);
-    return(-1);
+    return(1);
   }
 
   oauth2.sin_family = AF_INET;
@@ -677,8 +692,11 @@ int32_t redir_oauth2_connect(void) {
     pRedirCtx->oauth2_fd = fd;
   }
 
+  if(ret < 0) {
+    fprintf(stderr, "\n%s:%d Connection failed to oauth2\n", __FILE__, __LINE__);
+    perror("oauth20:");
+  }
   return(ret);
-
 }/*redir_oauth2_connect*/
 
 int32_t redir_uidaiC_connect(void) {
@@ -790,12 +808,13 @@ int32_t redir_process_gmail_req(uint32_t conn_id, uint8_t *uri) {
   req_len = snprintf(req, 
                      sizeof(req),
                      "%s%s%s%s%d",
-                     "/request?type=gmail",
+                     "/request?type=auth",
                      "&ext_conn_id=",
                      ext_conn_id,
                      "&conn_id=",
                      conn_id);
 
+  fprintf(stderr, "\n%s:%d received for oauth20 %s\n", __FILE__, __LINE__, req);
   redir_send_to_oauth2(conn_id, req, req_len); 
   return(0);
 }/*redir_process_gmail_req*/

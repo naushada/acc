@@ -19,6 +19,7 @@
 #include <type.h>
 #include <time.h>
 #include <assert.h>
+#include <openssl/ssl.h>
 #include <openssl/evp.h>
 #include <openssl/aes.h>
 #include <openssl/pem.h>

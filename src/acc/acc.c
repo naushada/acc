@@ -21,6 +21,7 @@
 #include <radiusC.h>
 #include <subscriber.h>
 #include <uidai/uidai.h>
+#include <oauth20/oauth20.h>
 
 acc_ctx_t acc_ctx_g;
 
@@ -43,7 +44,7 @@ void acc_signal_handler(int32_t signo,
                     __FILE__,
                     __LINE__);
 
-    for(idx = 0; idx < 5; idx++) {
+    for(idx = 0; idx < 7; idx++) {
       pthread_kill(pAccCtx->tid[idx], SIGINT);
     }
   }
@@ -354,10 +355,19 @@ int32_t acc_main(char *argv[]) {
                  uidai_main, 
                  (void *)pAccCtx->tid[4]);
 
+  oauth20_init("googleapis.com",
+               pAccCtx->ip_addr,
+               pAccCtx->oauth2_port);
+  
   pthread_create(&pAccCtx->tid[5], 
                  NULL, 
-                 dhcp_main, 
+                 oauth20_main, 
                  (void *)pAccCtx->tid[5]);
+
+  pthread_create(&pAccCtx->tid[6], 
+                 NULL, 
+                 dhcp_main, 
+                 (void *)pAccCtx->tid[6]);
  
 }/*acc_main*/
 
@@ -374,7 +384,7 @@ int main(int32_t argc, char *argv[]) {
 
   acc_main((char **)&argv[1]); 
 
-  for(idx = 0; idx < 6; idx++ ) {
+  for(idx = 0; idx < 7; idx++ ) {
     pthread_join(pAccCtx->tid[idx], &tret_id);
   }
   

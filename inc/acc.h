@@ -9,7 +9,7 @@
 
 
 typedef struct {
-  pthread_t tid[8];
+  pthread_t tid[10];
   uint8_t eth_name[IFNAMSIZ];
   uint32_t ip_addr; 
   uint32_t uamS_ip;

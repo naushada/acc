@@ -213,4 +213,8 @@ int32_t http_process_gmail_auth_req(uint32_t conn_id,
                                     uint8_t **response_ptr,
                                     uint32_t *response_len_ptr);
 
+uint8_t *http_get_gparam(uint8_t *req_ptr, 
+                        uint32_t req_len, 
+                        uint8_t *p_name);
+
 #endif /* __HTTP_H__ */

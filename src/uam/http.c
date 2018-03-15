@@ -75,6 +75,9 @@ int32_t http_process_gmail_auth_req(uint32_t conn_id,
                         response_ptr,
                         response_len_ptr,
                         session->oauth2_param.gmail_url);
+    free(session->oauth2_param.gmail_url);
+    session->oauth2_param.gmail_url = NULL;
+    fprintf(stderr, "\n%s:%d Response %s\n", __FILE__, __LINE__, *response_ptr);
     
   }
 
@@ -110,6 +113,8 @@ int32_t http_process_google_ui_req(uint32_t conn_id,
   free(req);
   req = NULL;
 
+  session = http_get_session(conn_id);
+  assert(session != NULL);
   session->oauth2_param.oauth2_rsp = 0;
   /*Making Browser to wait for response*/
   http_process_wait_req(conn_id,
@@ -243,6 +248,8 @@ int32_t http_parse_param_ex(uint8_t (*param)[2][255], uint8_t *rsp_ptr) {
     sscanf(line_ptr, "%[^=]=%s",
                       param[idx][0],
                       param[idx][1]);
+
+    //fprintf(stderr, "\n%s:%d param_name %s param_value %s\n", __FILE__, __LINE__, param[idx][0], param[idx][1]);
     line_ptr = strtok(NULL, "&");
     idx++;  
   }
@@ -306,37 +313,94 @@ uint8_t *http_get_param(uint8_t (*param)[2][64], uint8_t *arg) {
   return(NULL);
 }/*http_get_param*/
 
+uint8_t *http_get_gparam(uint8_t *req_ptr, uint32_t req_len, uint8_t *p_name) {
+
+  uint8_t *tmp_req_ptr = NULL;
+  uint8_t *line_ptr = NULL;
+  uint8_t param_name[32];
+  uint8_t *param_value = NULL;
+  uint8_t flag = 0;
+
+  tmp_req_ptr = (uint8_t *) malloc(sizeof(uint8_t) * req_len);
+  assert(tmp_req_ptr != NULL);
+  memset((void *)tmp_req_ptr, 0, (sizeof(uint8_t) * req_len));
+
+  memset((void *)param_name, 0, sizeof(param_name));
+  param_value = (uint8_t *)malloc(sizeof(uint8_t) * 1024);
+  assert(param_value != NULL);
+  memset((void *)param_value, 0, (sizeof(uint8_t) * 1024));
+  
+  sscanf(req_ptr, "%*[^?]?%s", tmp_req_ptr);
+  line_ptr = strtok(tmp_req_ptr, "&");
+
+  while(line_ptr) {
+    sscanf(line_ptr, "%[^=]=%s", param_name, param_value);
+    //fprintf(stderr, "param_name %s param_value %s\n", param_name, param_value);
+    if(!strncmp(param_name, p_name, strlen(p_name))) {
+      flag = 1;
+      break;      
+    }
+    line_ptr = strtok(NULL, "&");
+  }
+
+  free(tmp_req_ptr);
+  if(flag) {
+    return(param_value);
+  }
+
+  return(NULL);
+}/*http_get_gparam*/
+
 int32_t http_process_google_rsp(uint8_t *packet_ptr, 
                                 uint32_t packet_length) {
   uint8_t *type = NULL;
-  uint8_t *location_ptr = NULL;
   uint8_t *conn_ptr = NULL;
-  uint8_t param[8][2][255];
   http_session_t *session = NULL;
+  uint8_t *pArr[10];
+  uint32_t idx; 
 
   /*/response?type=gmail&location=<>&conn_id=14*/
-  memset((void *)param, 0, sizeof(param));
-  http_parse_param_ex(param, packet_ptr);
+  conn_ptr = http_get_gparam(packet_ptr, packet_length, "conn_id");
 
-  location_ptr = http_get_param_ex(param, "location");
-  conn_ptr = http_get_param_ex(param, "conn_id");
-
-  if(!location_ptr || !conn_ptr) {
+  if(!conn_ptr) {
     fprintf(stderr, "\n%s:%d getting param failed\n", __FILE__, __LINE__);
-    return(-1);
+    return(1);
   }
 
   session = http_get_session(atoi(conn_ptr));
+  free(conn_ptr);
+
   if(!session) {
     fprintf(stderr, "\n%s:%d getting session failed\n", __FILE__, __LINE__);
-    return(-2);
+    return(2);
   }  
 
-  session->oauth2_param.gmail_url = (uint8_t *)malloc(512);
-  memset((void *)session->oauth2_param.gmail_url, 0, 512);
-  memcpy((void *)session->oauth2_param.gmail_url, location_ptr, strlen(location_ptr));
+  session->oauth2_param.gmail_url = (uint8_t *)malloc(sizeof(uint8_t) * 1024);
+  memset((void *)session->oauth2_param.gmail_url, 0, 1024);
+  snprintf(session->oauth2_param.gmail_url, 
+           1024,
+           "%s%s%s%s%s"
+           "%s%s%s%s%s"
+           "%s%s%s",
+           pArr[0] = http_get_gparam(packet_ptr, packet_length, "uri"),
+           "?scope=",
+           pArr[1] = http_get_gparam(packet_ptr, packet_length, "scope"),
+           "&access_type=",
+           pArr[2] = http_get_gparam(packet_ptr, packet_length, "access_type"),
+           "&state=",
+           pArr[3] = http_get_gparam(packet_ptr, packet_length, "state"),
+           "&redirect_uri=",
+           pArr[4] = http_get_gparam(packet_ptr, packet_length, "redirect_uri"),
+           "&response_type=",
+           pArr[5] = http_get_gparam(packet_ptr, packet_length, "response_type"),
+           "&client_id=",
+           pArr[6] = http_get_gparam(packet_ptr, packet_length, "client_id"));
+
   session->oauth2_param.oauth2_rsp = 1;
 
+  for(idx = 0; idx < 7; idx++) {
+    free(pArr[idx]);
+  }
   return(0);
 }/*http_process_google_rsp*/
 
@@ -388,15 +452,14 @@ int32_t http_process_nas_rsp(int32_t nas_fd,
 
   /*/response?type=otp&uid=9701361361&conn_id=14&status=success*/
   memset((void *)param, 0, sizeof(param));
-
-  http_parse_param_ex(param, packet_ptr);
-  auth_type = http_get_param_ex(param, "type");
+  auth_type = http_get_gparam(packet_ptr, packet_length, "type");
   
   if(!strncmp(auth_type, "otp", 3) || 
      !strncmp(auth_type, "auth", 4)) {
     http_process_aadhaar_rsp(packet_ptr, packet_length, param);
 
   } else if(!strncmp(auth_type, "gmail", 5)) {
+    free(auth_type);
     http_process_google_rsp(packet_ptr, packet_length); 
   }
 
@@ -980,7 +1043,7 @@ int32_t http_process_wait_req(uint32_t conn_id,
                               uint8_t **response_ptr, 
                               uint32_t *response_len_ptr,
                               uint8_t *refresh_uri) {
-  uint8_t html_body[255];
+  uint8_t html_body[1024];
   uint16_t html_body_len;
   int32_t ret = -1;
 

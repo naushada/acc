@@ -13,12 +13,40 @@ typedef struct {
   uint8_t scope[16];
   /*once user is logged in, google will redirect user to this url*/
   uint8_t redirect_uri[128];
+  /*listen ip*/
+  uint32_t nas_ip;
+  /*listen port*/
+  uint16_t nas_port;
+  /*nas_fd*/
+  int32_t  nas_fd;
+  /*google_fd*/
+  int32_t  google_fd;
   
 }oauth20_ctx_t;
 
 
+int32_t oauth20_recv(int32_t fd, 
+                     uint8_t *req_ptr, 
+                     uint32_t req_ptr_size, 
+                     uint32_t *req_ptr_len);
 
+int32_t oauth20_send(int32_t fd, 
+                     uint8_t *rsp_ptr, 
+                     uint32_t rsp_ptr_len);
 
+int32_t oauth20_init(uint8_t *host_name,
+                     uint32_t nas_ip,
+                     uint16_t nas_port);
 
+void *oauth20_main(void *tid);
 
+int32_t oauth20_process_nas_req(int32_t conn_id, 
+                                uint8_t *req_ptr, 
+                                uint32_t req_len);
+
+int32_t oauth20_compute_state(uint8_t *b64, 
+                              uint32_t *b64_len);
+
+uint8_t *oauth20_get_param(uint8_t *packet_ptr, 
+                           uint8_t *p_name);
 #endif /* __OAUTH20_H__ */

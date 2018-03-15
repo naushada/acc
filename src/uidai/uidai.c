@@ -802,7 +802,6 @@ void *uidai_main(void *tid) {
           pUidaiCtx->uidai_fd = -1;
           fprintf(stderr, "\n%s:%d Connection is being closed\n", __FILE__, __LINE__);
         }
-        
       }
     }
   }
