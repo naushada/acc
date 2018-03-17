@@ -5,7 +5,6 @@
 
 #define DNS_PORT 53
 
-
 typedef enum {
   DNS_QUERY,
   DNS_INVERSE_QUERY,
@@ -196,6 +195,7 @@ uint32_t dns_main(int16_t fd,
                   uint16_t packet_length);
 
 
+int32_t dns_build_dns_req(uint8_t *wall_gardened);
 
 #endif
 

@@ -483,7 +483,7 @@ int32_t nat_perform_dnat(uint8_t *packet_ptr,
   }
   return(0);
 
-}/*dns_perform_dnat*/
+}/*nat_perform_dnat*/
 
 
 #endif /* __NAT_C__ */

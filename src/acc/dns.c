@@ -51,6 +51,103 @@ uint32_t dns_init(uint8_t *domain_name,
   return(0);
 }/*dns_init*/
 
+int32_t dns_build_dns_req(uint8_t *wall_gardened) {
+  uint32_t idx;
+  uint8_t *req_ptr = NULL;
+  uint32_t req_size = 1500;
+  uint32_t offset = 0;
+  uint8_t tmp_dname[1024];
+  uint8_t *line_ptr = NULL;
+  int32_t ret = -1;
+  dns_ctx_t *pDnsCtx = &dns_ctx_g;
+
+  req_ptr = (uint8_t *)malloc(sizeof(uint8_t) * req_size);
+  assert(req_ptr != NULL);
+  memset((void *)req_ptr, 0, (sizeof(uint8_t) * req_size));
+
+  struct iphdr  *ip_ptr  = (struct iphdr  *)req_ptr;
+  struct udphdr *udp_ptr = (struct udphdr *)&req_ptr[sizeof(struct iphdr)];
+  struct dnshdr *dns_ptr = (struct dnshdr *)&req_ptr[sizeof(struct iphdr) + sizeof(struct udphdr)];
+
+  /*Filling IP Header*/
+  ip_ptr->ip_len         = 0x5;
+  ip_ptr->ip_ver         = 0x4;
+  ip_ptr->ip_tos         = 0x00;
+  /*to be updated later*/
+  ip_ptr->ip_tot_len     = 0x00;
+  ip_ptr->ip_id          = htons(random() % 65535);
+  ip_ptr->ip_flag_offset = htons(0x1 << 14);
+  ip_ptr->ip_ttl         = 0x10;
+  ip_ptr->ip_proto       = 0x11;
+  /*To be calculated later*/
+  ip_ptr->ip_chksum      = 0x00;
+
+  ip_ptr->ip_src_ip  = htonl(pDnsCtx->ns1_ip);
+  /*ip address of google dns - 8.8.8.8 or 8.8.4.4*/
+  ip_ptr->ip_dest_ip = htonl(utility_ip_str_to_int("8.8.8.8"));
+
+  /*populating UDP Header*/
+  udp_ptr->udp_src_port  = htons(8989);
+  udp_ptr->udp_dest_port = htons(DNS_PORT); 
+  udp_ptr->udp_len       = 0x00;
+  /*To be calculated later*/
+  udp_ptr->udp_chksum    = 0x00;
+
+  /*populating DNS Reply with RR*/
+  dns_ptr->xid     = htons(8844);
+  dns_ptr->qr      = 0x0;
+  dns_ptr->opcode  = DNS_QUERY ;
+  dns_ptr->aa      = 0x0;
+  dns_ptr->tc      = 0x0;
+  dns_ptr->rd      = 0x1;
+  dns_ptr->ra      = 0x00;
+  dns_ptr->z       = 0x00;
+  dns_ptr->rcode   = DNS_NO_ERROR;
+  dns_ptr->qdcount = htons(0x01);
+  dns_ptr->ancount = htons(0x00);
+  dns_ptr->nscount = htons(0x00);
+  dns_ptr->arcount = htons(0x00);
+  /*Filling up the payload of dns query*/
+
+  offset = sizeof(struct iphdr) + sizeof(struct udphdr) + sizeof(struct dnshdr);
+  
+  memset((void *)tmp_dname, 0, (sizeof(tmp_dname))); 
+  strncpy(tmp_dname, wall_gardened, strlen(wall_gardened));
+  line_ptr = strtok(tmp_dname, ".");
+
+  while(line_ptr) {
+    req_ptr[offset++] = strlen(line_ptr);
+    strncpy((char *)&req_ptr[offset], line_ptr, strlen(line_ptr));
+    offset += strlen(line_ptr);
+    line_ptr = strtok(NULL, ".");
+  }
+
+  /*domain name label terminator*/
+  req_ptr[offset++] = 0;
+  /*QTYPE*/ 
+  req_ptr[offset++] = (A & 0xFF00) >> 8;
+  req_ptr[offset++] = (A & 0x00FF);
+  /*QCLASS*/ 
+  req_ptr[offset++] = (IN & 0xFF00) >> 8;
+  req_ptr[offset++] = (IN & 0x00FF);
+ 
+  /*populating length in respective Header filed*/ 
+  ip_ptr->ip_tot_len = htons(offset);
+  udp_ptr->udp_len   = htons(offset - sizeof(struct iphdr));
+  ip_ptr->ip_chksum  = utility_cksum((void *)ip_ptr,  (sizeof(uint32_t) * ip_ptr->ip_len));
+  udp_ptr->udp_chksum = utility_udp_checksum((uint8_t *)ip_ptr);
+
+  ret = tun_write(req_ptr, offset);
+  if(ret < 0) {
+    fprintf(stderr, "\n%s:%d write to tunnel failed\n", __FILE__, __LINE__);
+    perror("tun:");
+    return(1);
+  }
+
+  utility_hex_dump(req_ptr, offset);
+  free(req_ptr);
+  return(0);
+}/*dns_build_dns_req*/
 
 uint32_t dns_is_dns_query(int16_t fd, 
                           uint8_t *packet_ptr, 
@@ -167,6 +264,7 @@ uint32_t dns_build_rr_reply(int16_t fd,
   ip_rsp_ptr->ip_proto       = 0x11;
   ip_rsp_ptr->ip_chksum      = 0x00;
 
+  /*swapping the ip*/
   ip_rsp_ptr->ip_src_ip  = htonl(pDnsCtx->ns1_ip);
   ip_rsp_ptr->ip_dest_ip = ip_ptr->ip_src_ip;
 

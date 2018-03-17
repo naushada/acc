@@ -2,6 +2,7 @@
 #define __ACC_C__
 
 #include <common.h>
+#include <netdb.h>
 #include <signal.h>
 #include <pthread.h>
 #include <type.h>
@@ -371,6 +372,82 @@ int32_t acc_main(char *argv[]) {
  
 }/*acc_main*/
 
+int32_t acc_update_dns(uint8_t *host_name, uint8_t *ip_str) {
+
+  uint8_t sql_query[128];
+  
+  memset((void *)sql_query, 0, sizeof(sql_query));
+  snprintf(sql_query,
+            sizeof(sql_query),
+            "%s%s%s%s%s"
+            "%s%s",
+            "UPDATE ",
+            ACC_DNS_TABLE,
+            " SET host_ip=\'",
+            ip_str,
+            "\' WHERE host_name=\'",
+            host_name,
+            "\'");
+  
+  if(db_exec_query(sql_query)) {
+    fprintf(stderr, "\n%s:%d Execution of DB query failed\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  return(0);
+}/*acc_update_dns*/
+
+int32_t acc_resolve_dns(uint8_t *host_name) {
+
+  uint8_t ip_str[32];
+  struct hostent *he;
+  struct in_addr **addr_list;
+  uint32_t i;
+  /**/
+  memset((void *)ip_str, 0, sizeof(ip_str));
+  if((he = gethostbyname(host_name))) {
+    addr_list = (struct in_addr **) he->h_addr_list;
+
+    for(i = 0; addr_list[i] != NULL; i++) {
+      strcpy(ip_str ,inet_ntoa(*addr_list[i]));
+      acc_update_dns(host_name, ip_str);
+      break;
+    }
+
+  }
+
+  return(0); 
+}/*acc_resolve_dns*/
+
+int32_t acc_get_hostname(uint8_t *table_name) {
+  uint8_t sql_query[32];
+  int32_t ret = -1;
+  int32_t row;
+  int32_t col;
+  uint8_t idx = 0;
+  uint8_t record[4][16][32];
+
+  memset((void *)sql_query, 0, sizeof(sql_query));
+  snprintf(sql_query,
+           sizeof(sql_query),
+           "%s%s",
+           "SELECT * FROM ",
+           table_name);
+
+  if(!db_exec_query(sql_query)) {
+    memset((void *)record, 0, sizeof(record));
+    row = 0, col = 0;
+    if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
+      if(row) {
+        for(idx = 0; idx < row; idx++) {
+          acc_resolve_dns(record[idx][0]);
+        }
+        return(0); 
+      }
+    }
+  } 
+}/*acc_get_hostname*/
+
 /** @brief This function is the main function for executable 
  *         which spawns several threads.
  *  @param argv pointer to char for command line arguments
@@ -381,13 +458,12 @@ int main(int32_t argc, char *argv[]) {
   uint16_t idx;
   acc_ctx_t *pAccCtx = &acc_ctx_g;
   void *tret_id;
+  acc_main((char **)&argv[1]);  
 
-  acc_main((char **)&argv[1]); 
-
+  acc_get_hostname(ACC_DNS_TABLE);
   for(idx = 0; idx < 7; idx++ ) {
     pthread_join(pAccCtx->tid[idx], &tret_id);
   }
-  
 
 }/*main*/
 

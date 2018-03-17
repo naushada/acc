@@ -5,8 +5,7 @@
 #define ACC_CACHE_TABLE "acc_cache"
 #define ACC_CON_AUTH_STATUS_TABLE "acc_conn_auth_status"
 #define ACC_IP_ALLOCATION_TABLE "acc_ip_allocation"
-
-
+#define ACC_DNS_TABLE "acc_dns"
 
 typedef struct {
   pthread_t tid[10];
@@ -30,4 +29,9 @@ typedef struct {
 
 }acc_ctx_t;
 
+int32_t acc_update_dns(uint8_t *host_name, uint8_t *ip_str);
+
+int32_t acc_resolve_dns(uint8_t *host_name);
+
+int32_t acc_get_hostname(uint8_t *table_name);
 #endif /* __ACC_H__ */

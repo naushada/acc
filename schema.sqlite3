@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS acc_conf (param_name TEXT, param_value TEXT);
 
 CREATE TABLE IF NOT EXISTS dhcp_ip_allocation (host_name TEXT, mac_address TEXT, network_id TEXT, host_id TEXT, ip_allocation_status TEXT);
 
+CREATE TABLE IF NOT EXISTS acc_dns (host_name TEXT, host_ip TEXT);
+INSERT INTO acc_dns (host_name, host_ip) values ('accounts.google.com', '');
+INSERT INTO acc_dns (host_name, host_ip) values ('googleapis.com', '');
 
 INSERT INTO dhcp_conf_table (interface_name, ip_address, CIDR, host_name, network_id, host_id_start, host_id_end) VALUES ('eth0', '10.100.16.1', '20', '', '10.100.16', '2', '');
 
