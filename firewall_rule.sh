@@ -20,7 +20,6 @@ iptables -I INPUT -i $TUN -p icmp -j ACCEPT
 
 iptables -I INPUT -i $DHCPIF -j DROP
 
-iptables -I INPUT -i lo -j ACCEPT
 iptables -I OUTPUT -o lo -j ACCEPT
 
 #Forwarding Rule

@@ -37,7 +37,8 @@ http_req_handler_t g_handler_http[] = {
   /*google sign-in*/
   {"/google_ui.html",            15, http_process_google_ui_req},
   /*gmail-auth*/
-  {"/gmail_auth.html",           16, http_process_gmail_auth_req},
+  {"/google_access_code.html",   24, http_process_google_access_code_req},
+  {"/google_access_token.html",  25, http_process_google_access_token_req},
   /*twitter sign-in*/
   {"/twitter_ui.html",           16, http_process_twitter_ui_req},
   /*fb sign-in*/
@@ -54,11 +55,60 @@ http_req_handler_t g_handler_http[] = {
  *Function Definition
  ********************************************************************/
 
-int32_t http_process_gmail_auth_req(uint32_t conn_id,
-                                    uint8_t **response_ptr,
-                                    uint32_t *response_len_ptr) {
+int32_t http_process_google_access_token_req(uint32_t conn_id,
+                                             uint8_t **response_ptr,
+                                             uint32_t *response_len_ptr) {
 
-  uint8_t *refresh_uri = "/gmail_auth.html";
+  /*GET /response_callback?auth_type=gmail&conn_id=14 HTTP/1.1*/
+  uint8_t *req = NULL;
+  uint32_t req_len;
+  uint8_t *state_ptr = NULL;
+  uint8_t *code_ptr = NULL;
+
+  http_session_t *session = NULL;
+
+  req = (uint8_t *)malloc(512);
+  assert(req != NULL);
+  memset((void *)req, 0, 512);
+
+  session = http_get_session(conn_id);
+  assert(session != NULL);
+  state_ptr = http_get_gparam(session->uri, strlen(session->uri), "state"); 
+  code_ptr = http_get_gparam(session->uri, strlen(session->uri), "code");
+
+  req_len = 0;
+  req_len = snprintf(req, 
+                     512,
+                     "%s%d%s%s%s"
+                     "%s%s%s%s",
+                     "GET /response_callback?auth_type=gmail&subtype=access_token&conn_id=",
+                     conn_id,
+                     "&state=",
+                     state_ptr,
+                     "&code=",
+                     code_ptr,
+                     " HTTP/1.1\r\n",
+                     "Connection: Keep-Alive\r\n",
+                     "Content-Length: 0\r\n");
+
+  fprintf(stderr, "\n%s:%d Access Token Request %s\n", __FILE__, __LINE__, req);
+  /*send to NAS*/
+  http_send_to_nas(conn_id, req, req_len);
+
+  /*Freeing the heap memory*/
+  free(state_ptr);
+  free(code_ptr);
+  free(req);
+  req = NULL;
+
+  return(0);
+}/*http_process_google_access_token_req*/
+
+int32_t http_process_google_access_code_req(uint32_t conn_id,
+                                            uint8_t **response_ptr,
+                                            uint32_t *response_len_ptr) {
+
+  uint8_t *refresh_uri = "/google_access_code.html";
   http_session_t *session = NULL;
   session = http_get_session(conn_id);
   assert(session != NULL); 
@@ -78,11 +128,10 @@ int32_t http_process_gmail_auth_req(uint32_t conn_id,
     free(session->oauth2_param.gmail_url);
     session->oauth2_param.gmail_url = NULL;
     fprintf(stderr, "\n%s:%d Response %s\n", __FILE__, __LINE__, *response_ptr);
-    
   }
 
   return(0);
-}/*http_process_gmail_auth_req*/
+}/*http_process_google_access_code_req*/
 
 int32_t http_process_google_ui_req(uint32_t conn_id, 
                                    uint8_t **response_ptr,
@@ -91,7 +140,7 @@ int32_t http_process_google_ui_req(uint32_t conn_id,
   /*GET /response_callback?auth_type=gmail&conn_id=14 HTTP/1.1*/
   uint8_t *req = NULL;
   uint32_t req_len;
-  uint8_t *refresh_uri = "/gmail_auth.html";
+  uint8_t *refresh_uri = "/google_access_code.html";
   http_session_t *session = NULL;
 
   req = (uint8_t *)malloc(512);
@@ -101,7 +150,7 @@ int32_t http_process_google_ui_req(uint32_t conn_id,
   req_len = snprintf(req, 
                      512,
                      "%s%d%s%s%s",
-                     "GET /response_callback?auth_type=gmail&conn_id=",
+                     "GET /response_callback?auth_type=gmail&subtype=access_code&conn_id=",
                      conn_id,
                      " HTTP/1.1\r\n",
                      "Connection: Keep-Alive\r\n",
@@ -381,7 +430,7 @@ int32_t http_process_google_rsp(uint8_t *packet_ptr,
            1024,
            "%s%s%s%s%s"
            "%s%s%s%s%s"
-           "%s%s%s",
+           "%s%s%s%s%s",
            pArr[0] = http_get_gparam(packet_ptr, packet_length, "uri"),
            "?scope=",
            pArr[1] = http_get_gparam(packet_ptr, packet_length, "scope"),
@@ -394,11 +443,13 @@ int32_t http_process_google_rsp(uint8_t *packet_ptr,
            "&response_type=",
            pArr[5] = http_get_gparam(packet_ptr, packet_length, "response_type"),
            "&client_id=",
-           pArr[6] = http_get_gparam(packet_ptr, packet_length, "client_id"));
+           pArr[6] = http_get_gparam(packet_ptr, packet_length, "client_id"),
+           "&prompt=",
+           pArr[7] = http_get_gparam(packet_ptr, packet_length, "prompt"));
 
   session->oauth2_param.oauth2_rsp = 1;
 
-  for(idx = 0; idx < 7; idx++) {
+  for(idx = 0; idx < 8; idx++) {
     free(pArr[idx]);
   }
   return(0);

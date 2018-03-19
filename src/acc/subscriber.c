@@ -13,13 +13,19 @@ subscriber_ctx_t subscriber_ctx_g;
  *
  ********************************************************************/
 
-int32_t subscriber_init(uint8_t *conn_auth_status_table) {
+int32_t subscriber_init(uint8_t *conn_auth_status_table,
+                        uint8_t *dns_table) {
   subscriber_ctx_t *pSubscriberCtx = &subscriber_ctx_g;
 
   strncpy((char *)pSubscriberCtx->conn_auth_status_table, 
           (const char *)conn_auth_status_table,
           strlen((const char *)conn_auth_status_table));
 
+  strncpy((char *)pSubscriberCtx->dns_table, 
+          (const char *)dns_table,
+          strlen((const char *)dns_table));
+
+  return(0);
 }/*subscriber_init*/
 
 int32_t subscriber_is_authenticated(uint32_t subscriber_ip) { 
@@ -33,7 +39,30 @@ int32_t subscriber_is_authenticated(uint32_t subscriber_ip) {
 
   memset((void *)ip_str, 0, sizeof(ip_str));
   utility_ip_int_to_str(subscriber_ip, ip_str);
+  memset((void *)sql_query, 0, sizeof(sql_query));
 
+  /*If it's allowed DNS*/
+  snprintf(sql_query, 
+           sizeof(sql_query),
+           "%s%s%s%s%s",
+           "SELECT * FROM ",
+           pSubscriberCtx->dns_table,
+           " WHERE host_ip=\'",
+           ip_str,
+           "\'");
+
+  if(!db_exec_query(sql_query)) {
+    memset((void *)record, 0, sizeof(record));
+
+    if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
+      if(row) {
+        /*Allow the request*/
+        return(2);
+      }
+    }
+  }
+  
+  memset((void *)sql_query, 0, sizeof(sql_query));
   snprintf((char *)sql_query, 
            sizeof(sql_query), 
            "%s%s%s%s%s",

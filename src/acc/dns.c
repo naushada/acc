@@ -25,7 +25,8 @@ dns_ctx_t dns_ctx_g;
 uint32_t dns_init(uint8_t *domain_name,
                   uint32_t ip_addr,
                   uint8_t *ns1_name,
-                  uint8_t *ip_allocation_table) {
+                  uint8_t *ip_allocation_table,
+                  uint8_t *dns_table) {
 
   dns_ctx_t *pDnsCtx = &dns_ctx_g;
   
@@ -47,6 +48,10 @@ uint32_t dns_init(uint8_t *domain_name,
   memcpy((void *)pDnsCtx->ip_allocation_table, 
          (const void *)ip_allocation_table, 
          strlen((const char *)ip_allocation_table));
+
+  memcpy((void *)pDnsCtx->walled_garden_table, 
+         (const void *)dns_table, 
+         strlen((const char *)dns_table));
 
   return(0);
 }/*dns_init*/
@@ -216,6 +221,160 @@ uint32_t dns_perform_dnat(int16_t fd,
 
   return(0);
 }/*dns_perform_dnat*/
+
+uint32_t dns_build_walled_garden_reply(int32_t fd, 
+                                       uint8_t *packet_ptr, 
+                                       uint32_t packet_length, 
+                                       uint8_t *ip_str) {
+
+
+  uint8_t *rsp_ptr = NULL;
+  uint32_t offset = 0;
+  uint32_t idx = 0;
+  uint8_t label_str[2][255];
+ 
+  rsp_ptr = (uint8_t *)malloc(sizeof(uint8_t) * 1500);
+  assert(rsp_ptr != NULL);
+  memset((void *)rsp_ptr, 0, sizeof(uint8_t) * 1500); 
+  dns_ctx_t *pDnsCtx = &dns_ctx_g;
+ 
+  struct eth    *eth_ptr  = (struct eth    *)packet_ptr;
+  struct iphdr  *ip_ptr   = (struct iphdr  *)&packet_ptr[sizeof(struct eth)];
+  struct udphdr *udp_ptr  = (struct udphdr *)&packet_ptr[sizeof(struct eth) + 
+                                                         sizeof(struct iphdr)];
+  struct dnshdr *dns_ptr  = (struct dnshdr *)&packet_ptr[sizeof(struct eth) + 
+                                                         sizeof(struct iphdr) + 
+                                                         sizeof(struct udphdr)];
+ 
+  struct eth    *eth_rsp_ptr  = (struct eth    *)rsp_ptr;
+  struct iphdr  *ip_rsp_ptr   = (struct iphdr  *)&rsp_ptr[sizeof(struct eth)];
+  struct udphdr *udp_rsp_ptr  = (struct udphdr *)&rsp_ptr[sizeof(struct eth) + 
+                                                          sizeof(struct iphdr)];
+  struct dnshdr *dns_rsp_ptr  = (struct dnshdr *)&rsp_ptr[sizeof(struct eth) + 
+                                                          sizeof(struct iphdr) + 
+                                                          sizeof(struct udphdr)];
+  /*populating MAC Header for Response*/
+  memcpy((void *)&eth_rsp_ptr->h_source, (const void *)&eth_ptr->h_dest,   6);
+  memcpy((void *)&eth_rsp_ptr->h_dest,   (const void *)&eth_ptr->h_source, 6);
+  eth_rsp_ptr->h_proto = eth_ptr->h_proto;
+
+  /*populating IP Header for response*/ 
+  ip_rsp_ptr->ip_len         = 0x5;
+  ip_rsp_ptr->ip_ver         = 0x4;
+  ip_rsp_ptr->ip_tos         = 0x00;
+  /*to be updated later*/
+  ip_rsp_ptr->ip_tot_len     = 0x00;
+  ip_rsp_ptr->ip_id          = htons(random() % 65535);
+  ip_rsp_ptr->ip_flag_offset = htons(0x1 << 14);
+  ip_rsp_ptr->ip_ttl         = 0x10;
+  ip_rsp_ptr->ip_proto       = 0x11;
+  ip_rsp_ptr->ip_chksum      = 0x00;
+
+  /*swapping the ip*/
+  ip_rsp_ptr->ip_src_ip  = ip_ptr->ip_dest_ip;
+  ip_rsp_ptr->ip_dest_ip = ip_ptr->ip_src_ip;
+
+  /*populating UDP Header*/
+  udp_rsp_ptr->udp_src_port  = udp_ptr->udp_dest_port;
+  udp_rsp_ptr->udp_dest_port = udp_ptr->udp_src_port; 
+  udp_rsp_ptr->udp_len       = 0x00;
+  udp_rsp_ptr->udp_chksum    = 0x00;
+
+  /*populating DNS Reply with RR*/
+  dns_rsp_ptr->xid     = dns_ptr->xid;
+  dns_rsp_ptr->qr      = 0x1;
+  dns_rsp_ptr->opcode  = DNS_QUERY ;
+  dns_rsp_ptr->aa      = 0x1;
+  dns_rsp_ptr->tc      = 0x0;
+  dns_rsp_ptr->rd      = dns_ptr->rd;
+  dns_rsp_ptr->ra      = 0x00;
+  dns_rsp_ptr->z       = 0x00;
+  dns_rsp_ptr->rcode   = DNS_NO_ERROR;
+  dns_rsp_ptr->qdcount = htons(0x01);
+  dns_rsp_ptr->ancount = htons(0x01);
+  dns_rsp_ptr->nscount = htons(0x00);
+  dns_rsp_ptr->arcount = htons(0x00);
+
+  /*populating DNS Payload*/
+  offset = sizeof(struct dnshdr) +
+           sizeof(struct udphdr) +
+           sizeof(struct iphdr)  +
+           sizeof(struct eth);
+
+  /*copy query from request into response*/
+  for(idx = 0; idx <pDnsCtx->qdata.qname_count; idx++) {
+    rsp_ptr[offset++] = pDnsCtx->qdata.qname[idx].len;
+
+    memcpy((void *)&rsp_ptr[offset], 
+           pDnsCtx->qdata.qname[idx].value, 
+           pDnsCtx->qdata.qname[idx].len);
+
+    offset += pDnsCtx->qdata.qname[idx].len;
+  }
+
+  /*This marks the end of qname RR*/
+  rsp_ptr[offset++] = 0;
+
+  /*AN SECTION (1) - Answer Section of RR*/
+
+  /*TYPE is A for Host Address*/
+  rsp_ptr[offset++] = (A & 0xFF00) >> 8;
+  rsp_ptr[offset++] = (A & 0x00FF);
+
+  /*CLASS is IN for Internet*/
+  rsp_ptr[offset++] = (IN & 0xFF00) >> 8;
+  rsp_ptr[offset++] = (IN & 0x00FF);
+
+  /*domain name*/ 
+  for(idx = 0; idx <pDnsCtx->qdata.qname_count; idx++) {
+    rsp_ptr[offset++] = pDnsCtx->qdata.qname[idx].len;
+
+    memcpy((void *)&rsp_ptr[offset], 
+           pDnsCtx->qdata.qname[idx].value, 
+           pDnsCtx->qdata.qname[idx].len);
+
+    offset += pDnsCtx->qdata.qname[idx].len;
+  }
+
+  /*This marks the end of qname RR*/
+  rsp_ptr[offset++] = 0;
+
+  /*AN SECTION (1) - Answer Section of RR*/
+
+  /*TYPE is A for Host Address*/
+  rsp_ptr[offset++] = (A & 0xFF00) >> 8;
+  rsp_ptr[offset++] = (A & 0x00FF);
+
+  /*CLASS is IN for Internet*/
+  rsp_ptr[offset++] = (IN & 0xFF00) >> 8;
+  rsp_ptr[offset++] = (IN & 0x00FF);
+
+  /*Type is TTl in seconds*/
+  rsp_ptr[offset++] = (0x0100 & 0xFF000000) >> 24;
+  rsp_ptr[offset++] = (0x0100 & 0x00FF0000) >> 16;
+  rsp_ptr[offset++] = (0x0100 & 0x0000FF00) >> 8;
+  rsp_ptr[offset++] = (0x0100 & 0x000000FF);
+
+  /*Type is RDLENGTH*/
+  rsp_ptr[offset++] = (0x04 & 0xFF00) >> 8;
+  rsp_ptr[offset++] = (0x04 & 0x00FF);
+
+  /*Type is RDATA*/
+  *((uint32_t *)&rsp_ptr[offset]) = htonl(utility_ip_str_to_int(ip_str));
+  offset += 4;
+ 
+  /*populating length in respective Header filed*/ 
+  ip_rsp_ptr->ip_tot_len = htons(offset - sizeof(struct eth));
+  udp_rsp_ptr->udp_len   = htons(offset - (sizeof(struct eth) + sizeof(struct iphdr)));
+  ip_rsp_ptr->ip_chksum  = utility_cksum((void *)ip_rsp_ptr,  (sizeof(unsigned int) * ip_rsp_ptr->ip_len));
+
+  udp_rsp_ptr->udp_chksum = utility_udp_checksum((uint8_t *)ip_rsp_ptr);
+ 
+  write_eth_frame(fd, (uint8_t *)eth_rsp_ptr->h_dest, rsp_ptr, offset);
+  free(rsp_ptr);
+
+  return(0);
+}/*dns_build_walled_garden_reply*/
 
 uint32_t dns_build_rr_reply(int16_t fd, 
                             uint8_t *packet_ptr, 
@@ -441,6 +600,52 @@ uint32_t dns_build_rr_reply(int16_t fd,
   return(0);
 }/*dns_build_rr_reply*/
 
+uint32_t dns_is_walled_garden(uint8_t *ip_str) {
+
+  dns_ctx_t *pDnsCtx = &dns_ctx_g;
+  uint8_t  sql_query[255];
+  uint8_t  domain_name[255];
+  uint32_t idx;
+  uint32_t offset = 0;
+
+  uint8_t  record[2][16][32];
+  int32_t  row = 0;
+  int32_t  col = 0;
+ 
+  memset((void *)domain_name, 0, sizeof(domain_name));
+  for(idx = 0; idx < pDnsCtx->qdata.qname_count; idx++) {
+    offset += snprintf(domain_name + offset,
+                       sizeof(domain_name) - offset,
+                       "%s%s",
+                       pDnsCtx->qdata.qname[idx].value,
+                       ".");
+  } 
+  /*Remove the trailing .*/
+  domain_name[offset -1] = '\0';
+  //fprintf(stderr, "\n%s:%d constructed domain name is %s\n", __FILE__, __LINE__, domain_name);
+
+  memset((void *)sql_query, 0, sizeof(sql_query));
+  snprintf(sql_query,
+           sizeof(sql_query),
+           "%s%s%s%s%s",
+           "SELECT * FROM ",
+           pDnsCtx->walled_garden_table,
+           " WHERE host_name=\'",
+           domain_name,
+           "\'"); 
+
+  if(!db_exec_query(sql_query)) {
+    memset((void *)record, 0, sizeof(record));
+    if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
+      if(row) {
+        strncpy(ip_str, record[0][1], strlen(record[0][1]));
+        return(0);
+      }
+    }
+  }
+
+  return(1);
+}/*dns_is_walled_garden*/
 
 uint32_t dns_process_dns_query(int16_t fd, 
                                uint8_t *packet_ptr, 
@@ -513,13 +718,23 @@ uint32_t dns_process_dns_query(int16_t fd,
             }
           } else {    
             /*IP is not managed by this DHCP Server*/
+            /*This is unreachable code*/
             dns_perform_snat(fd, packet_ptr, packet_length);
           }
         }
       }
     }
   } else {
-    dns_perform_snat(fd, packet_ptr, packet_length);
+    /*If dns is walled garden*/
+    uint8_t ip_str[64];
+    memset((void *)ip_str, 0, sizeof(ip_str));
+    if(!dns_is_walled_garden(ip_str)) {
+      /*This is required because dns query for same domain returns different IP address*/
+      dns_build_walled_garden_reply(fd, packet_ptr, packet_length, ip_str);
+
+    } else {
+      dns_perform_snat(fd, packet_ptr, packet_length);
+    }
   }
 
   return(0);
@@ -581,7 +796,7 @@ uint32_t dns_parse_qdsection(int16_t fd,
            pDnsCtx->qdata.qname[idx].len);
 
     offset += pDnsCtx->qdata.qname[idx].len;
-    idx += 1; 
+    idx++ ; 
     pDnsCtx->qdata.qname[idx].len = pQdata[offset++];
   }
         

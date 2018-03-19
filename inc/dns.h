@@ -129,7 +129,8 @@ typedef struct {
   uint8_t host_name[255];
   /*IP Address allocated by DHCP Server*/
   uint8_t host_ip[64];
-  uint8_t  ip_allocation_table[255];
+  uint8_t  ip_allocation_table[128];
+  uint8_t  walled_garden_table[128];
 
 }dns_ctx_t;
 
@@ -146,7 +147,8 @@ typedef struct {
 uint32_t dns_init(uint8_t *domain_name,
                   uint32_t ip_addr,
                   uint8_t *ns1_name,
-                  uint8_t *ip_allocation_table);
+                  uint8_t *ip_allocation_table,
+                  uint8_t *dns_table);
 
 uint32_t dns_is_dns_query(int16_t fd, 
                           uint8_t *packet_ptr, 

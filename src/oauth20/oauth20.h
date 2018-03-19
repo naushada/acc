@@ -1,8 +1,16 @@
 #ifndef __OAUTH20_H__
 #define __OAUTH20_H__
 
-#define CLIENT_ID  "412727589579-uln740n6b2pqonc56n71lmc098aq7kqd.apps.googleusercontent.com"
 
+/*For WebApp*/
+#define CLIENT_ID  "412727589579-uln740n6b2pqonc56n71lmc098aq7kqd.apps.googleusercontent.com"
+#define CLIENT_S   "tl3aWxCgjo5YUOwZ_dPEKcJ6"
+
+#if 0
+/*For SERVER*/
+#define CLIENT_ID "412727589579-75hubtl01bv2q89s7c6gsr5g3ad8gj7a.apps.googleusercontent.com"
+#define CLIENT_S  "q79o9K-q1gpuGa8z8ZFkbtch"
+#endif
 
 typedef struct {
   /*google host name- www.accounts.google.com*/
@@ -19,9 +27,7 @@ typedef struct {
   uint16_t nas_port;
   /*nas_fd*/
   int32_t  nas_fd;
-  /*google_fd*/
-  int32_t  google_fd;
-  
+
 }oauth20_ctx_t;
 
 
@@ -49,4 +55,15 @@ int32_t oauth20_compute_state(uint8_t *b64,
 
 uint8_t *oauth20_get_param(uint8_t *packet_ptr, 
                            uint8_t *p_name);
+
+int32_t oauth20_build_access_code_rsp(uint8_t *req_ptr, 
+                                      uint8_t *rsp_ptr,
+                                      uint32_t rsp_size, 
+                                      uint32_t *rsp_len);
+
+int32_t oauth20_build_access_token_req(uint8_t *req_ptr, 
+                                       uint8_t *rsp_ptr, 
+                                       uint32_t rsp_size, 
+                                       uint32_t *rsp_len);
+
 #endif /* __OAUTH20_H__ */

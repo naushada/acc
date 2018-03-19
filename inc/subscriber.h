@@ -3,11 +3,13 @@
 
 typedef struct {
   uint8_t conn_auth_status_table[128];
+  uint8_t dns_table[128];
 
 }subscriber_ctx_t;
 
 
-int32_t subscriber_init(uint8_t *conn_auth_status_table);
+int32_t subscriber_init(uint8_t *conn_auth_status_table,
+                        uint8_t *dns_table);
 
 int32_t subscriber_is_authenticated(uint32_t subscriber_ip);
 

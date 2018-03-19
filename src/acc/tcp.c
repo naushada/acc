@@ -171,6 +171,26 @@ int32_t tcp_main(uint16_t fd,
 
   memset((void *)rsp, 0, sizeof(rsp));
   rsp_len = 0;
+
+  /*Passthrough the walled gardened*/
+  if(2 == subscriber_is_authenticated(iphdr_ptr->ip_dest_ip)) {
+ 
+    /*Subscriber is Authenticated Successfully, Pass the packet on*/
+    rsp_len = packet_length - sizeof(struct eth);
+    memcpy((void *)rsp, 
+           (const void *)&packet_ptr[sizeof(struct eth)], 
+           rsp_len);
+
+    ret = tun_write(rsp, rsp_len);
+
+    if(ret < 0) {
+      perror("\nwriting to tun failed\n");
+      return(-1);
+    }
+
+    return(0);
+  }
+
   ret = subscriber_is_authenticated(iphdr_ptr->ip_src_ip);
   /* TCP Connection will be marked as INPROGRESS when 3-way
    * hand shake is performed for any connection and is done in redir.c

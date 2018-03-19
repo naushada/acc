@@ -265,7 +265,8 @@ int32_t acc_main(char *argv[]) {
            pAccCtx->uamS_port,
            ACC_CACHE_TABLE);
 
-  subscriber_init(ACC_CON_AUTH_STATUS_TABLE);
+  subscriber_init(ACC_CON_AUTH_STATUS_TABLE,
+                  ACC_DNS_TABLE);
 
   /* The Flow of message is 
    * LAN <--> TUN <--> WAN Interface
@@ -326,7 +327,8 @@ int32_t acc_main(char *argv[]) {
            pAccCtx->ip_addr,
            /*NULL means it will reads the system's name*/
            NULL,
-           ACC_IP_ALLOCATION_TABLE);
+           ACC_IP_ALLOCATION_TABLE,
+           ACC_DNS_TABLE);
 
   arp_init(pAccCtx->eth_name, 
            pAccCtx->ip_addr); 
@@ -410,10 +412,13 @@ int32_t acc_resolve_dns(uint8_t *host_name) {
 
     for(i = 0; addr_list[i] != NULL; i++) {
       strcpy(ip_str ,inet_ntoa(*addr_list[i]));
+      fprintf(stderr, "\n%s:%d ip address %s\n", __FILE__, __LINE__, ip_str);
       acc_update_dns(host_name, ip_str);
       break;
     }
 
+  } else {
+    return(1);
   }
 
   return(0); 
@@ -440,12 +445,18 @@ int32_t acc_get_hostname(uint8_t *table_name) {
     if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
       if(row) {
         for(idx = 0; idx < row; idx++) {
-          acc_resolve_dns(record[idx][0]);
+          if(acc_resolve_dns(record[idx][0])) {
+            return(1);
+          }
         }
-        return(0); 
+      } else {
+        fprintf(stderr, "\n%s:%d No record found %s\n", __FILE__, __LINE__, sql_query);
+        return(2);
       }
     }
   } 
+
+  return(0); 
 }/*acc_get_hostname*/
 
 /** @brief This function is the main function for executable 

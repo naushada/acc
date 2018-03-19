@@ -432,6 +432,10 @@ int32_t nat_perform_dnat(uint8_t *packet_ptr,
 
       dest_port = ntohs(tcphdr_ptr->dest_port);
       src_port = ntohs(tcphdr_ptr->src_port);
+      /*if its a walled gardened dns*/
+      if(2 == subscriber_is_authenticated(src_ip)) {
+        return(0);
+      }
 
       ret = subscriber_is_authenticated(dest_ip);
       if(2/*SUCCESS*/ == ret) {

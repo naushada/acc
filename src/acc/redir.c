@@ -300,7 +300,7 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
                        "%s%s%s%s%s"
                        "%s%s%s%s%s"
                        "%s%s%s%s%s"
-                       "%s%s%s",
+                       "%s%s%s%s%s",
                        "/response?type=gmail&subtype=",
                        subtype_ptr,
                        "&uri=",
@@ -318,7 +318,9 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
                        "&client_id=",
                        pArr[6] = redir_get_oauth2_param(packet_ptr, "client_id"),
                        "&conn_id=",
-                       pArr[7] = redir_get_oauth2_param(packet_ptr, "ext_conn_id"));
+                       pArr[7] = redir_get_oauth2_param(packet_ptr, "ext_conn_id"),
+                       "&prompt=",
+                       pArr[8] = redir_get_oauth2_param(packet_ptr, "prompt"));
   }
 
   fprintf(stderr, "\n%s:%d response ptr %s\n", __FILE__, __LINE__, rsp_ptr);  
@@ -329,7 +331,7 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
   free(rsp_ptr);
   uint32_t idx;
 
-  for(idx = 0; idx < 8; idx++) {
+  for(idx = 0; idx < 9; idx++) {
     free(pArr[idx]);
   }
   
@@ -796,26 +798,52 @@ int32_t redir_build_access_request(uint32_t conn_id,
 int32_t redir_process_gmail_req(uint32_t conn_id, uint8_t *uri) {
 
   uint8_t *ext_conn_id = NULL;
-  uint8_t param[8][2][64];
-  uint8_t req[256];
+  uint8_t req[255];
   uint32_t req_len = 0;
+  uint8_t *subtype = NULL;
 
-  memset((void *)param, 0, sizeof(param));
-  redir_parse_aadhaar_req(param, uri);
-  ext_conn_id = redir_get_param(param, "conn_id");
+  subtype = redir_get_oauth2_param(uri, "subtype");
+  ext_conn_id = redir_get_oauth2_param(uri, "conn_id");
 
   memset((void *)req, 0, sizeof(req));
-  req_len = snprintf(req, 
-                     sizeof(req),
-                     "%s%s%s%s%d",
-                     "/request?type=auth",
-                     "&ext_conn_id=",
-                     ext_conn_id,
-                     "&conn_id=",
-                     conn_id);
+
+  if(!strncmp(subtype, "access_code", 11)) {
+    req_len = snprintf(req, 
+                       sizeof(req),
+                       "%s%s%s%s%d",
+                       "/request?type=google_access_code",
+                       "&ext_conn_id=",
+                       ext_conn_id,
+                       "&conn_id=",
+                       conn_id);
+  } else if(!strncmp(subtype, "access_token", 12)) {
+
+    uint8_t *code_ptr = redir_get_oauth2_param(uri, "code");
+    uint8_t *state_ptr = redir_get_oauth2_param(uri, "state");
+
+    req_len = snprintf(req, 
+                       sizeof(req),
+                       "%s%s%s%s%s"
+                       "%s%s%s%d",
+                       "/request?type=google_access_token",
+                       "&state=",
+                       state_ptr,
+                       "&code=",
+                       code_ptr,
+                       "&ext_conn_id=",
+                       ext_conn_id,
+                       "&conn_id=",
+                       conn_id);
+    free(state_ptr); 
+    free(code_ptr);
+  }
 
   fprintf(stderr, "\n%s:%d received for oauth20 %s\n", __FILE__, __LINE__, req);
   redir_send_to_oauth2(conn_id, req, req_len); 
+
+  free(subtype);
+  free(ext_conn_id);
+
   return(0);
 }/*redir_process_gmail_req*/
 
@@ -1081,9 +1109,9 @@ int32_t redir_parse_req(uint32_t conn_id,
   memset((void *)session->protocol, 0, sizeof(session->protocol));
   memset((void *)session->uri, 0, sizeof(session->uri));
 
-  strncpy(session->method, method, strlen((const char *)method));
-  strncpy(session->protocol, protocol, strlen((const char *)protocol));
-  strncpy(session->uri, uri_ptr, strlen((const char *)uri_ptr));
+  strncpy(session->method, method, sizeof(session->method) - 1);
+  strncpy(session->protocol, protocol, sizeof(session->protocol) - 1);
+  strncpy(session->uri, uri_ptr, sizeof(session->uri) - 1);
 
   free(uri_ptr);
   uri_ptr = NULL;

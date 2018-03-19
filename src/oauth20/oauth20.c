@@ -4,6 +4,7 @@
 #include <type.h>
 #include <uidai/common.h>
 #include <uidai/util.h>
+#include "sslc.h"
 #include "oauth20.h"
 
 oauth20_ctx_t oauth20_ctx_g;
@@ -33,20 +34,137 @@ int32_t oauth20_compute_state(uint8_t *b64,
   return(0);
 }/*oauth20_compute_state*/
 
-int32_t oauth20_build_auth_rsp(uint8_t *req_ptr, 
-                               uint8_t *rsp_ptr,
-                               uint32_t rsp_size, 
-                               uint32_t *rsp_len) {
+int32_t oauth20_urlencode_qs(uint8_t *qs_ptr, uint8_t *urlencode_qs) {
+
+  uint32_t offset;
+  uint32_t idx;
+
+  for(offset = 0, idx = 0; qs_ptr[idx]; idx++) {
+    if('/' == qs_ptr[idx]) {
+      urlencode_qs[offset++] = '%';
+      urlencode_qs[offset++] = '2';
+      urlencode_qs[offset++] = 'F';
+      
+    } else if(':' == qs_ptr[idx]) {
+      urlencode_qs[offset++] = '%';
+      urlencode_qs[offset++] = '3';
+      urlencode_qs[offset++] = 'A';
+
+    } else {
+      urlencode_qs[offset++] = qs_ptr[idx];
+    }
+  }
+
+  return(0);
+}/*oauth20_urlencode_qs*/
+
+int32_t oauth20_build_access_token_req(uint8_t *req_ptr, 
+                                       uint8_t *rsp_ptr, 
+                                       uint32_t rsp_size, 
+                                       uint32_t *rsp_len) {
+
+  uint8_t *redirect_ptr = "http://adam.balaagh.com:3990/google_access_token.html";
+  //uint8_t *redirect_ptr = "";
+  /*value of scope would be - email, profile and openid, 
+    more than one value shall be space seperated
+   */
+  uint8_t *code_ptr = NULL;
+  /*reference : https://developers.google.com/identity/protocols/OAuth2WebServer*/
+  /*"https://www.googleapis.com/oauth2/v4/token";*/
+  uint8_t *conn_ptr = NULL;
+  uint8_t *ext_conn_ptr = NULL;
+  uint8_t *qs_ptr = NULL;
+  uint32_t qs_len = 0;
+  uint32_t qs_size = 1024;
+  uint8_t *urlencode_qs = NULL;
+
+  conn_ptr = oauth20_get_param(req_ptr, "conn_id");
+  ext_conn_ptr = oauth20_get_param(req_ptr, "ext_conn_id");
+  code_ptr = oauth20_get_param(req_ptr, "code");
+  
+  if(!conn_ptr || 
+     !ext_conn_ptr ||
+     !code_ptr) {
+
+    fprintf(stderr, "\n%s:%d conn_id or ext_conn_id is meiising\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  qs_ptr = (uint8_t *) malloc(sizeof(uint8_t) * qs_size);
+  assert(qs_ptr != NULL);
+  memset((void *)qs_ptr, 0, sizeof(uint8_t) * qs_size); 
+
+  snprintf(qs_ptr, 
+           qs_size,    
+           "%s%s%s%s%s"
+           "%s%s%s%s%s",
+           "code=",
+           code_ptr,
+           "&client_id=",
+           CLIENT_ID,
+           "&client_secret=",
+           CLIENT_S,
+           "&redirect_uri=",
+           redirect_ptr,
+           "&scope=",
+           "&grant_type=authorization_code"
+           /*"&grant_type=refresh_token"*/);
+  
+  urlencode_qs = (uint8_t *) malloc(sizeof(uint8_t) * qs_size);
+  assert(urlencode_qs != NULL);
+  memset((void *)urlencode_qs, 0, sizeof(uint8_t) * qs_size); 
+
+  //oauth20_urlencode_qs(qs_ptr, urlencode_qs);
+  fprintf(stderr, "\n%s:%d urlencode %s\n", __FILE__, __LINE__, urlencode_qs); 
+  /*POST /oauth2/v4/token HTTP/1.1
+    Host: www.googleapis.com
+    Content-Type: application/x-www-form-urlencoded
+
+    code=4/P7q7W91a-oMsCeLvIaQm6bTrgtp7&
+    client_id=your_client_id&
+    client_secret=your_client_secret&
+    redirect_uri=https://oauth2.example.com/code&
+    grant_type=authorization_code*/
+
+  *rsp_len = snprintf(rsp_ptr,
+                      rsp_size,
+                      "%s%s%s%s%s"
+                      "%s%d%s%s%s",
+                      "POST /oauth2/v4/token",
+                      " HTTP/1.1\r\n",
+                      "Host: www.googleapis.com\r\n",
+                      "Content-Type: application/x-www-form-urlencoded\r\n",
+                      "Connection: Keep-Alive\r\n",
+                      "Content-Length: ",
+                      (uint32_t)strlen(qs_ptr),
+                      "\r\n",
+                      /*Query string for POST*/
+                      "\n",
+                      qs_ptr);
+  free(qs_ptr);
+  free(urlencode_qs);
+  fprintf(stderr, "\n%s:%d TOKEN REQUEST %s\n", __FILE__, __LINE__, rsp_ptr);
+
+  return(0);
+}/*oauth20_build_access_token_req*/
+
+int32_t oauth20_build_access_code_rsp(uint8_t *req_ptr, 
+                                      uint8_t *rsp_ptr,
+                                      uint32_t rsp_size, 
+                                      uint32_t *rsp_len) {
   uint8_t b64[64];
   uint32_t b64_len = 0;
-  uint8_t *redirect_ptr = "http://adam.balaagh.com:8080/oauth2callback";
+  uint8_t *redirect_ptr = "http://adam.balaagh.com:3990/google_access_token.html";
   /*value of scope would be - email, profile and openid, 
     more than one value shall be space seperated
    */
   uint8_t *scope_ptr = "email";
+  //uint8_t *scope_ptr = "https://www.googleapis.com/auth/gmail.readonly";
   uint8_t *response_type_ptr = "code";
+  //uint8_t *response_type_ptr = "token";
   /*reference : https://developers.google.com/identity/protocols/OAuth2WebServer*/
   uint8_t *url_ptr = "https://accounts.google.com/o/oauth2/v2/auth";
+  //uint8_t *acc_type_ptr = "offline";
   uint8_t *acc_type_ptr = "online";
   /*Optional. A space-delimited, case-sensitive list of prompts to present the user. 
     If you don't specify this parameter, the user will be prompted only the first time your app requests access. 
@@ -76,6 +194,43 @@ int32_t oauth20_build_auth_rsp(uint8_t *req_ptr,
     response_type=code&
     client_id=client_id
   */
+
+  *rsp_len = snprintf(rsp_ptr,
+                      rsp_size,
+                      "%s%s%s%s%s"
+                      "%s%s%s%s%s"
+                      "%s%s%s%s%s"
+                      "%s%s%s%s%s",
+                      "/response?type=auth&subtype=redirect&uri=",
+                      url_ptr,
+                      "&scope=",
+                      scope_ptr,
+                      "&access_type=",
+                      acc_type_ptr,
+                      "&state=",
+                      /*state is b64 encoded*/
+                      b64,
+                      "&redirect_uri=",
+                      redirect_ptr,
+                      "&prompt=",
+                      prompt_ptr,
+                      "&response_type=",
+                      response_type_ptr,
+                      "&client_id=",
+                      CLIENT_ID,
+                      "&ext_conn_id=",
+                      ext_conn_ptr,
+                      "&conn_id=",
+                      conn_ptr);
+#if 0
+  /*https://accounts.google.com/o/oauth2/v2/auth?
+    scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.metadata.readonly&
+    include_granted_scopes=true&
+    state=state_parameter_passthrough_value&
+    redirect_uri=http%3A%2F%2Foauth2.example.com%2Fcallback&
+    response_type=token&
+    client_id=client_id*/
+
   *rsp_len = snprintf(rsp_ptr,
                       rsp_size,
                       "%s%s%s%s%s"
@@ -86,8 +241,8 @@ int32_t oauth20_build_auth_rsp(uint8_t *req_ptr,
                       url_ptr,
                       "&scope=",
                       scope_ptr,
-                      "&access_type=",
-                      acc_type_ptr,
+                      "&include_granted_scopes=",
+                      "true",
                       "&state=",
                       /*state is b64 encoded*/
                       b64,
@@ -101,12 +256,12 @@ int32_t oauth20_build_auth_rsp(uint8_t *req_ptr,
                       ext_conn_ptr,
                       "&conn_id=",
                       conn_ptr);
-
+#endif
   fprintf(stderr, "\n%s:%d RESPONSE %s\n", __FILE__, __LINE__, rsp_ptr);
   free(conn_ptr);
   free(ext_conn_ptr);
   return(0);
-}/*oauth20_build_auth_rsp*/
+}/*oauth20_build_access_code_rsp*/
 
 uint8_t *oauth20_get_param(uint8_t *packet_ptr, uint8_t *p_name) {
 
@@ -166,17 +321,35 @@ int32_t oauth20_process_nas_req(int32_t conn_id,
   }
   fprintf(stderr, "\n%s:%d type %s\n", __FILE__, __LINE__, type_ptr);
 
-  if(!strncmp(type_ptr, "auth", 4)) {
+  if(!strncmp(type_ptr, "google_access_code", 18)) {
     fprintf(stderr, "\n%s:%d type %s\n", __FILE__, __LINE__, type_ptr);
     /*Prepare the response for nas*/
     rsp_ptr = (uint8_t *) malloc(sizeof(uint8_t) * rsp_size);
     assert(rsp_ptr != NULL);
     memset((void *)rsp_ptr, 0, (sizeof(uint8_t) * rsp_size)); 
-    oauth20_build_auth_rsp(req_ptr, rsp_ptr, rsp_size, &rsp_len);
-  }
- 
-  if(rsp_len) {
-    oauth20_send(conn_id, rsp_ptr, rsp_len);
+    oauth20_build_access_code_rsp(req_ptr, rsp_ptr, rsp_size, &rsp_len);
+
+    /*Send response to NAS*/
+    if(rsp_len) {
+      oauth20_send(conn_id, rsp_ptr, rsp_len);
+    }
+
+  } else if(!strncmp(type_ptr, "google_access_token", 19)) {
+    fprintf(stderr, "\n%s:%d type %s\n", __FILE__, __LINE__, type_ptr);
+    /*Prepare the response for nas*/
+    rsp_ptr = (uint8_t *) malloc(sizeof(uint8_t) * rsp_size);
+    assert(rsp_ptr != NULL);
+    memset((void *)rsp_ptr, 0, (sizeof(uint8_t) * rsp_size)); 
+    oauth20_build_access_token_req(req_ptr, rsp_ptr, rsp_size, &rsp_len);
+    /*Send Request to google*/
+    uint32_t google_fd = 0;
+
+    if(sslc_connect("googleapis.com", 443, &google_fd)) {
+      fprintf(stderr, "\n%s:%d Connection to googleapis failed\n", __FILE__, __LINE__);
+      return(1);
+    }
+
+    sslc_write(google_fd, rsp_ptr, rsp_len);
   }
 
   free(type_ptr);
@@ -261,7 +434,6 @@ int32_t oauth20_init(uint8_t *host_name,
   /*making socket to listen*/
   listen(fd, 5);
   pOauth20Ctx->nas_fd = fd;
-  pOauth20Ctx->google_fd = -1;
 
   return(0);
 }/*oauth20_init*/
@@ -273,7 +445,12 @@ void *oauth20_main(void *tid) {
   struct timeval to;
   int32_t ret = 0;
   int32_t new_fd = -1;
+  uint32_t google_fd[255];
+  uint32_t google_fd_count = 0;
+  uint32_t idx;
   oauth20_ctx_t *pOauth20Ctx = &oauth20_ctx_g;
+  /*Initialize the SSL Client context*/
+  sslc_init();
 
   FD_ZERO(&rd);
 
@@ -283,9 +460,14 @@ void *oauth20_main(void *tid) {
     FD_SET(pOauth20Ctx->nas_fd, &rd);
     max_fd = max_fd > pOauth20Ctx->nas_fd ? max_fd : pOauth20Ctx->nas_fd;
     
-    if(pOauth20Ctx->google_fd > 0) {
-      FD_SET(pOauth20Ctx->google_fd, &rd);
-      max_fd = max_fd > pOauth20Ctx->google_fd ? max_fd : pOauth20Ctx->google_fd;
+    if(sslc_get_session_count() > 0) {
+      memset((void *)google_fd, 0, sizeof(google_fd));
+      sslc_get_session_list(google_fd, &google_fd_count);
+      fprintf(stderr, "\n%s:%d session count %d\n", __FILE__, __LINE__, google_fd_count);
+      for(idx = 0; idx < google_fd_count; idx++) {
+        FD_SET(google_fd[idx], &rd);
+        max_fd = max_fd > google_fd[idx] ? max_fd : google_fd[idx];
+      }
     }
 
     if(new_fd > 0) {
@@ -297,7 +479,7 @@ void *oauth20_main(void *tid) {
     ret = select(max_fd, &rd, NULL, NULL, &to);
 
     if(ret < 0) {
-      fprintf(stderr, "\n%s:%d error in select\n", __FILE__, __LINE__);
+      //fprintf(stderr, "\n%s:%d error in select\n", __FILE__, __LINE__);
       continue;
     }
 
@@ -308,11 +490,26 @@ void *oauth20_main(void *tid) {
       new_fd = accept(pOauth20Ctx->nas_fd, (struct sockaddr *)&addr, &addr_len);
     }
 
-    if((pOauth20Ctx->google_fd > 0) && (FD_ISSET(pOauth20Ctx->google_fd, &rd))) {
+    if(google_fd_count > 0) {
       /*Process response from google oauth20 server*/
-      uint8_t rsp_buffer[512];
-      uint32_t rsp_len = 0;
-      memset((void *)rsp_buffer, 0, sizeof(rsp_buffer));
+      for(idx = 0; idx < google_fd_count; idx++) {
+        if(FD_ISSET(google_fd[idx], &rd)) {
+          /*Response received from google oauth20 server*/
+          uint32_t rsp_len = 3048;
+          uint8_t *rsp_ptr = (uint8_t *) malloc(sizeof(uint8_t) * rsp_len);
+          memset((void *)rsp_ptr, 0, sizeof(uint8_t) * rsp_len);
+
+          sslc_read(google_fd[idx], rsp_ptr, &rsp_len);
+          if(!rsp_len) {
+            close(google_fd[idx]);
+            sslc_del_session(google_fd[idx]);
+          } else {
+            /*Process the response*/
+            fprintf(stderr, "\n%s:%d Response received from googleapis.com %s\n", __FILE__, __LINE__, rsp_ptr);
+            free(rsp_ptr);
+          }
+        }
+      } 
        
     }
 
