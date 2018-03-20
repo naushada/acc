@@ -4,6 +4,7 @@
 #include <type.h>
 #include <uidai/common.h>
 #include "sslc.h"
+#include "oauth20.h"
 
 sslc_ctx_t sslc_ctx_g;
 
@@ -76,7 +77,7 @@ int32_t sslc_get_ipaddr(uint8_t *host_name, uint8_t *ip_str) {
   return(1);
 }/*sslc_get_ipaddr*/
 
-int32_t sslc_connect(uint8_t *host_name, uint32_t port, uint32_t *tcp_fd) {
+int32_t sslc_connect(uint8_t *host_name, uint32_t port, uint32_t *tcp_fd, uint8_t *req_ptr) {
   sslc_ctx_t *pSslcCtx = &sslc_ctx_g;
   int32_t fd;
   struct sockaddr_in addr;
@@ -85,6 +86,8 @@ int32_t sslc_connect(uint8_t *host_name, uint32_t port, uint32_t *tcp_fd) {
   uint32_t ip_addr[4];
   uint32_t ip;
   int32_t ret = -1;
+  uint8_t *ext_conn_ptr = NULL;
+  uint8_t *conn_ptr = NULL;
   sslc_session_t *tmp_session = pSslcCtx->session;
   sslc_session_t *new_session = NULL;
 
@@ -98,7 +101,6 @@ int32_t sslc_connect(uint8_t *host_name, uint32_t port, uint32_t *tcp_fd) {
   sslc_get_ipaddr(host_name, ip_str);
   sscanf(ip_str, "%d.%d.%d.%d", &ip_addr[0], &ip_addr[1], &ip_addr[2], &ip_addr[3]);
   ip = ip_addr[0] << 24 | ip_addr[1] << 16 | ip_addr[2] << 8|ip_addr[3];
-  fprintf(stderr, "\n%s:%d ip is 0x%X\n", __FILE__, __LINE__, ip);
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = htonl(ip);
   addr.sin_port = htons(port);
@@ -115,12 +117,26 @@ int32_t sslc_connect(uint8_t *host_name, uint32_t port, uint32_t *tcp_fd) {
     return(3);
   }
 
+  memset((void *)new_session, 0, sizeof(sslc_session_t));
   new_session->tcp_fd = fd;
   new_session->ssl_fd = SSL_new(pSslcCtx->sslCtx);
+  new_session->rsp_st = ACCESS_TOKEN_ST;
   new_session->next = NULL;
+  
+  conn_ptr = oauth20_get_param(req_ptr, "conn_id");
+  ext_conn_ptr = oauth20_get_param(req_ptr, "ext_conn_id");
+
+  if(conn_ptr && ext_conn_ptr) {
+    new_session->redir_conn_id = atoi(conn_ptr); 
+    new_session->uam_conn_id = atoi(ext_conn_ptr);
+    free(conn_ptr);
+    free(ext_conn_ptr);
+  }
 
   if(!new_session->ssl_fd) {
     fprintf(stderr, "\n%s:%d ssl instance creation failed\n", __FILE__, __LINE__);
+    close(fd);
+    free(new_session);
     return(4);
   }
 
@@ -243,5 +259,118 @@ int32_t sslc_write(uint32_t tcp_fd, uint8_t *in_ptr, uint32_t in_len) {
 
   return(0);
 }/*sslc_write*/
+
+int32_t sslc_peek(uint32_t tcp_fd, uint8_t *in_ptr, uint32_t in_len) {
+
+  sslc_session_t *session = NULL;
+  int32_t ret = -1;
+
+  session = sslc_get_session(tcp_fd);
+  if(!session) {
+    fprintf(stderr, "\n%s:%d session does not exists\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  return(SSL_peek(session->ssl_fd, in_ptr, in_len));
+
+}/*sslc_peek*/
+
+/**
+ * @brief This function processes the response buffer
+ *  without consuming the buffer and ensures that
+ *  the complete response is received. It makes sure
+ *  that incase of chunked response, end chunked is
+ *  received.
+ *
+ * @param conn_fd is the connection at which response is received.
+ * @param packet_buffer holds the response buffer
+ * @param packet_len is the received response length
+ *
+ * @return it returns 0 if entire response is received else returns 1
+ */
+int32_t sslc_pre_process_rsp(uint8_t *req_ptr, 
+                             uint32_t req_len) {
+  uint8_t *tmp_ptr = NULL;
+  uint8_t *line_ptr = NULL;
+  uint8_t is_response_chunked = 0;
+  uint16_t payload_len = 0;
+  uint8_t is_start_chunked = 0;
+  uint8_t is_end_chunked = 0;
+
+  if(!req_len) {
+    return(req_len);
+  }
+
+  tmp_ptr = (uint8_t *)malloc(req_len);
+  assert(tmp_ptr != NULL);
+  memset((void *)tmp_ptr, 0, req_len);
+  memcpy((void *)tmp_ptr, req_ptr, req_len);
+
+  /*Parse the Response*/
+  line_ptr = strtok(tmp_ptr, "\n");
+  while(line_ptr != NULL) {
+
+    if(!strncmp(line_ptr, "\r",1)) {
+      line_ptr = strtok(NULL, "\n");
+
+      if(line_ptr) {
+        is_start_chunked = 1;
+
+      } else if(is_start_chunked && !line_ptr) {
+        /*end chunked length will be ZERO*/
+        is_end_chunked = 1;
+      }
+
+    } else if(!strncmp(line_ptr, "Transfer-Encoding: chunked", 26)) {
+      /*Response received in chunked*/
+      is_response_chunked = 1;
+
+    } else if(!strncmp(line_ptr, "Content-Length:", 15)) {
+      /*Response is not chunked*/
+      is_response_chunked = 0;
+      return(0);
+    }
+
+    line_ptr = NULL;
+    line_ptr = strtok(NULL, "\n");
+  }
+
+  if(is_response_chunked && is_end_chunked) {
+    /*Complete chuncked received*/
+    free(tmp_ptr);
+    return(0);
+  }
+
+  free(tmp_ptr);
+  /*wait for end of chunked*/
+  return(1);
+}/*sslc_pre_process_rsp*/
+
+uint32_t sslc_get_rsp_st(uint32_t oauth2_fd) {
+ 
+  sslc_session_t *session = NULL;
+  session = sslc_get_session(oauth2_fd);
+
+  if(!session) {
+    fprintf(stderr, "\n%s:%d getting session failed\n", __FILE__, __LINE__);
+    return(0);
+  }
+
+  return(session->rsp_st);
+}/*sslc_get_rsp_st*/
+
+int32_t sslc_set_rsp_st(uint32_t tcp_fd, uint32_t st) {
+  
+  sslc_session_t *session = NULL;
+  session = sslc_get_session(tcp_fd);
+
+  if(!session) {
+    fprintf(stderr, "\n%s:%d getting session failed\n", __FILE__, __LINE__);
+    return(0);
+  }
+
+  session->rsp_st = st;
+  return(0); 
+}/*sslc_set_rsp_st*/
 
 #endif /* __SSLC_C__ */

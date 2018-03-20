@@ -281,6 +281,7 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
   uint32_t rsp_size = 1024;
   uint32_t rsp_len = 0;
   uint8_t *pArr[20];
+  uint32_t max_arg;
   redir_session_t *session = NULL;
 
   /*/response?type=gmail&subtype=redirect&location=&ext_conn_id=14&status=success&conn_id=20*/
@@ -289,12 +290,12 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
   subtype_ptr = redir_get_oauth2_param(packet_ptr, "subtype");
   assert(subtype_ptr != NULL);
  
+  rsp_ptr = (uint8_t *)malloc(rsp_size);
+  assert(rsp_ptr != NULL);
+  memset((void *)rsp_ptr, 0, rsp_size);
+
   if(!strncmp(subtype_ptr, "redirect", 8)) {
     /*Prepare Response*/
-    rsp_ptr = (uint8_t *)malloc(rsp_size);
-    assert(rsp_ptr != NULL);
-    memset((void *)rsp_ptr, 0, rsp_size);
-
     rsp_len = snprintf(rsp_ptr, 
                        rsp_size,
                        "%s%s%s%s%s"
@@ -321,6 +322,21 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
                        pArr[7] = redir_get_oauth2_param(packet_ptr, "ext_conn_id"),
                        "&prompt=",
                        pArr[8] = redir_get_oauth2_param(packet_ptr, "prompt"));
+    max_arg = 9;
+
+  } else if(!strncmp(subtype_ptr, "auth", 4)) {
+
+    rsp_len = snprintf(rsp_ptr, 
+                       rsp_size,
+                       "%s%s%s%s%s"
+                       "%s",
+                       "/response?type=gmail",
+                       "&subtype=auth",
+                       "&status=",
+                       pArr[0] = redir_get_oauth2_param(packet_ptr, "status"),
+                       "&conn_id=",
+                       pArr[1] = redir_get_oauth2_param(packet_ptr, "ext_conn_id"));
+    max_arg = 2;
   }
 
   fprintf(stderr, "\n%s:%d response ptr %s\n", __FILE__, __LINE__, rsp_ptr);  
@@ -331,7 +347,7 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
   free(rsp_ptr);
   uint32_t idx;
 
-  for(idx = 0; idx < 9; idx++) {
+  for(idx = 0; idx < max_arg; idx++) {
     free(pArr[idx]);
   }
   
@@ -1287,6 +1303,7 @@ int32_t redir_process_req(uint32_t conn_id,
   uint8_t *redir_ptr = NULL;
   uint16_t redir_len = 0;
 
+  fprintf(stderr, "\n%s:%d REQ(%d) %s\n", __FILE__, __LINE__, conn_id, packet_ptr);
   redir_parse_req(conn_id, packet_ptr, packet_length);
 
   if(redir_is_connection_close(conn_id)) {

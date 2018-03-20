@@ -430,7 +430,7 @@ int32_t acc_get_hostname(uint8_t *table_name) {
   int32_t row;
   int32_t col;
   uint8_t idx = 0;
-  uint8_t record[4][16][32];
+  uint8_t record[8][16][32];
 
   memset((void *)sql_query, 0, sizeof(sql_query));
   snprintf(sql_query,

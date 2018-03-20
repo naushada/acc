@@ -403,55 +403,64 @@ uint8_t *http_get_gparam(uint8_t *req_ptr, uint32_t req_len, uint8_t *p_name) {
 int32_t http_process_google_rsp(uint8_t *packet_ptr, 
                                 uint32_t packet_length) {
   uint8_t *type = NULL;
+  uint8_t *subtype_ptr = NULL;
   uint8_t *conn_ptr = NULL;
   http_session_t *session = NULL;
   uint8_t *pArr[10];
   uint32_t idx; 
+  uint32_t max_arg = 0;
 
   /*/response?type=gmail&location=<>&conn_id=14*/
   conn_ptr = http_get_gparam(packet_ptr, packet_length, "conn_id");
+  subtype_ptr = http_get_gparam(packet_ptr, packet_length, "subtype");
 
   if(!conn_ptr) {
     fprintf(stderr, "\n%s:%d getting param failed\n", __FILE__, __LINE__);
     return(1);
   }
+  if(!strncmp(subtype_ptr, "redirect", 8)) { 
+    session = http_get_session(atoi(conn_ptr));
+    free(conn_ptr);
 
-  session = http_get_session(atoi(conn_ptr));
-  free(conn_ptr);
+    if(!session) {
+      fprintf(stderr, "\n%s:%d getting session failed\n", __FILE__, __LINE__);
+      return(2);
+    }  
 
-  if(!session) {
-    fprintf(stderr, "\n%s:%d getting session failed\n", __FILE__, __LINE__);
-    return(2);
-  }  
+    session->oauth2_param.gmail_url = (uint8_t *)malloc(sizeof(uint8_t) * 1024);
+    memset((void *)session->oauth2_param.gmail_url, 0, 1024);
+    snprintf(session->oauth2_param.gmail_url, 
+             1024,
+             "%s%s%s%s%s"
+             "%s%s%s%s%s"
+             "%s%s%s%s%s",
+             pArr[0] = http_get_gparam(packet_ptr, packet_length, "uri"),
+             "?scope=",
+             pArr[1] = http_get_gparam(packet_ptr, packet_length, "scope"),
+             "&access_type=",
+             pArr[2] = http_get_gparam(packet_ptr, packet_length, "access_type"),
+             "&state=",
+             pArr[3] = http_get_gparam(packet_ptr, packet_length, "state"),
+             "&redirect_uri=",
+             pArr[4] = http_get_gparam(packet_ptr, packet_length, "redirect_uri"),
+             "&response_type=",
+             pArr[5] = http_get_gparam(packet_ptr, packet_length, "response_type"),
+             "&client_id=",
+             pArr[6] = http_get_gparam(packet_ptr, packet_length, "client_id"),
+             "&prompt=",
+             pArr[7] = http_get_gparam(packet_ptr, packet_length, "prompt"));
 
-  session->oauth2_param.gmail_url = (uint8_t *)malloc(sizeof(uint8_t) * 1024);
-  memset((void *)session->oauth2_param.gmail_url, 0, 1024);
-  snprintf(session->oauth2_param.gmail_url, 
-           1024,
-           "%s%s%s%s%s"
-           "%s%s%s%s%s"
-           "%s%s%s%s%s",
-           pArr[0] = http_get_gparam(packet_ptr, packet_length, "uri"),
-           "?scope=",
-           pArr[1] = http_get_gparam(packet_ptr, packet_length, "scope"),
-           "&access_type=",
-           pArr[2] = http_get_gparam(packet_ptr, packet_length, "access_type"),
-           "&state=",
-           pArr[3] = http_get_gparam(packet_ptr, packet_length, "state"),
-           "&redirect_uri=",
-           pArr[4] = http_get_gparam(packet_ptr, packet_length, "redirect_uri"),
-           "&response_type=",
-           pArr[5] = http_get_gparam(packet_ptr, packet_length, "response_type"),
-           "&client_id=",
-           pArr[6] = http_get_gparam(packet_ptr, packet_length, "client_id"),
-           "&prompt=",
-           pArr[7] = http_get_gparam(packet_ptr, packet_length, "prompt"));
+    max_arg = 8;
+    session->oauth2_param.oauth2_rsp = 1;
 
-  session->oauth2_param.oauth2_rsp = 1;
+  } else if(!strncmp(subtype_ptr, "auth", 4)) {
+    /*User is authenticated successfully*/
+  }
 
-  for(idx = 0; idx < 8; idx++) {
+  for(idx = 0; idx < max_arg; idx++) {
     free(pArr[idx]);
   }
+
   return(0);
 }/*http_process_google_rsp*/
 
@@ -934,9 +943,9 @@ int32_t http_parse_req(uint32_t conn_id,
   memset((void *)session->protocol, 0, sizeof(session->protocol));
   memset((void *)session->uri, 0, sizeof(session->uri));
 
-  strncpy(session->method, method, strlen((const char *)method));
-  strncpy(session->protocol, protocol, strlen((const char *)protocol));
-  strncpy(session->uri, uri_ptr, strlen((const char *)uri_ptr));
+  strncpy(session->method, method, sizeof(session->method));
+  strncpy(session->protocol, protocol, sizeof(session->protocol));
+  strncpy(session->uri, uri_ptr, sizeof(session->uri));
 
   free(uri_ptr);
   uri_ptr = NULL;

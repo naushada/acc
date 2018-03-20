@@ -29,7 +29,7 @@ struct http_session_t {
   struct sockaddr_in peer_addr;
   uint8_t method[8];
   uint8_t protocol[8];
-  uint8_t uri[255];
+  uint8_t uri[1024];
   uint8_t url[1024];
   uint16_t mime_header_count;
   uint8_t mime_header[16][2][255];

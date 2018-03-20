@@ -9,6 +9,191 @@
 
 oauth20_ctx_t oauth20_ctx_g;
 
+int32_t oauth20_process_google_api_rsp(uint32_t oauth2_fd, 
+                                       uint8_t *rsp_ptr, 
+                                       uint32_t rsp_len, 
+                                       uint32_t nas_fd) {
+  uint8_t *tmp_ptr = NULL;
+  uint8_t *token_ptr = NULL;
+  uint8_t *req_ptr = NULL;
+  uint32_t req_ptr_size = 512;
+  uint32_t req_len = 0;
+  uint8_t email[64];
+  uint8_t email_type[32];
+  uint8_t display_name[255];
+  uint32_t uam_conn_id;
+  uint32_t redir_conn_id;
+  sslc_session_t *session = NULL;
+
+  tmp_ptr = (uint8_t *)malloc(sizeof(uint8_t) * rsp_len);
+  assert(tmp_ptr != NULL);
+  memset((void *)tmp_ptr, 0, sizeof(uint8_t) * rsp_len);
+  memcpy((void *)tmp_ptr, rsp_ptr, sizeof(uint8_t) * rsp_len);
+  
+  for(token_ptr = strtok(tmp_ptr, "\n"); token_ptr; token_ptr = strtok(NULL, "\n")) {
+    if(!strncmp(&token_ptr[4], "value", 5)) {
+      /*extract the e-mail*/
+      memset((void *)email, 0, sizeof(email));
+      sscanf(token_ptr, "%*[^:]:%*[^\"]\"%[^\"]\"", email);
+      fprintf(stderr, "\n%s:%d email %s\n", __FILE__, __LINE__, email);
+
+    } else if(!strncmp(&token_ptr[4], "type", 4)) {
+      /*email type*/ 
+      memset((void *)email_type, 0, sizeof(email_type));
+      sscanf(token_ptr, "%*[^:]:%*[^\"]\"%[^\"]\"", email_type);
+      fprintf(stderr, "\n%s:%d email type %s\n", __FILE__, __LINE__, email_type);
+       
+    } else if(!strncmp(&token_ptr[2], "displayName", 11)) {
+      /*display name*/
+      memset((void *)display_name, 0, sizeof(display_name));
+      sscanf(token_ptr, "%*[^:]:%*[^\"]\"%[^\"]\"", display_name);
+      fprintf(stderr, "\n%s:%d display Name %s\n", __FILE__, __LINE__, display_name);
+    }
+  }
+
+  session = sslc_get_session(oauth2_fd);
+  if(!session) {
+    fprintf(stderr, "\n%s:%d getting session failed\n", __FILE__, __LINE__);
+    return(1);
+  }
+   
+  uam_conn_id = session->uam_conn_id;
+  redir_conn_id = session->redir_conn_id;
+  req_ptr = (uint8_t *)malloc(sizeof(uint8_t) * req_ptr_size);
+  assert(req_ptr != NULL);
+  memset((void *)req_ptr, 0, sizeof(uint8_t) * req_ptr_size);
+
+  req_len = snprintf(req_ptr,
+                     req_ptr_size,
+                     "%s%s%s%s%s"
+                     "%s%s%s%d%s"
+                     "%d",
+                     "/response?type=gmail",
+                     "&subtype=auth",
+                     "&status=success",
+                     "&email=",
+                     email,
+                     "&name=",
+                     display_name,
+                     "ext_conn_id=",
+                     uam_conn_id,
+                     "&conn_id=",
+                     redir_conn_id);
+ 
+  oauth20_send(nas_fd, req_ptr, req_len);
+  free(req_ptr);
+  free(tmp_ptr);
+  close(oauth2_fd);
+  sslc_del_session(oauth2_fd);
+  
+  return(0);
+}/*oauth20_process_google_api_rsp*/
+
+int32_t oauth20_process_access_token_rsp(uint32_t oauth2_fd, uint8_t *rsp_ptr, uint32_t rsp_len) {
+
+  uint8_t *tmp_ptr = NULL;
+  uint8_t *token_ptr = NULL;
+  uint8_t *access_token = NULL;
+  uint8_t token_type[32];
+  uint8_t expires[16];
+  uint8_t *api_req_ptr = NULL;
+  uint32_t api_req_size = 1024;
+  uint32_t req_len = 0;
+
+  tmp_ptr = (uint8_t *) malloc(sizeof(uint8_t) * rsp_len);
+
+  if(!tmp_ptr) {
+    fprintf(stderr, "\n%s:%d Memory allocation failed\n", __FILE__, __LINE__);  
+    return(1);
+  }
+
+  memset((void *)tmp_ptr, 0, rsp_len);
+  memcpy((void *)tmp_ptr, rsp_ptr, rsp_len);
+
+  for(token_ptr = strtok(tmp_ptr, "\n"); token_ptr; token_ptr = strtok(NULL, "\n")) {
+
+    //fprintf(stderr, "\n%s:%d \ntoken_ptr %s len %d\n", __FILE__, __LINE__, token_ptr, strlen(token_ptr));
+    /*Note: there are two white spaces at begining of every row*/ 
+    if(!strncmp(&token_ptr[2], "access_token", 12)) {
+      /*"access_token": "ya29.GluEBXGRImWQKe_hdKRHKwCV-rkeUztGk6Fw6vlyr5hkX-7scv8IC0Tafwk9t9UFs0Bb8H9P1OKc8rPaXAdvenIkctsJlT7zR_MqB2fcQ6Euj1Ei9gp1GoN5FSBQ",*/
+      access_token = (uint8_t *) malloc(sizeof(uint8_t) * 512);
+      assert(access_token != NULL);
+      memset((void *)access_token, 0, 512);
+      sscanf(token_ptr, "%*[^:]:%*[^\"]\"%[^\"]\"", access_token);
+      
+      fprintf(stderr, "\n%s:%d access_token %s\n", __FILE__, __LINE__, access_token);
+    } else if(!strncmp(&token_ptr[2], "token_type", 10)) {
+      /*"token_type": "Bearer",*/
+       memset((void *)token_type, 0, sizeof(token_type));
+       sscanf(token_ptr, "%*[^:]:%*[^\"]\"%[^\"]\"", token_type);
+      fprintf(stderr, "\n%s:%d token_type %s\n", __FILE__, __LINE__, token_type);
+
+    } else if(!strncmp(&token_ptr[2], "expires_in", 10)) {
+      /*"expires_in": 3599,*/
+       memset((void *)expires, 0, sizeof(expires));
+       sscanf(token_ptr, "%*[^:]:%[^,],", expires);
+      fprintf(stderr, "\n%s:%d  expires %s\n", __FILE__, __LINE__, expires);
+    }
+  }
+
+  /*Prepare oauth20 request to get user's email address*/
+  /*GET /people/v1/people/me HTTP/1.1
+   Authorization: Bearer <access_token>
+   Host: www.googleapis.com */
+   api_req_ptr = (uint8_t *) malloc(sizeof(uint8_t) * api_req_size);
+   assert(api_req_ptr != NULL);
+   memset((void *)api_req_ptr, 0, sizeof(uint8_t) * api_req_size);
+
+   req_len = snprintf(api_req_ptr,
+                      api_req_size,
+                      "%s%s%s%s%s"
+                      "%s%s",
+                      "GET https://www.googleapis.com/plus/v1/people/me?",
+                      "access_token=",
+                      access_token,
+                      " HTTP/1.1\r\n",
+                      "Host: www.googleapis.com\r\n" ,
+                      "Connection: Keep-Alive\r\n",
+                      "Content-Length: 0\r\n\n");
+
+  fprintf(stderr, "\n%s:%d google api request %s\n", __FILE__, __LINE__, api_req_ptr);
+  sslc_set_rsp_st(oauth2_fd, (uint32_t)CALLING_GOOGLE_API_ST); 
+  sslc_write(oauth2_fd, api_req_ptr, req_len);
+  free(access_token);
+  free(api_req_ptr);
+  return(0);  
+}/*oauth20_process_access_token_rsp*/
+
+
+int32_t oauth20_process_rsp(uint32_t oauth2_fd, 
+                            uint8_t *rsp_ptr, 
+                            uint32_t rsp_len, 
+                            uint32_t nas_fd) {
+  uint32_t rsp_st;
+  
+  rsp_st = sslc_get_rsp_st(oauth2_fd);
+
+  if(!rsp_st) {
+    fprintf(stderr, "\n%s:%d incorrect rsp state\n", __FILE__, __LINE__);
+    return(1);
+  }
+ 
+  if(ACCESS_TOKEN_ST == rsp_st) {
+    oauth20_process_access_token_rsp(oauth2_fd, rsp_ptr, rsp_len);
+
+  } else if(CALLING_GOOGLE_API_ST == rsp_st) {
+    /*Process the received user credential response*/
+    fprintf(stderr, "\n%s:%d google api response\n%s\n", __FILE__, __LINE__, rsp_ptr);
+    oauth20_process_google_api_rsp(oauth2_fd, rsp_ptr, rsp_len, nas_fd);
+
+  } else {
+    fprintf(stderr, "\n%s:%d invalid state\n", __FILE__, __LINE__);
+  }
+
+
+  return(0);
+}/*oauth20_process_google_rsp*/
+
 int32_t oauth20_compute_state(uint8_t *b64, 
                               uint32_t *b64_len) {
   int32_t fd;
@@ -71,24 +256,10 @@ int32_t oauth20_build_access_token_req(uint8_t *req_ptr,
   uint8_t *code_ptr = NULL;
   /*reference : https://developers.google.com/identity/protocols/OAuth2WebServer*/
   /*"https://www.googleapis.com/oauth2/v4/token";*/
-  uint8_t *conn_ptr = NULL;
-  uint8_t *ext_conn_ptr = NULL;
   uint8_t *qs_ptr = NULL;
-  uint32_t qs_len = 0;
   uint32_t qs_size = 1024;
-  uint8_t *urlencode_qs = NULL;
 
-  conn_ptr = oauth20_get_param(req_ptr, "conn_id");
-  ext_conn_ptr = oauth20_get_param(req_ptr, "ext_conn_id");
   code_ptr = oauth20_get_param(req_ptr, "code");
-  
-  if(!conn_ptr || 
-     !ext_conn_ptr ||
-     !code_ptr) {
-
-    fprintf(stderr, "\n%s:%d conn_id or ext_conn_id is meiising\n", __FILE__, __LINE__);
-    return(1);
-  }
 
   qs_ptr = (uint8_t *) malloc(sizeof(uint8_t) * qs_size);
   assert(qs_ptr != NULL);
@@ -106,16 +277,10 @@ int32_t oauth20_build_access_token_req(uint8_t *req_ptr,
            CLIENT_S,
            "&redirect_uri=",
            redirect_ptr,
-           "&scope=",
-           "&grant_type=authorization_code"
-           /*"&grant_type=refresh_token"*/);
+           "&scope=email",
+           "&grant_type=authorization_code");
   
-  urlencode_qs = (uint8_t *) malloc(sizeof(uint8_t) * qs_size);
-  assert(urlencode_qs != NULL);
-  memset((void *)urlencode_qs, 0, sizeof(uint8_t) * qs_size); 
-
-  //oauth20_urlencode_qs(qs_ptr, urlencode_qs);
-  fprintf(stderr, "\n%s:%d urlencode %s\n", __FILE__, __LINE__, urlencode_qs); 
+  fprintf(stderr, "\n%s:%d urlencode %s\n", __FILE__, __LINE__, qs_ptr); 
   /*POST /oauth2/v4/token HTTP/1.1
     Host: www.googleapis.com
     Content-Type: application/x-www-form-urlencoded
@@ -142,7 +307,7 @@ int32_t oauth20_build_access_token_req(uint8_t *req_ptr,
                       "\n",
                       qs_ptr);
   free(qs_ptr);
-  free(urlencode_qs);
+  free(code_ptr);
   fprintf(stderr, "\n%s:%d TOKEN REQUEST %s\n", __FILE__, __LINE__, rsp_ptr);
 
   return(0);
@@ -159,12 +324,9 @@ int32_t oauth20_build_access_code_rsp(uint8_t *req_ptr,
     more than one value shall be space seperated
    */
   uint8_t *scope_ptr = "email";
-  //uint8_t *scope_ptr = "https://www.googleapis.com/auth/gmail.readonly";
   uint8_t *response_type_ptr = "code";
-  //uint8_t *response_type_ptr = "token";
   /*reference : https://developers.google.com/identity/protocols/OAuth2WebServer*/
   uint8_t *url_ptr = "https://accounts.google.com/o/oauth2/v2/auth";
-  //uint8_t *acc_type_ptr = "offline";
   uint8_t *acc_type_ptr = "online";
   /*Optional. A space-delimited, case-sensitive list of prompts to present the user. 
     If you don't specify this parameter, the user will be prompted only the first time your app requests access. 
@@ -222,41 +384,6 @@ int32_t oauth20_build_access_code_rsp(uint8_t *req_ptr,
                       ext_conn_ptr,
                       "&conn_id=",
                       conn_ptr);
-#if 0
-  /*https://accounts.google.com/o/oauth2/v2/auth?
-    scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.metadata.readonly&
-    include_granted_scopes=true&
-    state=state_parameter_passthrough_value&
-    redirect_uri=http%3A%2F%2Foauth2.example.com%2Fcallback&
-    response_type=token&
-    client_id=client_id*/
-
-  *rsp_len = snprintf(rsp_ptr,
-                      rsp_size,
-                      "%s%s%s%s%s"
-                      "%s%s%s%s%s"
-                      "%s%s%s%s%s"
-                      "%s%s%s",
-                      "/response?type=auth&subtype=redirect&uri=",
-                      url_ptr,
-                      "&scope=",
-                      scope_ptr,
-                      "&include_granted_scopes=",
-                      "true",
-                      "&state=",
-                      /*state is b64 encoded*/
-                      b64,
-                      "&redirect_uri=",
-                      redirect_ptr,
-                      "&response_type=",
-                      response_type_ptr,
-                      "&client_id=",
-                      CLIENT_ID,
-                      "&ext_conn_id=",
-                      ext_conn_ptr,
-                      "&conn_id=",
-                      conn_ptr);
-#endif
   fprintf(stderr, "\n%s:%d RESPONSE %s\n", __FILE__, __LINE__, rsp_ptr);
   free(conn_ptr);
   free(ext_conn_ptr);
@@ -322,7 +449,6 @@ int32_t oauth20_process_nas_req(int32_t conn_id,
   fprintf(stderr, "\n%s:%d type %s\n", __FILE__, __LINE__, type_ptr);
 
   if(!strncmp(type_ptr, "google_access_code", 18)) {
-    fprintf(stderr, "\n%s:%d type %s\n", __FILE__, __LINE__, type_ptr);
     /*Prepare the response for nas*/
     rsp_ptr = (uint8_t *) malloc(sizeof(uint8_t) * rsp_size);
     assert(rsp_ptr != NULL);
@@ -335,7 +461,6 @@ int32_t oauth20_process_nas_req(int32_t conn_id,
     }
 
   } else if(!strncmp(type_ptr, "google_access_token", 19)) {
-    fprintf(stderr, "\n%s:%d type %s\n", __FILE__, __LINE__, type_ptr);
     /*Prepare the response for nas*/
     rsp_ptr = (uint8_t *) malloc(sizeof(uint8_t) * rsp_size);
     assert(rsp_ptr != NULL);
@@ -344,7 +469,7 @@ int32_t oauth20_process_nas_req(int32_t conn_id,
     /*Send Request to google*/
     uint32_t google_fd = 0;
 
-    if(sslc_connect("googleapis.com", 443, &google_fd)) {
+    if(sslc_connect("googleapis.com", 443, &google_fd, req_ptr)) {
       fprintf(stderr, "\n%s:%d Connection to googleapis failed\n", __FILE__, __LINE__);
       return(1);
     }
@@ -445,8 +570,8 @@ void *oauth20_main(void *tid) {
   struct timeval to;
   int32_t ret = 0;
   int32_t new_fd = -1;
-  uint32_t google_fd[255];
-  uint32_t google_fd_count = 0;
+  uint32_t oauth2_fd[255];
+  uint32_t oauth2_fd_count = 0;
   uint32_t idx;
   oauth20_ctx_t *pOauth20Ctx = &oauth20_ctx_g;
   /*Initialize the SSL Client context*/
@@ -461,12 +586,12 @@ void *oauth20_main(void *tid) {
     max_fd = max_fd > pOauth20Ctx->nas_fd ? max_fd : pOauth20Ctx->nas_fd;
     
     if(sslc_get_session_count() > 0) {
-      memset((void *)google_fd, 0, sizeof(google_fd));
-      sslc_get_session_list(google_fd, &google_fd_count);
-      fprintf(stderr, "\n%s:%d session count %d\n", __FILE__, __LINE__, google_fd_count);
-      for(idx = 0; idx < google_fd_count; idx++) {
-        FD_SET(google_fd[idx], &rd);
-        max_fd = max_fd > google_fd[idx] ? max_fd : google_fd[idx];
+      memset((void *)oauth2_fd, 0, sizeof(oauth2_fd));
+      sslc_get_session_list(oauth2_fd, &oauth2_fd_count);
+      fprintf(stderr, "\n%s:%d session count %d\n", __FILE__, __LINE__, oauth2_fd_count);
+      for(idx = 0; idx < oauth2_fd_count; idx++) {
+        FD_SET(oauth2_fd[idx], &rd);
+        max_fd = max_fd > oauth2_fd[idx] ? max_fd : oauth2_fd[idx];
       }
     }
 
@@ -490,27 +615,39 @@ void *oauth20_main(void *tid) {
       new_fd = accept(pOauth20Ctx->nas_fd, (struct sockaddr *)&addr, &addr_len);
     }
 
-    if(google_fd_count > 0) {
+    if(oauth2_fd_count > 0) {
       /*Process response from google oauth20 server*/
-      for(idx = 0; idx < google_fd_count; idx++) {
-        if(FD_ISSET(google_fd[idx], &rd)) {
-          /*Response received from google oauth20 server*/
-          uint32_t rsp_len = 3048;
+      for(idx = 0; idx < oauth2_fd_count; idx++) {
+        if(FD_ISSET(oauth2_fd[idx], &rd)) {
+          /*Response received from oauth20 server*/
+          int32_t ret_status = -1;
+          uint32_t rsp_len = 2048;
+          uint32_t offset = 0;
           uint8_t *rsp_ptr = (uint8_t *) malloc(sizeof(uint8_t) * rsp_len);
           memset((void *)rsp_ptr, 0, sizeof(uint8_t) * rsp_len);
 
-          sslc_read(google_fd[idx], rsp_ptr, &rsp_len);
-          if(!rsp_len) {
-            close(google_fd[idx]);
-            sslc_del_session(google_fd[idx]);
+          do {
+            sslc_read(oauth2_fd[idx], rsp_ptr + offset, &rsp_len);
+            ret_status = sslc_pre_process_rsp(rsp_ptr, rsp_len + offset);
+            offset += rsp_len;
+            rsp_len = 2048;
+          }while(ret_status);
+
+          /*last chunked will be of length 0 followed by\r\n*/
+          sslc_read(oauth2_fd[idx], rsp_ptr + offset, &rsp_len);
+          offset += rsp_len;
+
+          if(!offset) {
+            close(oauth2_fd[idx]);
+            sslc_del_session(oauth2_fd[idx]);
           } else {
             /*Process the response*/
-            fprintf(stderr, "\n%s:%d Response received from googleapis.com %s\n", __FILE__, __LINE__, rsp_ptr);
+            fprintf(stderr, "\n%s:%d Response received from oauth2 server\n%s\n", __FILE__, __LINE__, rsp_ptr);
+            oauth20_process_rsp(oauth2_fd[idx], rsp_ptr, offset, new_fd/*nas fd*/);
             free(rsp_ptr);
           }
         }
       } 
-       
     }
 
     if((new_fd > 0) && (FD_ISSET(new_fd, &rd))) {
