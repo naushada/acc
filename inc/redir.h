@@ -159,5 +159,6 @@ int32_t redir_uidaiC_connect(void);
 
 int32_t redir_oauth2_connect(void);
 
+int32_t redir_compute_ts(uint8_t *ts, uint32_t ts_size);
 
 #endif /* __REDIR_H__ */

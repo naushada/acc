@@ -64,6 +64,7 @@ int32_t http_process_google_access_token_req(uint32_t conn_id,
   uint32_t req_len;
   uint8_t *state_ptr = NULL;
   uint8_t *code_ptr = NULL;
+  uint8_t ip_str[32];
 
   http_session_t *session = NULL;
 
@@ -76,17 +77,22 @@ int32_t http_process_google_access_token_req(uint32_t conn_id,
   state_ptr = http_get_gparam(session->uri, strlen(session->uri), "state"); 
   code_ptr = http_get_gparam(session->uri, strlen(session->uri), "code");
 
+  memset((void *)ip_str, 0, sizeof(ip_str));
+  utility_ip_int_to_str(session->peer_addr.sin_addr.s_addr, ip_str);
   req_len = 0;
   req_len = snprintf(req, 
                      512,
                      "%s%d%s%s%s"
-                     "%s%s%s%s",
+                     "%s%s%s%s%s"
+                     "%s",
                      "GET /response_callback?auth_type=gmail&subtype=access_token&conn_id=",
                      conn_id,
                      "&state=",
                      state_ptr,
                      "&code=",
                      code_ptr,
+                     "&ip=",
+                     ip_str,
                      " HTTP/1.1\r\n",
                      "Connection: Keep-Alive\r\n",
                      "Content-Length: 0\r\n");
@@ -125,6 +131,7 @@ int32_t http_process_google_access_code_req(uint32_t conn_id,
                         response_ptr,
                         response_len_ptr,
                         session->oauth2_param.gmail_url);
+
     free(session->oauth2_param.gmail_url);
     session->oauth2_param.gmail_url = NULL;
     fprintf(stderr, "\n%s:%d Response %s\n", __FILE__, __LINE__, *response_ptr);
@@ -139,6 +146,7 @@ int32_t http_process_google_ui_req(uint32_t conn_id,
 
   /*GET /response_callback?auth_type=gmail&conn_id=14 HTTP/1.1*/
   uint8_t *req = NULL;
+  uint8_t ip_str[32];
   uint32_t req_len;
   uint8_t *refresh_uri = "/google_access_code.html";
   http_session_t *session = NULL;
@@ -146,12 +154,20 @@ int32_t http_process_google_ui_req(uint32_t conn_id,
   req = (uint8_t *)malloc(512);
   assert(req != NULL);
   memset((void *)req, 0, 512);
+  memset((void *)ip_str, 0, sizeof(ip_str));
+  session = http_get_session(conn_id);
+  assert(session != NULL);
+  
+  utility_ip_int_to_str(session->peer_addr.sin_addr.s_addr, ip_str);
   req_len = 0;
   req_len = snprintf(req, 
                      512,
-                     "%s%d%s%s%s",
+                     "%s%d%s%s%s"
+                     "%s%s",
                      "GET /response_callback?auth_type=gmail&subtype=access_code&conn_id=",
                      conn_id,
+                     "&ip=",
+                     ip_str,
                      " HTTP/1.1\r\n",
                      "Connection: Keep-Alive\r\n",
                      "Content-Length: 0\r\n");
@@ -162,8 +178,6 @@ int32_t http_process_google_ui_req(uint32_t conn_id,
   free(req);
   req = NULL;
 
-  session = http_get_session(conn_id);
-  assert(session != NULL);
   session->oauth2_param.oauth2_rsp = 0;
   /*Making Browser to wait for response*/
   http_process_wait_req(conn_id,
@@ -1836,7 +1850,7 @@ void *http_main(void *argv) {
   int32_t new_conn;
   struct timeval to;
   struct sockaddr_in peer_addr;
-  size_t peer_addr_len = sizeof(peer_addr);
+  socklen_t peer_addr_len = sizeof(peer_addr);
   uint8_t packet_buffer[3000];
   uint32_t packet_length;
   fd_set rd;

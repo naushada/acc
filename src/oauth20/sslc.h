@@ -12,6 +12,7 @@ struct sslc_session {
   uint32_t redir_conn_id;
   uint32_t tcp_fd;
   uint32_t rsp_st;
+  uint8_t ip[32];
   SSL *ssl_fd;
   struct sslc_session *next;
 };

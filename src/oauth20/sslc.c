@@ -88,6 +88,7 @@ int32_t sslc_connect(uint8_t *host_name, uint32_t port, uint32_t *tcp_fd, uint8_
   int32_t ret = -1;
   uint8_t *ext_conn_ptr = NULL;
   uint8_t *conn_ptr = NULL;
+  uint8_t *ip_ptr = NULL;
   sslc_session_t *tmp_session = pSslcCtx->session;
   sslc_session_t *new_session = NULL;
 
@@ -101,6 +102,7 @@ int32_t sslc_connect(uint8_t *host_name, uint32_t port, uint32_t *tcp_fd, uint8_
   sslc_get_ipaddr(host_name, ip_str);
   sscanf(ip_str, "%d.%d.%d.%d", &ip_addr[0], &ip_addr[1], &ip_addr[2], &ip_addr[3]);
   ip = ip_addr[0] << 24 | ip_addr[1] << 16 | ip_addr[2] << 8|ip_addr[3];
+
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = htonl(ip);
   addr.sin_port = htons(port);
@@ -131,6 +133,14 @@ int32_t sslc_connect(uint8_t *host_name, uint32_t port, uint32_t *tcp_fd, uint8_
     new_session->uam_conn_id = atoi(ext_conn_ptr);
     free(conn_ptr);
     free(ext_conn_ptr);
+  }
+
+  ip_ptr = oauth20_get_param(req_ptr, "ip");
+
+  if(ip_ptr) {
+    memset((void *)new_session->ip, 0, sizeof(new_session->ip));
+    strncpy(new_session->ip, ip_ptr, sizeof(new_session->ip));
+    free(ip_ptr);
   }
 
   if(!new_session->ssl_fd) {

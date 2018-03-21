@@ -9,6 +9,7 @@
 #include <radiusC.h>
 #include <subscriber.h>
 #include <redir.h>
+#include <dhcp.h>
 
 /********************************************************************
  *  Global Instance Declaration
@@ -91,7 +92,6 @@ uint8_t *redir_get_param(uint8_t (*param)[2][64], uint8_t *arg) {
   
   return(NULL);
 }/*redir_get_param*/
-
 
 int32_t redir_build_auth_pi_req(uint8_t (*param)[2][64], uint8_t *uidai_req, uint32_t conn_id) {
 
@@ -270,6 +270,27 @@ uint8_t *redir_get_oauth2_param(uint8_t *packet_ptr, uint8_t *p_name) {
   return(NULL);
 }/*redir_get_oauth2_param*/
 
+int32_t redir_compute_ts(uint8_t *ts, uint32_t ts_size) {
+
+  time_t curr_time;
+  struct tm *local_time;
+
+  /*Retrieving the current time*/
+  curr_time = time(NULL);
+  local_time = localtime(&curr_time);
+
+  memset((void *)ts, 0, ts_size);
+  snprintf(ts, 
+           ts_size,
+           "%04d-%02d-%02dT%02d:%02d:%02d", 
+           local_time->tm_year+1900, 
+           local_time->tm_mon+1, 
+           local_time->tm_mday, 
+           local_time->tm_hour, 
+           local_time->tm_min, 
+           local_time->tm_sec);
+
+}/*redir_compute_ts*/
 
 int32_t redir_process_oauth2_response(uint32_t conn_id, 
                                       uint8_t *packet_ptr, 
@@ -285,6 +306,7 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
   redir_session_t *session = NULL;
 
   /*/response?type=gmail&subtype=redirect&location=&ext_conn_id=14&status=success&conn_id=20*/
+  fprintf(stderr, "\n%s:%d received \n%s\n", __FILE__, __LINE__, packet_ptr);
   uam_conn_ptr = redir_get_oauth2_param(packet_ptr, "conn_id");
   assert(uam_conn_ptr != NULL);
   subtype_ptr = redir_get_oauth2_param(packet_ptr, "subtype");
@@ -329,14 +351,68 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
     rsp_len = snprintf(rsp_ptr, 
                        rsp_size,
                        "%s%s%s%s%s"
-                       "%s",
+                       "%s%s%s",
                        "/response?type=gmail",
                        "&subtype=auth",
                        "&status=",
                        pArr[0] = redir_get_oauth2_param(packet_ptr, "status"),
+                       "&email=",
+                       pArr[1] = redir_get_oauth2_param(packet_ptr, "email"),
                        "&conn_id=",
-                       pArr[1] = redir_get_oauth2_param(packet_ptr, "ext_conn_id"));
-    max_arg = 2;
+                       pArr[2] = redir_get_oauth2_param(packet_ptr, "ext_conn_id"));
+
+    if(!strncmp(pArr[0], "success", 7)) {
+      /*Update the database*/
+      uint8_t sql_query[512];
+      uint8_t ts[32];
+      uint8_t mac[6];
+      uint8_t mac_str[32];
+      uint32_t ip;
+
+      memset((void *)sql_query, 0, sizeof(sql_query));
+      memset((void *)ts, 0, sizeof(ts));
+      memset((void *)mac, 0, sizeof(mac));
+      memset((void *)mac_str, 0, sizeof(mac_str));
+
+      pArr[3] = redir_get_oauth2_param(packet_ptr, "name");
+      pArr[4] = redir_get_oauth2_param(packet_ptr, "ip");
+ 
+      redir_compute_ts(ts, sizeof(ts));
+
+      ip = utility_ip_str_to_int(pArr[4]);
+      dhcp_get_mac(htonl(ip), mac);
+      utility_mac_int_to_str(mac, mac_str);
+
+      snprintf(sql_query,
+               sizeof(sql_query),
+               "%s%s%s%s%s"
+               "%s%s%s%s%s"
+               "%s%s%s%s%s"
+               "%s%s",
+               "INSERT INTO acc_stats",
+               " (ip, mac, in_time, out_time, status, id, name)",
+               " VALUES (",
+               "'",
+               pArr[4],
+               "','",
+               mac_str,
+               "','",
+               ts,
+               "',",
+               "'','",
+               pArr[0],
+               "','",
+               pArr[1],
+               "','",
+               pArr[3],
+               "')"); 
+      
+      if(db_exec_query(sql_query)) {
+        fprintf(stderr, "\n%s:%d Execution of query (%s) failed\n", __FILE__, __LINE__, sql_query); 
+      } 
+    }
+
+    max_arg = 5;
   }
 
   fprintf(stderr, "\n%s:%d response ptr %s\n", __FILE__, __LINE__, rsp_ptr);  
@@ -817,21 +893,26 @@ int32_t redir_process_gmail_req(uint32_t conn_id, uint8_t *uri) {
   uint8_t req[255];
   uint32_t req_len = 0;
   uint8_t *subtype = NULL;
+  uint8_t *ip_ptr = NULL;
 
   subtype = redir_get_oauth2_param(uri, "subtype");
   ext_conn_id = redir_get_oauth2_param(uri, "conn_id");
+  ip_ptr = redir_get_oauth2_param(uri, "ip");
 
   memset((void *)req, 0, sizeof(req));
 
   if(!strncmp(subtype, "access_code", 11)) {
     req_len = snprintf(req, 
                        sizeof(req),
-                       "%s%s%s%s%d",
+                       "%s%s%s%s%d"
+                       "%s%s",
                        "/request?type=google_access_code",
                        "&ext_conn_id=",
                        ext_conn_id,
                        "&conn_id=",
-                       conn_id);
+                       conn_id,
+                       "&ip=",
+                       ip_ptr);
   } else if(!strncmp(subtype, "access_token", 12)) {
 
     uint8_t *code_ptr = redir_get_oauth2_param(uri, "code");
@@ -840,7 +921,8 @@ int32_t redir_process_gmail_req(uint32_t conn_id, uint8_t *uri) {
     req_len = snprintf(req, 
                        sizeof(req),
                        "%s%s%s%s%s"
-                       "%s%s%s%d",
+                       "%s%s%s%d%s"
+                       "%s",
                        "/request?type=google_access_token",
                        "&state=",
                        state_ptr,
@@ -849,7 +931,9 @@ int32_t redir_process_gmail_req(uint32_t conn_id, uint8_t *uri) {
                        "&ext_conn_id=",
                        ext_conn_id,
                        "&conn_id=",
-                       conn_id);
+                       conn_id,
+                       "&ip=",
+                       ip_ptr);
     free(state_ptr); 
     free(code_ptr);
   }

@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS acc_dns (host_name TEXT, host_ip TEXT);
 INSERT INTO acc_dns (host_name, host_ip) values ('accounts.google.com', '');
 INSERT INTO acc_dns (host_name, host_ip) values ('googleapis.com', '');
 
+CREATE TABLE IF NOT EXISTS acc_stats (ip TEXT, mac TEXT, in_time TEXT, out_time TEXT, status TEXT, id TEXT, name TEXT);
+
+
 INSERT INTO dhcp_conf_table (interface_name, ip_address, CIDR, host_name, network_id, host_id_start, host_id_end) VALUES ('eth0', '10.100.16.1', '20', '', '10.100.16', '2', '');
 
 INSERT INTO dhcp_generic_param_table (domain_name, dns1, dns2, ns1, ns2, router_ip_address, router_subnet_mask, timer_server_ip, NTP_server_ip, lease, mtu) VALUES ('balaagh.com', '8.8.8.8', '8.8.4.4', '10.100.16.1', '', '10.100.16.1', '255.255.240.0', '', '', '7', '1500');

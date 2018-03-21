@@ -59,6 +59,7 @@ int32_t oauth20_process_google_api_rsp(uint32_t oauth2_fd,
    
   uam_conn_id = session->uam_conn_id;
   redir_conn_id = session->redir_conn_id;
+
   req_ptr = (uint8_t *)malloc(sizeof(uint8_t) * req_ptr_size);
   assert(req_ptr != NULL);
   memset((void *)req_ptr, 0, sizeof(uint8_t) * req_ptr_size);
@@ -66,19 +67,21 @@ int32_t oauth20_process_google_api_rsp(uint32_t oauth2_fd,
   req_len = snprintf(req_ptr,
                      req_ptr_size,
                      "%s%s%s%s%s"
-                     "%s%s%s%d%s"
-                     "%d",
+                     "%s%d%s%d%s"
+                     "%s%s%s",
                      "/response?type=gmail",
                      "&subtype=auth",
                      "&status=success",
                      "&email=",
                      email,
-                     "&name=",
-                     display_name,
-                     "ext_conn_id=",
+                     "&ext_conn_id=",
                      uam_conn_id,
                      "&conn_id=",
-                     redir_conn_id);
+                     redir_conn_id,
+                     "&ip=",
+                     session->ip,
+                     "&name=",
+                     display_name);
  
   oauth20_send(nas_fd, req_ptr, req_len);
   free(req_ptr);
@@ -336,11 +339,13 @@ int32_t oauth20_build_access_code_rsp(uint8_t *req_ptr,
   uint8_t *prompt_ptr = "consent";
   uint8_t *conn_ptr = NULL;
   uint8_t *ext_conn_ptr = NULL;
+  uint8_t *ip_ptr = NULL;
 
   conn_ptr = oauth20_get_param(req_ptr, "conn_id");
   ext_conn_ptr = oauth20_get_param(req_ptr, "ext_conn_id");
+  ip_ptr = oauth20_get_param(req_ptr, "ip");
   
-  if(!conn_ptr || !ext_conn_ptr) {
+  if(!conn_ptr || !ext_conn_ptr || !ip_ptr) {
     fprintf(stderr, "\n%s:%d conn_id or ext_conn_id is meiising\n", __FILE__, __LINE__);
     return(1);
   }
@@ -362,7 +367,8 @@ int32_t oauth20_build_access_code_rsp(uint8_t *req_ptr,
                       "%s%s%s%s%s"
                       "%s%s%s%s%s"
                       "%s%s%s%s%s"
-                      "%s%s%s%s%s",
+                      "%s%s%s%s%s"
+                      "%s%s",
                       "/response?type=auth&subtype=redirect&uri=",
                       url_ptr,
                       "&scope=",
@@ -383,10 +389,13 @@ int32_t oauth20_build_access_code_rsp(uint8_t *req_ptr,
                       "&ext_conn_id=",
                       ext_conn_ptr,
                       "&conn_id=",
-                      conn_ptr);
+                      conn_ptr,
+                      "&ip=",
+                      ip_ptr);
   fprintf(stderr, "\n%s:%d RESPONSE %s\n", __FILE__, __LINE__, rsp_ptr);
   free(conn_ptr);
   free(ext_conn_ptr);
+  free(ip_ptr);
   return(0);
 }/*oauth20_build_access_code_rsp*/
 
