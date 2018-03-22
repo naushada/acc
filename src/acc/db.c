@@ -160,15 +160,17 @@ int db_process_query_result(int *row_count, int *column_count, uint8_t (*result)
                        *row_count,
                        pDbCtx->server_handle.query_result[((row + 1) * *column_count) + col]);
 #endif
-      if((NULL == pDbCtx->server_handle.query_result[((row + 1) * *column_count) + col]) && (1 == *column_count)) {
+      if((1 == *column_count) && (NULL == pDbCtx->server_handle.query_result[((row + 1) * *column_count) + col])) {
         /*(N+1)*M elements in the array. Where N = ROWS and M = Column*/
         *row_count = 0;
         break;
       } else {
-        len = strlen((const char *)pDbCtx->server_handle.query_result[((row + 1) * *column_count) + col]);
-        memcpy((void *)result[tmp_row][tmp_col], 
-               (const void *)pDbCtx->server_handle.query_result[((row + 1) * *column_count) + col], 
-               len);
+        if(pDbCtx->server_handle.query_result) {
+          len = strlen((const char *)pDbCtx->server_handle.query_result[((row + 1) * *column_count) + col]);
+          memcpy((void *)result[tmp_row][tmp_col], 
+                 (const void *)pDbCtx->server_handle.query_result[((row + 1) * *column_count) + col], 
+                 len);
+        }
       }
     }
   }

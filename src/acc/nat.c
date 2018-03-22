@@ -87,8 +87,8 @@ int32_t nat_delete_cache(uint32_t dest_ip) {
 
   memset((void *)ipaddr_str, 0, sizeof(ipaddr_str));
 
-  utility_ip_int_to_str(ntohl(dest_ip), ipaddr_str);
-  fprintf(stderr, "\n%s:%d ip_str %s\n", __FILE__, __LINE__, ipaddr_str);
+  utility_ip_int_to_str(dest_ip, ipaddr_str);
+  //fprintf(stderr, "\n%s:%d ip_str %s\n", __FILE__, __LINE__, ipaddr_str);
   ret = snprintf((char *)sql_query, 
                  sizeof(sql_query),
                  "%s%s%s%s%s",

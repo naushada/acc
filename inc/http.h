@@ -29,10 +29,10 @@ struct http_session_t {
   struct sockaddr_in peer_addr;
   uint8_t method[8];
   uint8_t protocol[8];
-  uint8_t uri[1024];
-  uint8_t url[1024];
+  uint8_t uri[2024];
+  uint8_t url[2024];
   uint16_t mime_header_count;
-  uint8_t mime_header[16][2][255];
+  uint8_t mime_header[32][2][255];
   /*Holds the response parameters from uidai response*/
   http_uidai_rsp_param_t uidai_param;
   /*oauth2 param for google login*/

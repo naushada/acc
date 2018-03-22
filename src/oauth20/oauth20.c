@@ -86,7 +86,7 @@ int32_t oauth20_process_google_api_rsp(uint32_t oauth2_fd,
   oauth20_send(nas_fd, req_ptr, req_len);
   free(req_ptr);
   free(tmp_ptr);
-  close(oauth2_fd);
+  sslc_close(session->tcp_fd);
   sslc_del_session(oauth2_fd);
   
   return(0);
@@ -195,7 +195,7 @@ int32_t oauth20_process_rsp(uint32_t oauth2_fd,
 
 
   return(0);
-}/*oauth20_process_google_rsp*/
+}/*oauth20_process_rsp*/
 
 int32_t oauth20_compute_state(uint8_t *b64, 
                               uint32_t *b64_len) {
@@ -647,7 +647,8 @@ void *oauth20_main(void *tid) {
           offset += rsp_len;
 
           if(!offset) {
-            close(oauth2_fd[idx]);
+            fprintf(stderr, "\n%s:%d SSL has been closed\n", __FILE__, __LINE__);
+            sslc_close(oauth2_fd[idx]);
             sslc_del_session(oauth2_fd[idx]);
           } else {
             /*Process the response*/

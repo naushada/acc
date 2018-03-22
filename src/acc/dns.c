@@ -715,6 +715,9 @@ uint32_t dns_process_dns_query(int16_t fd,
               utility_ip_int_to_str(htonl(pDnsCtx->ns1_ip), pDnsCtx->host_ip);
               /*Prepare the RR (Resource Record for DNS Reply*/
               dns_build_rr_reply(fd, packet_ptr, packet_length);
+            } else {
+              /*IP is not managed by this DHCP Server*/
+              dns_perform_snat(fd, packet_ptr, packet_length);
             }
           } else {    
             /*IP is not managed by this DHCP Server*/

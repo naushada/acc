@@ -418,6 +418,7 @@ int32_t http_process_google_rsp(uint8_t *packet_ptr,
                                 uint32_t packet_length) {
   uint8_t *type = NULL;
   uint8_t *subtype_ptr = NULL;
+  uint8_t *status_ptr = NULL;
   uint8_t *conn_ptr = NULL;
   http_session_t *session = NULL;
   uint8_t *pArr[10];
@@ -429,9 +430,10 @@ int32_t http_process_google_rsp(uint8_t *packet_ptr,
   subtype_ptr = http_get_gparam(packet_ptr, packet_length, "subtype");
 
   if(!conn_ptr) {
-    fprintf(stderr, "\n%s:%d getting param failed\n", __FILE__, __LINE__);
+    fprintf(stderr, "\n%s:%d connection is NULL\n", __FILE__, __LINE__);
     return(1);
   }
+
   if(!strncmp(subtype_ptr, "redirect", 8)) { 
     session = http_get_session(atoi(conn_ptr));
     free(conn_ptr);
@@ -466,14 +468,59 @@ int32_t http_process_google_rsp(uint8_t *packet_ptr,
 
     max_arg = 8;
     session->oauth2_param.oauth2_rsp = 1;
+    for(idx = 0; idx < max_arg; idx++) {
+      free(pArr[idx]);
+    }
 
   } else if(!strncmp(subtype_ptr, "auth", 4)) {
-    /*User is authenticated successfully*/
+     uint8_t body[255];
+     uint8_t rsp[512];
+     uint32_t rsp_len = 0;
+
+     memset((void *)body, 0, sizeof(body));
+     memset((void *)rsp, 0, sizeof(rsp));
+  
+     status_ptr = http_get_gparam(packet_ptr, packet_length, "status");
+     if(!strncmp(status_ptr, "success", 7)) {
+       /*User is authenticated successfully*/
+       rsp_len = snprintf(body,
+                          sizeof(body),
+                          "%s%s%s%s%s"
+                          "%s%s%s%s%s",
+                          "<html><head>",
+                          "<title>",
+                          "</title>",
+                          "</head>",
+                          "<body>",
+                          "<h1>",
+                          "You have successfully been Authenticated by Google",
+                          "</h1>",
+                          "</body>",
+                          "<html>");
+       snprintf(rsp,
+                sizeof(rsp),
+                "%s%s%s%s%s"
+                "%s%d%s%s%s",
+                "HTTP/1.1 302 Moved Temporarily\r\n",
+                "Location: https://balaagh.com\r\n",
+                "Host: balaagh.com\r\n",
+                "Content-Type: text/html\r\n",
+                "Connection: close\r\n",
+                "Content-Length: ",
+                rsp_len,
+                "\r\n",
+                /*Body delimiter*/
+                "\r\n",
+                body);
+
+       http_send(atoi(conn_ptr), rsp, strlen(rsp));
+       free(status_ptr);
+       
+     } else {
+       
+     }
   }
 
-  for(idx = 0; idx < max_arg; idx++) {
-    free(pArr[idx]);
-  }
 
   return(0);
 }/*http_process_google_rsp*/

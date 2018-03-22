@@ -52,7 +52,10 @@ int32_t sslc_pre_process_rsp(uint8_t *req_ptr,
                              uint32_t req_len);
 
 uint32_t sslc_get_rsp_st(uint32_t oauth2_fd);
+
 int32_t sslc_set_rsp_st(uint32_t oauth2_fd, uint32_t st);
+
+int32_t sslc_close(uint32_t oauth2_fd);
 
 #endif /* __SSLC_H__ */
 

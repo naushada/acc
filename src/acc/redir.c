@@ -412,6 +412,8 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
       } 
     }
 
+    /*Subscriber is authenticated*/
+    subscriber_update_conn_status(pArr[4], "SUCCESS");
     max_arg = 5;
   }
 

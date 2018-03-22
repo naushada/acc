@@ -20,7 +20,7 @@ tun_ctx_t tun_ctx_g;
  ********************************************************************/
 int32_t tun_read(uint8_t **packet_ptr, uint16_t *packet_length) {
   int32_t ret = -1;
-  uint16_t max_bytes = 1500;
+  uint16_t max_bytes = 4000;
 
   tun_ctx_t *pTunCtx = &tun_ctx_g;
 

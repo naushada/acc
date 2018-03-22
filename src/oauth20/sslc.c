@@ -8,6 +8,21 @@
 
 sslc_ctx_t sslc_ctx_g;
 
+int32_t sslc_close(uint32_t oauth2_fd) {
+
+  sslc_session_t *session = NULL;
+
+  session = sslc_get_session(oauth2_fd);
+  
+  if(session) {
+    close(session->tcp_fd);
+    SSL_free(session->ssl_fd);
+    return(0);
+  }
+
+  return(1);
+}/*sslc_close*/
+
 int32_t sslc_init(void) {
   const SSL_METHOD *method;
   SSL_CTX    *ctx;
