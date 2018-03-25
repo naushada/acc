@@ -35,7 +35,7 @@ typedef struct {
   /*Public key file name*/
   uint8_t public_key[128];
   /*256-bit session key*/
-  uint8_t session_key[32];
+  uint8_t session_key[34];
   /*iv - last 12 bytes of ts*/
   uint8_t iv[16];
   /*aad - additional authentication data, last 16 bytes of ts*/
@@ -121,7 +121,7 @@ int32_t auth_req_auth(uint8_t *req_xml,
                       uint8_t *uid);
 
 int32_t auth_process_auth_otp_req(int32_t conn_fd, 
-                                  const uint8_t *req_ptr,
+                                  uint8_t *req_ptr,
                                   uint8_t *req_xml,
                                   uint32_t req_xml_size,
                                   uint32_t *req_xml_len);
@@ -138,7 +138,7 @@ int32_t auth_cipher_ex(uint8_t *data,
                        int32_t *ciphered_data_len);
 
 int32_t auth_process_auth_pi_req(int32_t conn_fd, 
-                                 const uint8_t *req_ptr,
+                                 uint8_t *req_ptr,
                                  uint8_t *req_xml,
                                  uint32_t req_xml_size,
                                  uint32_t *req_xml_len);
@@ -147,15 +147,15 @@ uint8_t *auth_get_pi_param(uint8_t (*pi_param)[2][64],
                            const uint8_t *param_name);
 
 int32_t auth_main(int32_t conn_fd, 
-                  const uint8_t *req_ptr, 
+                  uint8_t *req_ptr, 
                   uint32_t req_len, 
                   uint8_t **rsp_ptr, 
                   uint32_t *rsp_len);
 
-int32_t auth_process_rsp(uint8_t (*param)[2][64], uint8_t **rsp_ptr, uint32_t *rsp_len);
+int32_t auth_process_rsp(uint8_t *param, uint8_t **rsp_ptr, uint32_t *rsp_len);
   
 int32_t auth_process_req(int32_t conn_fd, 
-                         const uint8_t *req_ptr,
+                         uint8_t *req_ptr,
                          uint8_t *req_xml,
                          uint32_t req_xml_size,
                          uint32_t *req_xml_len);

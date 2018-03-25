@@ -14,6 +14,8 @@ struct session {
   uint8_t req_type[8];
   /*Request subtype - auth_otp/auth_pi/auth_pa/auth_pfa*/
   uint8_t req_subtype[16];
+  /*IP address of subscriber*/
+  uint8_t ip_str[32];
   struct session *next;
 };
 
@@ -41,19 +43,22 @@ typedef struct {
 /* Function Prototype*/
 
 
-uint8_t *uidai_get_param(uint8_t (*param)[2][64], 
+uint8_t *uidai_get_param(uint8_t *req_ptr, 
                          const uint8_t *param_name);
 
-int32_t uidai_build_ext_rsp(uint8_t (*param)[2][64], 
+uint8_t *uidai_get_rparam(uint8_t *req_ptr, 
+                          const uint8_t *param_name);
+
+int32_t uidai_build_ext_rsp(uint8_t *req_ptr, 
                             uint8_t **rsp_ptr, 
                             uint32_t *rsp_len,
                             uint32_t *conn_id_ptr);
 
 int32_t uidai_parse_uidai_rsp(int32_t conn_fd, 
-                              const uint8_t *packet_ptr, 
+                              uint8_t *packet_ptr, 
                               uint32_t chunked_starts_at, 
                               uint32_t chunked_len,
-                              uint8_t (*param)[2][64]);
+                              uint8_t *param);
 /**
  * @brief This function processes the response recived and 
  *  parses the received parameters. 
@@ -65,7 +70,7 @@ int32_t uidai_parse_uidai_rsp(int32_t conn_fd,
  * @return it returns 0 upon success else < 0 
  */
 int32_t uidai_process_uidai_rsp(int32_t conn_fd, 
-                                const uint8_t *packet_ptr, 
+                                uint8_t *packet_ptr, 
                                 uint32_t packet_len, 
                                 uint8_t **rsp_ptr,
                                 uint32_t *rsp_len,
@@ -99,11 +104,11 @@ int32_t uidai_remove_session(uint32_t conn_id);
  * @return it returns 0 if entire response is received else returns 1
  */
 int32_t uidai_pre_process_uidai_rsp(int32_t conn_fd, 
-                                    const uint8_t *packet_ptr, 
+                                    uint8_t *packet_ptr, 
                                     uint32_t packet_len);
 
 int32_t uidai_process_req(int32_t conn_fd, 
-                          const uint8_t *packet_ptr, 
+                          uint8_t *packet_ptr, 
                           uint32_t packet_len);
 
 int32_t uidai_recv(int32_t conn_fd, 
@@ -129,6 +134,4 @@ int32_t uidai_init(uint32_t ip,
 
 void *uidai_main(void *tid);
 
-int32_t uidai_parse_req(uint8_t (*param)[2][64], 
-                        const uint8_t *req_ptr);
 #endif /* __UIDAI_H__ */

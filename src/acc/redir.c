@@ -23,7 +23,6 @@ redir_ctx_t redir_ctx_g;
 redir_req_handler_t g_handler_redir[] = {
   {"/img",                 4, redir_process_image_req},
   {"/response_callback",  18, redir_process_response_callback_req},
-  {"/time_out",            9, redir_process_time_out_req},
   {"/auth_rejected.html", 19, redir_process_rejected_req},
   {"/",                    1, redir_process_redirect_req},
   /*This shall be the last row in this table*/
@@ -60,40 +59,45 @@ int32_t redir_send_to_uidai(uint32_t conn_id, uint8_t *uidai_req, uint32_t uidai
   return(0);
 }/*redir_send_to_uidai*/
 
-int32_t redir_parse_aadhaar_req(uint8_t (*param)[2][64], uint8_t *uri) {
-  uint8_t *line_ptr;
-  uint32_t idx = 0;
+uint8_t *redir_get_param(uint8_t *req_ptr, uint8_t *p_name) {
 
-  line_ptr = strtok(uri, "&");
+  uint8_t *tmp_req_ptr = NULL;
+  uint8_t *line_ptr = NULL;
+  uint8_t param_name[32];
+  uint8_t *param_value = NULL;
+  uint8_t flag = 0;
+  uint32_t req_len = strlen(req_ptr);
+
+  tmp_req_ptr = (uint8_t *) malloc(sizeof(uint8_t) * req_len);
+  assert(tmp_req_ptr != NULL);
+  memset((void *)tmp_req_ptr, 0, (sizeof(uint8_t) * req_len));
+
+  memset((void *)param_name, 0, sizeof(param_name));
+  param_value = (uint8_t *)malloc(sizeof(uint8_t) * 1024);
+  assert(param_value != NULL);
+  memset((void *)param_value, 0, (sizeof(uint8_t) * 1024));
+  
+  sscanf(req_ptr, "%*[^?]?%s", tmp_req_ptr);
+  line_ptr = strtok(tmp_req_ptr, "&");
 
   while(line_ptr) {
-    sscanf(line_ptr, "%[^=]=%s",
-                      param[idx][0],
-                      param[idx][1]);
+    sscanf(line_ptr, "%[^=]=%s", param_name, param_value);
+    if(!strncmp(param_name, p_name, sizeof(param_name))) {
+      flag = 1;
+      break;      
+    }
     line_ptr = strtok(NULL, "&");
-    idx++;  
   }
 
-  /*NULL terminated the array*/
-  param[idx][0][0] = '\0';
-  param[idx][1][0] = '\0';
-
-}/*redir_parse_aadhaar_req*/
-
-uint8_t *redir_get_param(uint8_t (*param)[2][64], uint8_t *arg) {
-
-  uint32_t idx;
-
-  for(idx = 0; param[idx][0][0]; idx++) {
-    if(!strncmp(param[idx][0], arg, strlen(arg))) {
-      return(param[idx][1]);
-    }    
+  free(tmp_req_ptr);
+  if(flag) {
+    return(param_value);
   }
-  
+
   return(NULL);
 }/*redir_get_param*/
 
-int32_t redir_build_auth_pi_req(uint8_t (*param)[2][64], uint8_t *uidai_req, uint32_t conn_id) {
+int32_t redir_build_auth_pi_req(uint8_t *req_ptr, uint8_t *uidai_req, uint32_t conn_id) {
 
   /*Prepare uidai request for OTP*/
   uint8_t *uid = NULL;
@@ -102,19 +106,22 @@ int32_t redir_build_auth_pi_req(uint8_t (*param)[2][64], uint8_t *uidai_req, uin
   uint8_t *name = NULL;
   uint8_t *ver = NULL;
   uint8_t *ms = NULL;
+  uint8_t *ip_ptr = NULL;
   int32_t ret = -1;
 
-  uid = redir_get_param(param, "aadhaar_no");
-  ext_conn_id = redir_get_param(param, "conn_id");
-  rc = redir_get_param(param, "rc");
-  name = redir_get_param(param, "name");
-  ver = redir_get_param(param, "ver");
-  ms = redir_get_param(param, "ms");
+  uid = redir_get_param(req_ptr, "aadhaar_no");
+  ext_conn_id = redir_get_param(req_ptr, "conn_id");
+  rc = redir_get_param(req_ptr, "rc");
+  name = redir_get_param(req_ptr, "name");
+  ver = redir_get_param(req_ptr, "ver");
+  ms = redir_get_param(req_ptr, "ms");
+  ip_ptr = redir_get_param(req_ptr, "ip");
 
   ret = sprintf(uidai_req, 
                 "%s%s%s%s%s"
                 "%s%s%s%s%d"
-                "%s%s%s%s",
+                "%s%s%s%s%s"
+                "%s",
                 "/request?type=auth&subtype=pi&uid=",
                 uid,
                 "&ext_conn_id=",
@@ -128,13 +135,23 @@ int32_t redir_build_auth_pi_req(uint8_t (*param)[2][64], uint8_t *uidai_req, uin
                 "&name=",
                 name,
                 "&ms=",
-                ms);
+                ms,
+                "&ip=",
+                ip_ptr);
+
+  free(ip_ptr);
+  free(uid);
+  free(ext_conn_id);
+  free(rc);
+  free(name);
+  free(ver);
+  free(ms);
 
   return(ret);
 }/*redir_build_auth_pi_req*/
 
 
-int32_t redir_build_auth_otp_req(uint8_t (*param)[2][64], uint8_t *uidai_req, uint32_t conn_id) {
+int32_t redir_build_auth_otp_req(uint8_t *req_ptr, uint8_t *uidai_req, uint32_t conn_id) {
 
   /*Prepare uidai request for OTP*/
   uint8_t *uid = NULL;
@@ -142,18 +159,20 @@ int32_t redir_build_auth_otp_req(uint8_t (*param)[2][64], uint8_t *uidai_req, ui
   uint8_t *rc = NULL;
   uint8_t *otp = NULL;
   uint8_t *ver = NULL;
+  uint8_t *ip_ptr = NULL;
   int32_t ret = -1;
 
-  uid = redir_get_param(param, "aadhaar_no");
-  ext_conn_id = redir_get_param(param, "conn_id");
-  rc = redir_get_param(param, "rc");
-  otp = redir_get_param(param, "otp_value");
-  ver = redir_get_param(param, "ver");
+  uid = redir_get_param(req_ptr, "aadhaar_no");
+  ext_conn_id = redir_get_param(req_ptr, "conn_id");
+  rc = redir_get_param(req_ptr, "rc");
+  otp = redir_get_param(req_ptr, "otp_value");
+  ver = redir_get_param(req_ptr, "ver");
+  ip_ptr = redir_get_param(req_ptr, "ip");
 
   ret = sprintf(uidai_req, 
                 "%s%s%s%s%s"
                 "%s%s%s%s%d"
-                "%s%s",
+                "%s%s%s%s",
                 "/request?type=auth&subtype=otp&uid=",
                 uid,
                 "&ext_conn_id=",
@@ -165,7 +184,16 @@ int32_t redir_build_auth_otp_req(uint8_t (*param)[2][64], uint8_t *uidai_req, ui
                 "&conn_id=",
                 conn_id,
                 "&otp_value=",
-                otp);
+                otp,
+                "&ip=",
+                ip_ptr);
+
+  free(uid);
+  free(ext_conn_id);
+  free(rc);
+  free(otp);
+  free(ver);
+  free(ip_ptr);
 
   return(ret);
 }/*redir_build_auth_otp_req*/
@@ -175,47 +203,47 @@ int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri) {
 
   uint8_t uidai_req[512];
   int32_t ret = -1;
-  uint8_t param[16][2][64];
   uint8_t *subtype;
   uint8_t *subsubtype;
 
   memset((void *)uidai_req, 0, sizeof(uidai_req));
-  memset((void *)param, 0, sizeof(param));
 
-  redir_parse_aadhaar_req(param, uri);
-  subtype = redir_get_param(param, "subtype");
+  subtype = redir_get_param(uri, "subtype");
 
   if(!strncmp(subtype, "auth", 4)) {
-    subsubtype = redir_get_param(param, "subsubtype");
+    subsubtype = redir_get_param(uri, "subsubtype");
 
     if(!(strncmp(subsubtype, "otp", 3))) {
       /*Prepare uidai auth with OTP value*/
-      redir_build_auth_otp_req(param, uidai_req, conn_id);
+      redir_build_auth_otp_req(uri, uidai_req, conn_id);
       ret = strlen(uidai_req);
 
     } else if(!(strncmp(subsubtype, "pi", 2))) {
       /*Prepare uidai auth with pi value*/
-      redir_build_auth_pi_req(param, uidai_req, conn_id);
+      redir_build_auth_pi_req(uri, uidai_req, conn_id);
       ret = strlen(uidai_req);
 
     } else if(!(strncmp(subsubtype, "pa", 2))) {
       /*Prepare uidai auth with pa value*/
     }
 
+    free(subsubtype);
   } else {
     /*Prepare uidai request for OTP*/
     uint8_t *uid = NULL;
     uint8_t *ext_conn_id = NULL;
     uint8_t *rc = NULL;
+    uint8_t *ip_ptr = NULL;
 
-    uid = redir_get_param(param, "aadhaar_no");
-    ext_conn_id = redir_get_param(param, "conn_id");
-    rc = redir_get_param(param, "rc");
+    uid = redir_get_param(uri, "aadhaar_no");
+    ext_conn_id = redir_get_param(uri, "conn_id");
+    rc = redir_get_param(uri, "rc");
+    ip_ptr = redir_get_param(uri, "ip");
 
     ret = snprintf(uidai_req, 
                    sizeof(uidai_req),
                    "%s%s%s%s%s"
-                   "%s%s%d",
+                   "%s%s%d%s%s",
                    "/request?type=otp&uid=",
                    uid,
                    "&ext_conn_id=",
@@ -223,9 +251,16 @@ int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri) {
                    "&rc=",
                    rc,
                    "&ver=1.6&conn_id=",
-                   conn_id);
+                   conn_id,
+                   "&ip=",
+                   ip_ptr);
+    free(uid);
+    free(ext_conn_id);
+    free(rc);
+    free(ip_ptr);
   }
 
+  free(subtype);
   fprintf(stderr, "\n%s:%d Being sent to uidaiC %s\n", __FILE__, __LINE__, uidai_req);
   redir_send_to_uidai(conn_id, uidai_req, ret);  
   return(0);  
@@ -291,6 +326,75 @@ int32_t redir_compute_ts(uint8_t *ts, uint32_t ts_size) {
            local_time->tm_sec);
 
 }/*redir_compute_ts*/
+
+int32_t redir_update_stats(uint32_t conn_id, uint8_t *packet_ptr, uint32_t packet_length) {
+
+  uint8_t sql_query[512];
+  uint8_t ts[32];
+  uint8_t mac[6];
+  uint8_t mac_str[32];
+  uint32_t ip;
+  uint32_t idx;
+  uint8_t *pArr[10];
+
+  memset((void *)sql_query, 0, sizeof(sql_query));
+  memset((void *)ts, 0, sizeof(ts));
+  memset((void *)mac, 0, sizeof(mac));
+  memset((void *)mac_str, 0, sizeof(mac_str));
+
+  pArr[0] = redir_get_oauth2_param(packet_ptr, "name");
+  pArr[1] = redir_get_oauth2_param(packet_ptr, "ip");
+  pArr[2] = redir_get_oauth2_param(packet_ptr, "status");
+  pArr[3] = redir_get_oauth2_param(packet_ptr, "email");
+
+  redir_compute_ts(ts, sizeof(ts));
+
+  ip = utility_ip_str_to_int(pArr[1]);
+  dhcp_get_mac(htonl(ip), mac);
+  utility_mac_int_to_str(mac, mac_str);
+
+  snprintf(sql_query,
+           sizeof(sql_query),
+           "%s%s%s%s%s"
+           "%s%s%s%s%s"
+           "%s%s%s%s%s"
+           "%s%s",
+           "INSERT INTO acc_stats",
+           " (ip, mac, in_time, out_time, status, id, name)",
+           " VALUES (",
+           "'",
+           /*ip-address*/
+           pArr[1],
+           "','",
+           mac_str,
+           "','",
+           ts,
+           "',",
+           /*out_time*/
+           "'','",
+           /*status*/
+           pArr[2],
+           "','",
+           /*email-id*/
+           pArr[3],
+           "','",
+           pArr[0],
+           "')"); 
+      
+  if(db_exec_query(sql_query)) {
+    fprintf(stderr, "\n%s:%d Execution of query (%s) failed\n", __FILE__, __LINE__, sql_query); 
+  } 
+
+  /*Subscriber is authenticated*/
+  subscriber_update_conn_status(pArr[1], "SUCCESS");
+
+  /*Freeing the memory*/
+  for(idx = 0; idx < 4; idx++) {
+    free(pArr[idx]);
+  }
+  
+  return(0);
+}/*redir_update_stats*/
 
 int32_t redir_process_oauth2_response(uint32_t conn_id, 
                                       uint8_t *packet_ptr, 
@@ -362,59 +466,9 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
                        pArr[2] = redir_get_oauth2_param(packet_ptr, "ext_conn_id"));
 
     if(!strncmp(pArr[0], "success", 7)) {
-      /*Update the database*/
-      uint8_t sql_query[512];
-      uint8_t ts[32];
-      uint8_t mac[6];
-      uint8_t mac_str[32];
-      uint32_t ip;
-
-      memset((void *)sql_query, 0, sizeof(sql_query));
-      memset((void *)ts, 0, sizeof(ts));
-      memset((void *)mac, 0, sizeof(mac));
-      memset((void *)mac_str, 0, sizeof(mac_str));
-
-      pArr[3] = redir_get_oauth2_param(packet_ptr, "name");
-      pArr[4] = redir_get_oauth2_param(packet_ptr, "ip");
- 
-      redir_compute_ts(ts, sizeof(ts));
-
-      ip = utility_ip_str_to_int(pArr[4]);
-      dhcp_get_mac(htonl(ip), mac);
-      utility_mac_int_to_str(mac, mac_str);
-
-      snprintf(sql_query,
-               sizeof(sql_query),
-               "%s%s%s%s%s"
-               "%s%s%s%s%s"
-               "%s%s%s%s%s"
-               "%s%s",
-               "INSERT INTO acc_stats",
-               " (ip, mac, in_time, out_time, status, id, name)",
-               " VALUES (",
-               "'",
-               pArr[4],
-               "','",
-               mac_str,
-               "','",
-               ts,
-               "',",
-               "'','",
-               pArr[0],
-               "','",
-               pArr[1],
-               "','",
-               pArr[3],
-               "')"); 
-      
-      if(db_exec_query(sql_query)) {
-        fprintf(stderr, "\n%s:%d Execution of query (%s) failed\n", __FILE__, __LINE__, sql_query); 
-      } 
+      redir_update_stats(conn_id, packet_ptr, packet_length);
     }
-
-    /*Subscriber is authenticated*/
-    subscriber_update_conn_status(pArr[4], "SUCCESS");
-    max_arg = 5;
+    max_arg = 3;
   }
 
   fprintf(stderr, "\n%s:%d response ptr %s\n", __FILE__, __LINE__, rsp_ptr);  
@@ -433,30 +487,24 @@ int32_t redir_process_oauth2_response(uint32_t conn_id,
 }/*redir_process_oauth2_response*/
 
 int32_t redir_process_uidai_response(uint32_t conn_id, 
-                                     uint8_t *packet_buffer, 
+                                     uint8_t *packet_ptr, 
                                      uint32_t packet_length) {
   redir_ctx_t *pRedirCtx = &redir_ctx_g;
-  uint8_t *tmp_ptr = NULL;
-  uint8_t param[16][2][64];
   uint8_t *uam_conn_id = NULL;
   uint8_t *status = NULL;
   uint8_t *rsp_ptr = NULL;
+  uint8_t *type_ptr = NULL;
+  uint8_t *subtype_ptr = NULL;
   uint32_t rsp_len = 0;
+  uint8_t *pArr[10];
+  uint32_t max_idx = 0;
   
-  tmp_ptr = (uint8_t *)malloc(packet_length);
-  assert(tmp_ptr != NULL);
-  memset((void *)tmp_ptr, 0, packet_length);
-  //memcpy((void *)tmp_ptr, packet_buffer, packet_length);
-  sscanf(packet_buffer, "%*[^?]?%s", tmp_ptr);
-
-  redir_parse_aadhaar_req(param, tmp_ptr); 
-  free(tmp_ptr);
-
-  fprintf(stderr, "\n%s:%d UIDAI received response %s\n", __FILE__, __LINE__, packet_buffer);
+  fprintf(stderr, "\n%s:%d UIDAI received response %s\n", __FILE__, __LINE__, packet_ptr);
   /*/response?type=otp&uid=9701361361&ext_conn_id=14&status=success&conn_id=20*/
   /*/response?type=otp&uid=429182154684&ext_conn_id=14&status=failed&reason=998&actn=A202&conn_id=20*/
-  uam_conn_id = redir_get_param(param, "conn_id");
-  status = redir_get_param(param, "status");
+
+  uam_conn_id = redir_get_param(packet_ptr, "conn_id");
+  status = redir_get_param(packet_ptr, "status");
 
   /*allocate and init to zero*/
   rsp_ptr = malloc(512);
@@ -469,48 +517,62 @@ int32_t redir_process_uidai_response(uint32_t conn_id,
                        "%s%s%s%s%s"
                        "%s%s%s",
                        "/response?type=",
-                       redir_get_param(param, "type"),
+                       pArr[0] = redir_get_param(packet_ptr, "type"),
                        "&uid=",
-                       redir_get_param(param, "uid"),
+                       pArr[1] = redir_get_param(packet_ptr, "uid"),
                        "&conn_id=",
-                       redir_get_param(param, "ext_conn_id"),
+                       pArr[2] = redir_get_param(packet_ptr, "ext_conn_id"),
                        "&status=",
-                       redir_get_param(param, "status"));
+                       pArr[3] = redir_get_param(packet_ptr, "status"));
+    max_idx = 4;
   } else {
-    uint8_t *actn_ptr = redir_get_param(param, "actn"); 
     rsp_len = snprintf(rsp_ptr, 
                        512,    
                        "%s%s%s%s%s"
                        "%s%s%s%s%s",
                        "/response?type=",
-                       redir_get_param(param, "type"),
+                       pArr[0] = redir_get_param(packet_ptr, "type"),
                        "&uid=",
-                       redir_get_param(param, "uid"),
+                       pArr[1] = redir_get_param(packet_ptr, "uid"),
                        "&conn_id=",
-                       redir_get_param(param, "ext_conn_id"),
+                       pArr[2] = redir_get_param(packet_ptr, "ext_conn_id"),
                        "&status=",
-                       redir_get_param(param, "status"),
+                       pArr[3] = redir_get_param(packet_ptr, "status"),
                        "&reason=",
-                       redir_get_param(param, "reason"));
-    if(actn_ptr) {
+                       pArr[4] = redir_get_param(packet_ptr, "reason"));
+    max_idx = 5;
+    pArr[5] = redir_get_param(packet_ptr, "actn"); 
+    if(pArr[5]) {
       strcat(rsp_ptr, "&actn=");
-      strcat(rsp_ptr, actn_ptr);
+      strcat(rsp_ptr, pArr[5]);
+      max_idx += 1;
     }
   }
 
-  if(!strncmp(redir_get_param(param, "type"), "auth", 4)) {
+  free(status);
+  type_ptr = redir_get_param(packet_ptr, "type");
+
+  if(!strncmp(type_ptr, "auth", 4)) {
     rsp_len = snprintf((char *)&rsp_ptr[rsp_len],
                        (512 - rsp_len),
                        "%s%s",
                        "&subtype=",
-                       redir_get_param(param, "subtype"));
+                       subtype_ptr = redir_get_param(packet_ptr, "subtype"));
+    free(subtype_ptr);
   } 
 
+  free(type_ptr);
   rsp_len = strlen(rsp_ptr);
   fprintf(stderr, "\n%s:%d UIDAI response sent to UAM  %s\n", __FILE__, __LINE__, rsp_ptr);
   redir_send(atoi(uam_conn_id), rsp_ptr, rsp_len);
+  free(uam_conn_id);
   free(rsp_ptr);
- 
+
+  uint32_t idx;
+  for(idx = 0; idx < max_idx; idx++) {
+    free(pArr[idx]);
+  } 
+
   return(0);
 }/*redir_process_uidai_response*/
 
@@ -675,43 +737,6 @@ int32_t redir_process_auth_response(uint32_t conn_id,
   return(0);
 }/*redir_process_auth_response*/
 
-int32_t redir_process_time_out_req(uint32_t conn_id,
-                                   uint8_t **response_ptr,
-                                   uint16_t *response_len_ptr) {
-
-  redir_session_t *session = redir_get_session(conn_id);
-
-  if(AUTH_INPROGRESS == session->auth_status) {
-    redir_process_wait_req(conn_id,
-                           response_ptr,
-                           response_len_ptr,
-                           "/time_out"); 
-
-  } else if(AUTH_SUCCESS == session->auth_status) {
-    /*Update in db that USER is authenticated successfully*/
-    subscriber_update_conn_status(inet_ntoa(session->peer_addr.sin_addr),
-                                  "SUCCESS");
-    redir_process_auth_response(conn_id,
-                                response_ptr,
-                                response_len_ptr,
-                                session->url);
-
-  } else if(AUTH_REJECTED == session->auth_status) {
-    redir_process_wait_req(conn_id,
-                           response_ptr,
-                           response_len_ptr,
-                           "/auth_rejected.html"); 
-  } else {
-    fprintf(stderr, "\n%s:%d Invalid Auth Status %d conn_id %d\n",
-                   __FILE__,
-                   __LINE__,
-                   session->auth_status,
-                   conn_id);
-  }
-
-  return(0);
-}/*redir_process_time_out_req*/
-
 int32_t redir_process_wait_req(uint32_t conn_id,
                               uint8_t **response_ptr, 
                               uint16_t *response_len_ptr,
@@ -850,9 +875,8 @@ int32_t redir_radiusC_connect(void) {
 
 int32_t redir_build_access_request(uint32_t conn_id, 
                                    uint8_t *email_id, 
-                                   uint8_t *password, 
-                                   uint8_t *url) {
-  uint8_t acc_req[1024];
+                                   uint8_t *password) {
+  uint8_t acc_req[512];
   uint16_t acc_req_len = 0;
   redir_ctx_t *pRedirCtx = &redir_ctx_g;
 
@@ -864,10 +888,6 @@ int32_t redir_build_access_request(uint32_t conn_id,
   acc_req_len = sizeof(access_request_t);
   redir_session_t *session = redir_get_session(conn_id);
 
-  session->auth_status = AUTH_INPROGRESS;
-  /*copying the URL into session*/
-  strncpy((char *)session->url, url, strlen((const char *)url));
-  
   access_req_ptr->message_type = ACCESS_REQUEST;
   access_req_ptr->txn_id = conn_id;
   access_req_ptr->user_id_len = strlen((const char *)email_id);
@@ -949,25 +969,50 @@ int32_t redir_process_gmail_req(uint32_t conn_id, uint8_t *uri) {
   return(0);
 }/*redir_process_gmail_req*/
 
+int32_t redir_process_login_req(uint32_t conn_id, uint8_t *uri) {
+
+  uint8_t *ext_conn_ptr = NULL;
+  uint8_t *email_ptr = NULL;
+  uint8_t *pwd_ptr = NULL;
+  uint8_t *ip_ptr = NULL;
+  redir_session_t *session = NULL;
+
+  ext_conn_ptr = redir_get_oauth2_param(uri, "conn_id");
+  email_ptr = redir_get_oauth2_param(uri, "email_id");
+  pwd_ptr = redir_get_oauth2_param(uri, "password");
+  ip_ptr = redir_get_oauth2_param(uri, "ip");
+
+  if(ext_conn_ptr && 
+     email_ptr &&
+     pwd_ptr &&
+     ip_ptr) {
+    session = redir_get_session(conn_id);
+    assert(session != NULL);
+    session->conn = conn_id;
+    session->ext_conn = atoi(ext_conn_ptr);
+    memset(session->ip_str, 0, sizeof(session->ip_str));
+    strncpy(session->ip_str, ip_ptr, sizeof(session->ip_str));
+    free(ext_conn_ptr);
+    free(ip_ptr);
+    redir_build_access_request(conn_id, email_ptr, pwd_ptr);    
+    free(email_ptr);
+    free(pwd_ptr);
+    return(0);
+  }
+  
+  return(1);
+}/*redir_process_login_req*/
+
 int32_t redir_process_response_callback_uri(uint32_t conn_id, 
                                             uint8_t *uri) {
 
   uint8_t auth_type[32];
-  uint8_t url[2048]; 
 
   memset((void *)auth_type, 0, sizeof(auth_type));
   sscanf((const char *)uri, "%*[^?]?auth_type=%[^&]", auth_type);
-  memset((void *)url, 0, sizeof(url));
   
   if(!strncmp((const char *)auth_type, "login", 5)) {
-    uint8_t email_id[128];
-    uint8_t password[64];
-    sscanf((const char *)uri, 
-           "%*[^?]?auth_type=%*[^&]&email_id=%[^&]&password=%[^&]&url=%s", 
-            email_id,
-            password,
-            url);
-    redir_build_access_request(conn_id, email_id, password, url);    
+    redir_process_login_req(conn_id, uri);
      
   } else if(!strncmp((const char *)auth_type, "registration",12 )) {
 
@@ -1419,16 +1464,49 @@ int32_t redir_process_radiusS_response(int32_t radiusC_fd,
   redir_session_t *session = NULL;
   redir_ctx_t *pRedirCtx = &redir_ctx_g;
   radiusC_message_t *rsp_ptr = (radiusC_message_t *)packet_ptr;
+  uint8_t rsp[512];
+  uint32_t rsp_len = 0;
  
+  memset((void *)rsp, 0, sizeof(rsp));
+  session = redir_get_session(rsp_ptr->access_accept.txn_id);
+
   switch(*packet_ptr) {
     case ACCESS_ACCEPT:
-     session = redir_get_session(rsp_ptr->access_accept.txn_id);
-     session->auth_status = AUTH_SUCCESS; 
+     rsp_len = snprintf(rsp,
+                        sizeof(rsp),
+                        "%s%s%s%s%d"
+                        "%s%s",
+                        "/response?type=login",
+                        "&subtype=auth",
+                        "&status=success",
+                        "&conn_id=",
+                        session->ext_conn,
+                        "&ip=",
+                        session->ip_str);
+
+     /*Subscriber is authenticated*/
+     subscriber_update_conn_status(session->ip_str, "SUCCESS");
+     /*send Response to UAM*/
+     redir_send(session->conn, rsp, rsp_len);
 
     break;
     case ACCESS_REJECT:
-     session = redir_get_session(rsp_ptr->access_reject.txn_id);
-     session->auth_status = AUTH_REJECTED; 
+     rsp_len = snprintf(rsp,
+                        sizeof(rsp),
+                        "%s%s%s%s%d"
+                        "%s%s",
+                        "/response?type=login",
+                        "&subtype=auth",
+                        "&status=rejected",
+                        "&conn_id=",
+                        session->ext_conn,
+                        "&ip=",
+                        session->ip_str);
+
+     /*Subscriber is authenticated*/
+     subscriber_update_conn_status(session->ip_str, "REJECTED");
+     /*send Response to UAM*/
+     redir_send(session->conn, rsp, rsp_len);
 
     break;
     case ACCOUNTING_RESPONSE:
@@ -1439,7 +1517,6 @@ int32_t redir_process_radiusS_response(int32_t radiusC_fd,
                       __LINE__);
     break;
   } 
-
 
 
 }/*redir_process_radiusS_response*/

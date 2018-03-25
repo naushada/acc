@@ -203,10 +203,15 @@ int32_t http_build_aadhaar_auth_pi_req(uint32_t conn_id, uint8_t *req, uint32_t 
   uint8_t *uid_ptr = NULL;
   uint8_t *name_ptr = NULL;
   uint8_t *mv_ptr = NULL;
+  uint8_t ip_str[32];
+
   http_session_t *session = NULL;
   session = http_get_session(conn_id);
   assert(session != NULL);
   
+  memset((void *)ip_str, 0, sizeof(ip_str));
+  utility_ip_int_to_str(session->peer_addr.sin_addr.s_addr, ip_str);
+
   memset((void *)param, 0, sizeof(param));
   fprintf(stderr, "\n%s:%d uri %s\n", __FILE__, __LINE__, session->uri);
   http_parse_param(param, session->uri);
@@ -218,7 +223,7 @@ int32_t http_build_aadhaar_auth_pi_req(uint32_t conn_id, uint8_t *req, uint32_t 
   sprintf(req,
           "%s%s%s%s%s"
           "%s%s%s%d%s"
-          "%s%s",
+          "%s%s%s%s",
           "GET /response_callback?auth_type=aadhaar&subtype=auth&subsubtype=pi&aadhaar_no=",
           uid_ptr,
           "&name=",
@@ -228,6 +233,8 @@ int32_t http_build_aadhaar_auth_pi_req(uint32_t conn_id, uint8_t *req, uint32_t 
           "&rc=y&ver=2.0&",
           "conn_id=",
           conn_id,
+          "&ip=",
+          ip_str,
           " HTTP/1.1\r\n",
           "Connection: Keep-Alive\r\n",
           "Content-Length: 0\r\n");
@@ -414,6 +421,99 @@ uint8_t *http_get_gparam(uint8_t *req_ptr, uint32_t req_len, uint8_t *p_name) {
   return(NULL);
 }/*http_get_gparam*/
 
+int32_t http_process_login_rsp(uint8_t *packet_ptr, uint32_t packet_length) {
+
+  uint8_t *conn_ptr = NULL;
+  uint8_t *status_ptr = NULL;
+  uint8_t body[255];
+  uint8_t rsp[512];
+  uint32_t rsp_len = 0;
+  
+  conn_ptr = http_get_gparam(packet_ptr, packet_length, "conn_id");
+  status_ptr = http_get_gparam(packet_ptr, packet_length, "status");
+
+  if(!conn_ptr || status_ptr) {
+    fprintf(stderr, "\n%s:%d Either conn_ptr or status_ptr is NULL", __FILE__, __LINE__);    
+    return(1);
+  }
+
+  memset((void *)body, 0, sizeof(body));
+  memset((void *)rsp, 0, sizeof(rsp));
+
+  if(!strncmp(status_ptr, "success", 7)) {
+    /*User is authenticated successfully*/
+    rsp_len = snprintf(body,
+                       sizeof(body),
+                       "%s%s%s%s%s"
+                       "%s%s%s%s%s",
+                       "<html><head>",
+                       "<title>",
+                       "</title>",
+                       "</head>",
+                       "<body>",
+                       "<h1>",
+                       "You have successfully been Authenticated by Balaagh",
+                       "</h1>",
+                       "</body>",
+                       "<html>");
+    snprintf(rsp,
+             sizeof(rsp),
+             "%s%s%s%s%s"
+             "%s%d%s%s%s",
+             "HTTP/1.1 302 Moved Temporarily\r\n",
+             "Location: https://balaagh.com\r\n",
+             "Host: balaagh.com\r\n",
+             "Content-Type: text/html\r\n",
+             "Connection: close\r\n",
+             "Content-Length: ",
+             rsp_len,
+             "\r\n",
+             /*Body delimiter*/
+             "\r\n",
+             body);
+
+    http_send(atoi(conn_ptr), rsp, strlen(rsp));
+    free(status_ptr);
+
+  } else if(!strncmp(status_ptr, "rejected", 8)) {
+    /*User is authenticated successfully*/
+    rsp_len = snprintf(body,
+                       sizeof(body),
+                       "%s%s%s%s%s"
+                       "%s%s%s%s%s",
+                       "<html><head>",
+                       "<title>",
+                       "</title>",
+                       "</head>",
+                       "<body>",
+                       "<h1>",
+                       "You have Invalid user id or password",
+                       "</h1>",
+                       "</body>",
+                       "<html>");
+    snprintf(rsp,
+             sizeof(rsp),
+             "%s%s%s%s%s"
+             "%s%d%s%s%s",
+             "HTTP/1.1 302 Moved Temporarily\r\n",
+             "Location: http://adam.balaagh.com:3990\r\n",
+             "Host: adam.balaagh.com\r\n",
+             "Content-Type: text/html\r\n",
+             "Connection: Keep-Alive\r\n",
+             "Content-Length: ",
+             rsp_len,
+             "\r\n",
+             /*Body delimiter*/
+             "\r\n",
+             body);
+
+    http_send(atoi(conn_ptr), rsp, strlen(rsp));
+    free(status_ptr);
+  }
+
+  return(0);
+}/*http_process_login_rsp*/
+
 int32_t http_process_google_rsp(uint8_t *packet_ptr, 
                                 uint32_t packet_length) {
   uint8_t *type = NULL;
@@ -527,8 +627,7 @@ int32_t http_process_google_rsp(uint8_t *packet_ptr,
 
 
 int32_t http_process_aadhaar_rsp(uint8_t *packet_ptr,
-                                 uint32_t packet_length,
-                                 uint8_t (*param)[2][255]) {
+                                 uint32_t packet_length) {
 
   uint8_t *uid_ptr = NULL;
   uint8_t *status_ptr = NULL;
@@ -536,15 +635,15 @@ int32_t http_process_aadhaar_rsp(uint8_t *packet_ptr,
   uint8_t *conn_id_ptr = NULL;
   http_session_t *session = NULL;
 
-  conn_id_ptr = http_get_param_ex(param, "conn_id");
-  uid_ptr = http_get_param_ex(param, "uid");
-  status_ptr = http_get_param_ex(param, "status");
+  conn_id_ptr = http_get_gparam(packet_ptr, packet_length, "conn_id");
+  uid_ptr = http_get_gparam(packet_ptr, packet_length, "uid");
+  status_ptr = http_get_gparam(packet_ptr, packet_length, "status");
 
   session = http_get_session(atoi(conn_id_ptr));
   assert(session != NULL);
 
   if(!strncmp(status_ptr, "failed", 6)) {
-    reason_ptr = http_get_param_ex(param, "reason");
+    reason_ptr = http_get_gparam(packet_ptr, packet_length, "reason");
 
     if(reason_ptr) {
       memset((void *)session->uidai_param.reason, 0, sizeof(session->uidai_param.reason));
@@ -577,11 +676,15 @@ int32_t http_process_nas_rsp(int32_t nas_fd,
   
   if(!strncmp(auth_type, "otp", 3) || 
      !strncmp(auth_type, "auth", 4)) {
-    http_process_aadhaar_rsp(packet_ptr, packet_length, param);
+    http_process_aadhaar_rsp(packet_ptr, packet_length);
 
   } else if(!strncmp(auth_type, "gmail", 5)) {
     free(auth_type);
     http_process_google_rsp(packet_ptr, packet_length); 
+
+  } else if(!strncmp(auth_type, "login", 5)) {
+    free(auth_type);
+    http_process_login_rsp(packet_ptr, packet_length); 
   }
 
   fprintf(stderr, "\n%s:%d Response received from NAS is %s\n", 
@@ -1276,10 +1379,14 @@ int32_t http_build_aadhaar_auth_otp_req(uint32_t conn_id, uint8_t *req, uint32_t
 
   uint8_t param[4][2][64];
   uint8_t *otp_value_ptr = NULL;
+  uint8_t ip_str[32];
   http_session_t *session = NULL;
   session = http_get_session(conn_id);
   assert(session != NULL);
   
+  memset((void *)ip_str, 0, sizeof(ip_str));
+  utility_ip_int_to_str(session->peer_addr.sin_addr.s_addr, ip_str);
+
   memset((void *)param, 0, sizeof(param));
   http_parse_param(param, session->uri);
 
@@ -1287,7 +1394,8 @@ int32_t http_build_aadhaar_auth_otp_req(uint32_t conn_id, uint8_t *req, uint32_t
   /*GET /response_callback?auth_type=aadhaar&subtype=auth&subsubtype=otp&aadhaar_no=9701361361&otp_value=XXXX&rc=y&ver=2.0&conn_id=14 HTTP/1.1*/
   sprintf(req,
           "%s%s%s%s%s"
-          "%s%d%s%s%s",
+          "%s%d%s%s%s"
+          "%s%s",
           "GET /response_callback?auth_type=aadhaar&subtype=auth&subsubtype=otp&aadhaar_no=",
           session->uidai_param.uid,
           "&otp_value=",
@@ -1295,6 +1403,8 @@ int32_t http_build_aadhaar_auth_otp_req(uint32_t conn_id, uint8_t *req, uint32_t
           "&rc=y&ver=2.0&",
           "conn_id=",
           conn_id,
+          "&ip=",
+          ip_str,
           " HTTP/1.1\r\n",
           "Connection: Keep-Alive\r\n",
           "Content-Length: 0\r\n");
@@ -1352,6 +1462,7 @@ int32_t http_parse_aadhaar_uid_req(uint32_t conn_id,
   uint8_t aadhaar_no[16];
   /*Resident Consent*/
   uint8_t rc[4];
+  uint8_t ip_str[32];
   http_session_t *session = NULL;
   http_ctx_t *pHttpCtx = &g_http_ctx;
   
@@ -1391,16 +1502,22 @@ int32_t http_parse_aadhaar_uid_req(uint32_t conn_id,
     }
   }while(NULL != (line_ptr = strtok(NULL, "&"))); 
 
+  memset((void *)ip_str, 0, sizeof(ip_str));
+  utility_ip_int_to_str(session->peer_addr.sin_addr.s_addr, ip_str);
+
   ret = snprintf(response_qs, 
                  sizeof(response_qs),
                  "%s%s%s%s%s"
-                 "%d%s%s%s",
+                 "%d%s%s%s%s"
+                 "%s",
                  "GET /response_callback?auth_type=aadhaar&subtype=otp&aadhaar_no=",
                  aadhaar_no,
                  "&rc=",
                  rc,
                  "&ver=1.6&conn_id=",
                  conn_id,
+                 "&ip=",
+                 ip_str,
                  " HTTP/1.1\r\n",
                  "Connection: keep-alive\r\n",
                  "Content-Length:0\r\n");
@@ -1620,25 +1737,16 @@ int32_t http_process_register_req(uint32_t conn_id,
 int32_t http_process_sign_in_req(uint32_t conn_id,
                                  uint8_t **response_ptr, 
                                  uint32_t *response_len_ptr) {
-  uint8_t param_name[255];
-  uint8_t param_value[255];
-  uint8_t qs[1024];
   int32_t ret = -1;
-  uint8_t *line_ptr = NULL;
-  uint8_t response_qs[2024];
+  uint8_t *response_qs;
+  uint32_t response_qs_size = 512;
   uint8_t user_id[255];
   uint8_t password[255];
   uint8_t ip_str[32];
   http_session_t *session = NULL;
-  http_ctx_t *pHttpCtx = &g_http_ctx;
-
-  
-  /*Send Request to Auth Client to Authneticate the USER*/
-  memset((void *)response_qs, 0, sizeof(response_qs));
-  memset((void *)qs, 0, sizeof(qs));
 
   session = http_get_session(conn_id);
-
+#if 0
   ret = sscanf((const char *)session->uri,
                "%*[^?]?%s",
                qs);
@@ -1671,37 +1779,62 @@ int32_t http_process_sign_in_req(uint32_t conn_id,
 
     }
   }while(NULL != (line_ptr = strtok(NULL, "&"))); 
+#endif
+  uint8_t *email_ptr = NULL;
+  uint8_t *pwd_ptr = NULL;
+  /** 
+   * Replace %XX with equivalent character, 
+   * where XX is the ASCII value in hex.
+   */
+  email_ptr = http_get_gparam(session->uri, strlen(session->uri), "email_id");
+  http_decode_perct_digit(user_id, email_ptr);
+  free(email_ptr);
+  pwd_ptr = http_get_gparam(session->uri, strlen(session->uri), "password");
 
   /*sending subscriber credentials to NAS for Authentication*/
   memset((void *)ip_str, 0, sizeof(ip_str));
-  utility_ip_int_to_str(htonl(pHttpCtx->nas_ip), ip_str);
+  utility_ip_int_to_str(session->peer_addr.sin_addr.s_addr, ip_str);
+
+  response_qs = (uint8_t *)malloc(sizeof(uint8_t) * response_qs_size);
+  assert(response_qs != NULL);
+  memset((void *)response_qs, 0, response_qs_size * sizeof(uint8_t));
 
   snprintf(response_qs, 
-           sizeof(response_qs),
+           response_qs_size,
+           "%s%s%s%s%s"
            "%s%s%s%d%s"
-           "%s%s%s%s%s",
-           "http://",
-           ip_str,
-           ":",
-           pHttpCtx->nas_port,
+           "%s%s",
+           "GET ",
            "/response_callback?auth_type=login&email_id=",
            user_id,
            "&password=",
-           password,
-           "&url=",
-           session->url);
+           pwd_ptr,
+           "&ip=",
+           ip_str,
+           "&conn_id=",
+           conn_id,
+           " HTTP/1.1\r\n",
+           "Connection: Keep-Alive\r\n",
+           "Content-Length: 0\r\n");
 
+  free(pwd_ptr);
+  http_send_to_nas(conn_id, response_qs, strlen(response_qs));
+  /*Make web-browser to wait*/
+  *response_len_ptr = 0;
+#if 0
   http_process_redirect_req(conn_id,
                             response_ptr,
                             response_len_ptr,
                             response_qs);
+#endif
+
   #if 0
   http_process_wait_req(conn_id, 
                         response_ptr, 
                         response_len_ptr,
                         response_qs);
   #endif
-
+  free(response_qs);
   return(0);
 }/*http_process_sign_in_req*/
 
@@ -1797,13 +1930,15 @@ int32_t http_process_req(uint32_t conn_id,
   /*This function loop through the static uri table*/
   http_process_uri(conn_id, &http_ptr, &http_len);
 
-  if(http_send(conn_id, http_ptr, http_len) < 0) {
-    perror("http send Failed:");
-    return(-1); 
-  }
+  if(http_len > 0) {
+    if(http_send(conn_id, http_ptr, http_len) < 0) {
+      perror("http send Failed:");
+      return(-1); 
+    }
 
-  free(http_ptr);
-  http_ptr = NULL;
+    free(http_ptr);
+    http_ptr = NULL;
+  }
 
   return(0);
 }/*http_process_req*/
@@ -1837,8 +1972,8 @@ int32_t http_init(uint32_t uam_ip,
     return(-1);
   }
   
-  /*Max Pending connection which is 10 as of now*/
-  if(listen(fd, 5) < 0) {
+  /*Max Pending connection which is 128 as of now*/
+  if(listen(fd, 128) < 0) {
     fprintf(stderr, "\n%s:%d listen to given ip failed\n", __FILE__, __LINE__);
     return(-2);
   }

@@ -49,6 +49,11 @@ int32_t util_insert_newline(uint8_t *in,
   uint32_t offset = 0;
   uint32_t idx = 0;
 
+  /*do not insert new line*/
+  memcpy((void *)out, in, inl);
+  *outl = inl;
+  return(0);
+
   while(inl >= 64) {
     memcpy((char *)&out[idx], (char *)&in[offset], 64);
     idx += 64;

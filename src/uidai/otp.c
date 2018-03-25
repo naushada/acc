@@ -465,7 +465,7 @@ int32_t otp_request_otp(uint8_t *signed_xml,
  *
  * @return it returns 0 upon success else < 0 
  */
-int32_t otp_process_rsp(uint8_t (*param)[2][64], 
+int32_t otp_process_rsp(uint8_t *param, 
                         uint8_t **rsp_ptr, 
                         uint32_t *rsp_len) {
   uint8_t *ret_ptr = NULL;
@@ -486,8 +486,8 @@ int32_t otp_process_rsp(uint8_t (*param)[2][64],
   memset((void *)conn_id, 0, sizeof(conn_id));
   memset((void *)status, 0, sizeof(status));
 
-  ret_ptr = uidai_get_param(param, "ret");
-  txn_ptr = uidai_get_param(param, "txn");
+  ret_ptr = uidai_get_rparam(param, "ret");
+  txn_ptr = uidai_get_rparam(param, "txn");
   assert(txn_ptr != NULL);
   assert(ret_ptr != NULL);
 
@@ -497,6 +497,7 @@ int32_t otp_process_rsp(uint8_t (*param)[2][64],
                   redir_conn_id,
                   conn_id,
                   uid);
+  free(txn_ptr);
 
   if(!strncmp(ret_ptr, "\"y\"", 3)) {
     strncpy(status, "status=success", sizeof(status));
@@ -506,9 +507,10 @@ int32_t otp_process_rsp(uint8_t (*param)[2][64],
     uint8_t tmp_str[128];
 
     memset((void *)tmp_err, 0, sizeof(tmp_err));
-    err_ptr = uidai_get_param(param, "err");
+    err_ptr = uidai_get_rparam(param, "err");
     assert(err_ptr != NULL);
     sscanf(err_ptr, "\"%[^\"]\"", tmp_err);
+    free(err_ptr);
 
     snprintf(status, 
              sizeof(status),
@@ -516,7 +518,7 @@ int32_t otp_process_rsp(uint8_t (*param)[2][64],
              "status=failed&reason=", 
              tmp_err);
 
-    act_ptr = uidai_get_param(param, "actn");
+    act_ptr = uidai_get_rparam(param, "actn");
     if(act_ptr) {
       fprintf(stderr, "\n%s:%d act_ptr %s\n", __FILE__, __LINE__, act_ptr);
       memset((void *)tmp_actn, 0, sizeof(tmp_actn));
@@ -524,9 +526,11 @@ int32_t otp_process_rsp(uint8_t (*param)[2][64],
       sscanf(act_ptr, "\"%[^\"]\"", tmp_actn); 
       snprintf(tmp_str, sizeof(tmp_str), "&actn=%s", tmp_actn);
       strcat(status, tmp_str);
+      free(act_ptr);
     }
   }
 
+  free(ret_ptr);
   /*Build final response*/
   *rsp_ptr = (uint8_t *)malloc(rsp_size);
   assert(*rsp_ptr != NULL);
@@ -565,7 +569,7 @@ int32_t otp_process_rsp(uint8_t (*param)[2][64],
  *
  */
 int32_t otp_main(int32_t conn_fd, 
-                 const uint8_t *packet_ptr, 
+                 uint8_t *packet_ptr, 
                  uint32_t packet_len, 
                  uint8_t **rsp_ptr, 
                  uint32_t *rsp_len) {
@@ -573,7 +577,6 @@ int32_t otp_main(int32_t conn_fd,
   otp_ctx_t *pOtpCtx = &otp_ctx_g;
   uint8_t *req_ptr = NULL;
   uint16_t req_len = 0;
-  uint8_t param[16][2][64];
   uint8_t *uid_ptr = NULL;
   uint8_t *ext_conn_ptr = NULL;
   uint8_t *conn_id_ptr = NULL;
@@ -583,14 +586,13 @@ int32_t otp_main(int32_t conn_fd,
    * ext_conn_id is the socket connection at which user is connected to UAM
    * conn_id is the socket connection at which UAM is connected to redir
    */
-  memset((void *)param, 0, sizeof(param));
   /*/request?type=otp&uid=9701361361&ext_conn_id=15&rc=y&ver=1.6&conn_id=20*/
-  uidai_parse_req(param, packet_ptr);
 
-  uid_ptr = uidai_get_param(param, "uid");
-  ext_conn_ptr = uidai_get_param(param, "ext_conn_id");
-  conn_id_ptr = uidai_get_param(param, "conn_id");
-  strncpy(pOtpCtx->uid, uid_ptr, strlen(uid_ptr));
+  uid_ptr = uidai_get_param(packet_ptr, "uid");
+  ext_conn_ptr = uidai_get_param(packet_ptr, "ext_conn_id");
+  conn_id_ptr = uidai_get_param(packet_ptr, "conn_id");
+
+  strncpy(pOtpCtx->uid, uid_ptr, (sizeof(pOtpCtx->uid) - 1));
 
   snprintf(pOtpCtx->txn,
            sizeof(pOtpCtx->txn),
@@ -610,6 +612,9 @@ int32_t otp_main(int32_t conn_fd,
 
   free(req_ptr);
 
+  free(uid_ptr);
+  free(ext_conn_ptr);
+  free(conn_id_ptr);
   return(0);
 }/*otp_main*/
 

@@ -1,13 +1,6 @@
 #ifndef __REDIR_H__
 #define __REDIR_H__
 
-typedef enum {
-  AUTH_SUCCESS = 1,
-  AUTH_INPROGRESS,
-  AUTH_REJECTED
-
-}redir_auth_type_t;
-
 typedef struct {
   uint8_t *uri;
   uint16_t uri_len;
@@ -18,8 +11,11 @@ typedef struct {
 
 struct redir_session_t {
   
-  uint32_t auth_status;
   uint32_t conn;
+  /*connection at which user is connected with uam*/
+  uint32_t ext_conn;
+  /*ip address at from which browser is connected*/
+  uint8_t ip_str[32];
   struct sockaddr_in peer_addr;
   uint8_t method[8];
   uint8_t protocol[8];
@@ -126,8 +122,7 @@ int32_t redir_radiusC_connect(void);
 
 int32_t redir_build_access_request(uint32_t conn_id, 
                                    uint8_t *email_id, 
-                                   uint8_t *password, 
-                                   uint8_t *url);
+                                   uint8_t *password);
 
 int32_t redir_process_response_callback_uri(uint32_t conn_id, 
                                             uint8_t *uri);
@@ -147,9 +142,9 @@ int32_t redir_process_uidai_response(uint32_t conn_id,
 
 int32_t redir_process_aadhaar_req(uint32_t conn_id, uint8_t *uri);
 
-int32_t redir_parse_aadhaar_req(uint8_t (*param)[2][64], uint8_t *uri);
+int32_t redir_parse_aadhaar_req(uint8_t *req_ptr, uint8_t *uri);
 
-uint8_t *redir_get_param(uint8_t (*param)[2][64], uint8_t *arg);
+uint8_t *redir_get_param(uint8_t *req_ptr, uint8_t *arg);
 
 int32_t redir_send_to_uidai(uint32_t conn_id, 
                             uint8_t *uidai_req, 
@@ -160,5 +155,9 @@ int32_t redir_uidaiC_connect(void);
 int32_t redir_oauth2_connect(void);
 
 int32_t redir_compute_ts(uint8_t *ts, uint32_t ts_size);
+
+int32_t redir_process_login_req(uint32_t conn_id, uint8_t *uri);
+
+int32_t redir_update_stats(uint32_t conn_id, uint8_t *packet_ptr, uint32_t packet_length);
 
 #endif /* __REDIR_H__ */

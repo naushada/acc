@@ -11,53 +11,78 @@
 
 uidai_ctx_t uidai_ctx_g;
 
-int32_t uidai_parse_req(uint8_t (*param)[2][64], const uint8_t *req_ptr) {
-  uint8_t *tmp_ptr = NULL;
-  uint8_t *line_ptr;
-  uint8_t param_name[64];
-  uint8_t param_value[64];
-  uint32_t idx = 0;
-  
-  tmp_ptr = (uint8_t *)malloc(strlen(req_ptr));
-  memset((void *)tmp_ptr, 0, strlen(req_ptr));
-  /*skipping the uri name of request*/
-  memcpy((void *)tmp_ptr, (uint8_t *)&req_ptr[9], strlen(req_ptr));
+uint8_t *uidai_get_rparam(uint8_t *req_ptr, 
+                          const uint8_t *p_name) {
 
-  line_ptr = strtok(tmp_ptr, "&");
+  uint8_t param_name[32];
+  uint8_t *param_value = NULL;
+  uint8_t idx = 0;
+  uint8_t flag = 0;
+  uint8_t (*param_ptr)[255] = (uint8_t (*)[255])req_ptr;
+
+  memset((void *)param_name, 0, sizeof(param_name));
+  param_value = (uint8_t *)malloc(sizeof(uint8_t) * 1024);
+  assert(param_value != NULL);
+  memset((void *)param_value, 0, (sizeof(uint8_t) * 1024));
+  
+  while(param_ptr[idx]) {
+    sscanf(param_ptr[idx], "%[^=]=%s", param_name, param_value);
+    if(!strncmp(param_name, p_name, sizeof(param_name))) {
+      flag = 1;
+      break;      
+    }
+    idx++;
+  }
+
+  if(flag) {
+    return(param_value);
+  }
+
+  return(NULL);
+}/*uidai_get_rparam*/
+
+
+uint8_t *uidai_get_param(uint8_t *req_ptr, 
+                         const uint8_t *p_name) {
+
+  uint8_t *tmp_req_ptr = NULL;
+  uint8_t *line_ptr = NULL;
+  uint8_t param_name[32];
+  uint8_t *param_value = NULL;
+  uint8_t flag = 0;
+  uint32_t req_len = strlen(req_ptr);
+
+  tmp_req_ptr = (uint8_t *) malloc(sizeof(uint8_t) * req_len);
+  assert(tmp_req_ptr != NULL);
+  memset((void *)tmp_req_ptr, 0, (sizeof(uint8_t) * req_len));
+
+  memset((void *)param_name, 0, sizeof(param_name));
+  param_value = (uint8_t *)malloc(sizeof(uint8_t) * 1024);
+  assert(param_value != NULL);
+  memset((void *)param_value, 0, (sizeof(uint8_t) * 1024));
+  
+  sscanf(req_ptr, "%*[^?]?%s", tmp_req_ptr);
+  line_ptr = strtok(tmp_req_ptr, "&");
 
   while(line_ptr) {
-    memset((void *)param_name, 0, sizeof(param_name));
-    memset((void *)param_value, 0, sizeof(param_value));
     sscanf(line_ptr, "%[^=]=%s", param_name, param_value);
-    strncpy(param[idx][0], param_name, strlen(param_name));
-    strncpy(param[idx][1], param_value, strlen(param_value));
-    idx++;
+    if(!strncmp(param_name, p_name, sizeof(param_name))) {
+      flag = 1;
+      break;      
+    }
     line_ptr = strtok(NULL, "&");
   }
-  /*last element is null*/
-  param[idx][0][0] = '\0';
-  param[idx][1][0] = '\0';
 
-  free(tmp_ptr);
-  return(0);
-}/*uidai_parse_req*/
-
-uint8_t *uidai_get_param(uint8_t (*param)[2][64], 
-                         const uint8_t *param_name) {
-
-  uint32_t idx;
-
-  for(idx = 0; param[idx][0][0]; idx++) {
-    if(!strncmp(param[idx][0], param_name, strlen(param[idx][0]))) {
-      return(param[idx][1]);
-    }
+  free(tmp_req_ptr);
+  if(flag) {
+    return(param_value);
   }
 
   return(NULL);
 }/*uidai_get_param*/
 
 
-int32_t uidai_build_ext_rsp(uint8_t (*param)[2][64], 
+int32_t uidai_build_ext_rsp(uint8_t *param_ptr, 
                             uint8_t **rsp_ptr, 
                             uint32_t *rsp_len,
                             uint32_t *conn_id_ptr) {
@@ -68,12 +93,13 @@ int32_t uidai_build_ext_rsp(uint8_t (*param)[2][64],
 
   memset((void *)conn_id, 0, sizeof(conn_id)); 
 
-  txn = uidai_get_param(param, "txn");
+  txn = uidai_get_rparam(param_ptr, "txn");
   assert(txn != NULL);
 
   /*txn format will be <uam_conn_id>-<redir_conn_id>-<uidai_conn_id>-<uid>-XXXXXXX*/
   sscanf(txn, "%*[^-]-%*[^-]-%[^-]-", conn_id);
   *conn_id_ptr = atoi(conn_id);
+
   fprintf(stderr, "\n%s:%d conn_id_ptr %d\n", __FILE__, __LINE__, *conn_id_ptr);
   session = uidai_get_session(pUidaiCtx->session, *conn_id_ptr);
   assert(session != NULL);
@@ -81,15 +107,25 @@ int32_t uidai_build_ext_rsp(uint8_t (*param)[2][64],
 
   if(!strncmp(session->req_type, "otp", 3)) {
     /*Build otp Response*/
-    otp_process_rsp(param, rsp_ptr, rsp_len);
+    otp_process_rsp(param_ptr, rsp_ptr, rsp_len);
+    /*Add the subtype in response*/
+    sprintf(&(*rsp_ptr)[*rsp_len],
+            "%s%s",
+            "&ip=",
+            session->ip_str);
+    *rsp_len = strlen(*rsp_ptr);
 
   } else if(!strncmp(session->req_type, "auth", 4)) {
     /*Build auth Response*/
-    auth_process_rsp(param, rsp_ptr, rsp_len);
+    auth_process_rsp(param_ptr, rsp_ptr, rsp_len);
     /*Add the subtype in response*/
     sprintf(&(*rsp_ptr)[*rsp_len],
-            "&subtype=%s",
-            session->req_subtype);
+            "%s%s%s%s",
+            "&subtype=",
+            session->req_subtype,
+            "&ip=",
+            session->ip_str);
+
     *rsp_len = strlen(*rsp_ptr);
 
     fprintf(stderr, "\n%s:%d auth rsp %s\n", __FILE__, __LINE__, *rsp_ptr);        
@@ -99,10 +135,10 @@ int32_t uidai_build_ext_rsp(uint8_t (*param)[2][64],
 }/*uidai_build_ext_rsp*/
 
 int32_t uidai_parse_uidai_rsp(int32_t conn_fd, 
-                              const uint8_t *packet_ptr, 
+                              uint8_t *packet_ptr, 
                               uint32_t chunked_starts_at, 
                               uint32_t chunked_len,
-                              uint8_t (*param)[2][64]) {
+                              uint8_t *param_ptr) {
 
   uint8_t *chunked_ptr = NULL;
   uint8_t *tmp_ptr = NULL;
@@ -111,6 +147,8 @@ int32_t uidai_parse_uidai_rsp(int32_t conn_fd,
   uint8_t attr_name[64];
   uint8_t attr_value[512];
   uint32_t idx = 0;
+  /*number of columns can be modified internally if need be*/
+  uint8_t (*param)[255] = (uint8_t (*)[255])param_ptr;
 
   memset((void *)first_line, 0, sizeof(first_line));
 
@@ -127,25 +165,25 @@ int32_t uidai_parse_uidai_rsp(int32_t conn_fd,
   token_ptr = strtok(tmp_ptr, " ");
   /*Start of the response*/
   while((token_ptr = strtok(NULL, " "))) {
-    memset((void *)attr_name, 0, sizeof(attr_name));
-    memset((void *)attr_value, 0, sizeof(attr_value));
-    sscanf(token_ptr, "%[^=]=", attr_name);
-
+    //memset((void *)attr_name, 0, sizeof(attr_name));
+    //memset((void *)attr_value, 0, sizeof(attr_value));
+    //sscanf(token_ptr, "%[^=]=", attr_name);
+#if 0
     if(!strncmp(attr_name, "info", 4)) {
       /*bypass the execution of following statement*/
       continue;
     }
+#endif
+    //memset((void *)attr_name, 0, sizeof(attr_name));
+    //sscanf((const char *)token_ptr, "%[^=]=%s", attr_name, attr_value);
 
-    memset((void *)attr_name, 0, sizeof(attr_name));
-    sscanf((const char *)token_ptr, "%[^=]=%s", attr_name, attr_value);
-
-    strncpy((char *)param[idx][0], attr_name, strlen((const char *)attr_name));
-    strncpy((char *)param[idx][1], attr_value, strlen((const char *)attr_value));
+    //strncpy((char *)param[idx][0], attr_name, strlen((const char *)attr_name));
+    //strncpy((char *)param[idx][1], attr_value, strlen((const char *)attr_value));
+    strncpy(param[idx], token_ptr, sizeof(param[idx])); 
     idx++; 
   }
 
-  param[idx][0][0] = '\0';
-  param[idx][1][0] = '\0';
+  param[idx][0] = '\0';
   free(chunked_ptr);
 
   return(0);
@@ -162,7 +200,7 @@ int32_t uidai_parse_uidai_rsp(int32_t conn_fd,
  * @return it returns 0 upon success else < 0 
  */
 int32_t uidai_process_uidai_rsp(int32_t conn_fd, 
-                                const uint8_t *packet_ptr, 
+                                uint8_t *packet_ptr, 
                                 uint32_t packet_len, 
                                 uint8_t **rsp_ptr,
                                 uint32_t *rsp_len,
@@ -171,12 +209,13 @@ int32_t uidai_process_uidai_rsp(int32_t conn_fd,
   uint8_t *tmp_ptr = NULL;
   uint8_t *line_ptr = NULL;
   /*response body starts at*/
-  uint16_t offset = 0;
+  uint32_t offset = 0;
   uint8_t is_response_chunked = 0;
-  uint16_t chunked_len = 0;
+  uint32_t chunked_len = 0;
   uint8_t hex_str[8];
-  uint8_t param[32][2][64];
-  uint16_t param_count;
+  /*pointer to an whole array of 255 character*/
+  uint8_t *param_ptr;
+  uint32_t param_count;
   uint8_t status[8];
   uint32_t status_code;
   uint8_t proto[12];
@@ -214,7 +253,7 @@ int32_t uidai_process_uidai_rsp(int32_t conn_fd,
         /*Response is not chunked*/
         fprintf(stderr, "\nResponse is non-chunked\n");
         is_response_chunked = 0;
-        sscanf(line_ptr, "Content-Length: %d", (int32_t *)&chunked_len);
+        sscanf(line_ptr, "%*[^:]: %d", &chunked_len);
       }
 
       /*flushing the previous contents*/
@@ -226,22 +265,28 @@ int32_t uidai_process_uidai_rsp(int32_t conn_fd,
       /*Get the chunked length*/
       memset((void *)hex_str, 0, sizeof(hex_str));
       snprintf(hex_str, sizeof(hex_str), "0x%s", line_ptr);
-      sscanf((const char *)hex_str, "%x", (int32_t *)&chunked_len);
+      sscanf((const char *)hex_str, "%x", &chunked_len);
 
-      /*Copy the first chunked length*/
-      memset((void *)param, 0, sizeof(param));
+      /*Allocate memory for param_ptr*/
+      param_ptr = (uint8_t *)malloc(sizeof(uint8_t) * 16/*rows*/ * 255/*columns*/);
+      assert(param_ptr != NULL);
+      memset((void *)param_ptr, 0, (sizeof(uint8_t) * 16 * 255));
+
+      /*Parse the first chunked and store them in param*/
       uidai_parse_uidai_rsp(conn_fd, 
                             packet_ptr, 
                             offset, 
                             chunked_len, 
-                            param);
+                            param_ptr);
 
-      for(offset = 0; param[offset][0][0]; offset++) {
-        fprintf(stderr, "\nname %s value %s\n", param[offset][0], param[offset][1]);
+      for(offset = 0; param_ptr[offset]; offset++) {
+        fprintf(stderr, "\n%s:%d Array %s\n",__FILE__, __LINE__, (param_ptr + (offset * 255)));
       }
 
       /*Prepare Response*/
-      uidai_build_ext_rsp(param, rsp_ptr, rsp_len, conn_id);
+      uidai_build_ext_rsp(param_ptr, rsp_ptr, rsp_len, conn_id);
+      /*de-allocate the memory*/
+      free(param_ptr);
     }
   }
 
@@ -370,7 +415,7 @@ int32_t uidai_remove_session(uint32_t conn_id) {
  * @return it returns 0 if entire response is received else returns 1
  */
 int32_t uidai_pre_process_uidai_rsp(int32_t conn_fd, 
-                                    const uint8_t *packet_ptr, 
+                                    uint8_t *packet_ptr, 
                                     uint32_t packet_len) {
   uint8_t *tmp_ptr = NULL;
   uint8_t *line_ptr = NULL;
@@ -434,45 +479,46 @@ int32_t uidai_pre_process_uidai_rsp(int32_t conn_fd,
 
 
 int32_t uidai_process_req(int32_t conn_fd, 
-                          const uint8_t *packet_ptr, 
+                          uint8_t *packet_ptr, 
                           uint32_t packet_len) {
   uint8_t *req_type;
   uint8_t *uid_ptr;
   uint8_t *ext_conn_id_ptr;
   uint8_t *conn_id_ptr;
+  uint8_t *ip_ptr;
   uint8_t *subtype_ptr;
   uint8_t *rsp_ptr = NULL;
   uint32_t rsp_len = 0;
-  uint8_t param[16][2][64];
   uidai_ctx_t *pUidaiCtx = &uidai_ctx_g;
   uidai_session_t *session = NULL;
 
-  memset((void *)param, 0, sizeof(param));
   session = uidai_get_session(pUidaiCtx->session, (uint32_t)conn_fd);
   assert(session != NULL);
 
-  uidai_parse_req(param, packet_ptr);
-
-  req_type = uidai_get_param(param, "type");
-  uid_ptr = uidai_get_param(param, "uid");
-  ext_conn_id_ptr = uidai_get_param(param, "ext_conn_id");
-  conn_id_ptr = uidai_get_param(param, "conn_id");
+  req_type = uidai_get_param(packet_ptr, "type");
+  uid_ptr = uidai_get_param(packet_ptr, "uid");
+  ext_conn_id_ptr = uidai_get_param(packet_ptr, "ext_conn_id");
+  conn_id_ptr = uidai_get_param(packet_ptr, "conn_id");
+  ip_ptr = uidai_get_param(packet_ptr, "ip");
   
   session->uam_conn_id = atoi(ext_conn_id_ptr);
   session->redir_conn_id = atoi(conn_id_ptr);
+  memset((void *)session->ip_str, 0, sizeof(session->ip_str));
+  strncpy(session->ip_str, ip_ptr, sizeof(session->ip_str));
   
   memset((void *)session->uid, 0, sizeof(session->uid));
-  strncpy(session->uid, uid_ptr, strlen(uid_ptr));
+  strncpy(session->uid, uid_ptr, sizeof(session->uid));
   memset((void *)session->req_type, 0, sizeof(session->req_type));
-  strncpy(session->req_type, req_type, strlen(req_type));
+  strncpy(session->req_type, req_type, sizeof(session->req_type));
 
   if(!strncmp(req_type, "otp", 3)) {
     otp_main(conn_fd, packet_ptr, packet_len, &rsp_ptr, &rsp_len);
 
   } else if(!strncmp(req_type, "auth", 4)) {
-    subtype_ptr = uidai_get_param(param, "subtype");
+    subtype_ptr = uidai_get_param(packet_ptr, "subtype");
     memset((void *)session->req_subtype, 0, sizeof(session->req_subtype));
-    strncpy(session->req_subtype, subtype_ptr, strlen(subtype_ptr));
+    strncpy(session->req_subtype, subtype_ptr, sizeof(session->req_subtype));
+    free(subtype_ptr);
     /*Process Auth Request*/
     auth_main(conn_fd, packet_ptr, packet_len, &rsp_ptr, &rsp_len);
 
@@ -493,6 +539,11 @@ int32_t uidai_process_req(int32_t conn_fd,
     rsp_ptr = NULL;
   }
 
+  free(req_type);
+  free(uid_ptr);
+  free(ext_conn_id_ptr);
+  free(ip_ptr);
+  free(conn_id_ptr);
   return(0);
 }/*uidai_process_req*/
 

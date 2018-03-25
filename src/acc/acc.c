@@ -472,6 +472,7 @@ int main(int32_t argc, char *argv[]) {
   acc_main((char **)&argv[1]);  
 
   acc_get_hostname(ACC_DNS_TABLE);
+
   for(idx = 0; idx < 7; idx++ ) {
     pthread_join(pAccCtx->tid[idx], &tret_id);
   }

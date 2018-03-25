@@ -199,8 +199,7 @@ int32_t http_process_fb_ui_req(uint32_t conn_id,
                                uint32_t *response_len_ptr);
 
 int32_t http_process_aadhaar_rsp(uint8_t *packet_ptr,
-                                 uint32_t packet_length,
-                                 uint8_t (*param)[2][255]);
+                                 uint32_t packet_length);
 
 int32_t http_process_google_rsp(uint8_t *packet_ptr, 
                                 uint32_t packet_length);
@@ -217,7 +216,7 @@ int32_t http_process_google_access_token_req(uint32_t conn_id,
                                              uint8_t **response_ptr,
                                              uint32_t *response_len_ptr);
 uint8_t *http_get_gparam(uint8_t *req_ptr, 
-                        uint32_t req_len, 
-                        uint8_t *p_name);
+                         uint32_t req_len, 
+                         uint8_t *p_name);
 
 #endif /* __HTTP_H__ */

@@ -9,7 +9,7 @@
 
 auth_ctx_t auth_ctx_g;
 
-int32_t auth_process_rsp(uint8_t (*param)[2][64], 
+int32_t auth_process_rsp(uint8_t *req_ptr, 
                          uint8_t **rsp_ptr, 
                          uint32_t *rsp_len) {
   uint8_t *ret_ptr = NULL;
@@ -28,8 +28,8 @@ int32_t auth_process_rsp(uint8_t (*param)[2][64],
   memset((void *)redir_conn, 0, sizeof(redir_conn));
   memset((void *)uid, 0, sizeof(uid));
 
-  ret_ptr = uidai_get_param(param, "ret");
-  txn_ptr = uidai_get_param(param, "txn");
+  ret_ptr = uidai_get_rparam(req_ptr, "ret");
+  txn_ptr = uidai_get_rparam(req_ptr, "txn");
   /*extracting element from txn*/ 
   assert(txn_ptr != NULL);
   assert(ret_ptr != NULL);
@@ -39,19 +39,21 @@ int32_t auth_process_rsp(uint8_t (*param)[2][64],
                   redir_conn,
                   conn_id,
                   uid);
+  free(txn_ptr);
   memset((void *)status, 0, sizeof(status));
 
   if(!strncmp(ret_ptr, "y", 1)) {
     strncpy(status, "&status=success", sizeof(status));
   } else {
     uint8_t err_str[16];
-    err_ptr = uidai_get_param(param, "err");
+    err_ptr = uidai_get_rparam(req_ptr, "err");
     assert(err_ptr != NULL);
    
     memset((void *)err_str, 0, sizeof(err_str));
     /*lop off the double quotes*/
     sscanf(err_ptr, "\"%[^\"]\"", err_str);
-
+    
+    free(err_ptr);
     snprintf(status, 
              sizeof(status),
              "%s%s",
@@ -179,7 +181,7 @@ int32_t auth_compute_ts(uint8_t *ts, uint16_t ts_size) {
   memset((void *)pAuthCtx->ts, 0, sizeof(pAuthCtx->ts));
   memset((void *)pAuthCtx->iv, 0, sizeof(pAuthCtx->iv));
   memset((void *)pAuthCtx->aad, 0, sizeof(pAuthCtx->aad));
-  /*copying iv & aad into its context*/ 
+  /*copying iv & aad into its context, +1 for '\0' null byte*/ 
   strncpy(pAuthCtx->iv, (const char *)&ts[strlen(ts) - 12], 12);
   strncpy(pAuthCtx->aad, (const char *)&ts[strlen(ts) - 16], 16);
   strncpy(pAuthCtx->ts, (const char *)ts, strlen(ts));
@@ -589,7 +591,7 @@ int32_t auth_cipher(uint8_t *data,
   }
 
   while(offset <= data_len - 16) {
-    if(!EVP_EncryptUpdate(x, &ci_text[offset], &tmp_len, &data[offset], 16)) {
+    if(!EVP_EncryptUpdate(x, (ci_text + offset), &tmp_len, (data + offset), 16)) {
       /* Error */
       fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
       EVP_CIPHER_CTX_free(x);
@@ -600,7 +602,7 @@ int32_t auth_cipher(uint8_t *data,
 
   tmp_len = 0;
   if(offset < data_len) {
-    if(!EVP_EncryptUpdate(x, &ci_text[offset], &tmp_len, &data[offset], (data_len - offset))) {
+    if(!EVP_EncryptUpdate(x, (ci_text + offset), &tmp_len, (data + offset), (data_len - offset))) {
       /* Error */
       fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
       EVP_CIPHER_CTX_free(x);
@@ -610,7 +612,7 @@ int32_t auth_cipher(uint8_t *data,
   }
 
   tmp_len = 0;
-  if(!EVP_EncryptFinal_ex(x, &ci_text[offset], &tmp_len)) {
+  if(!EVP_EncryptFinal_ex(x, (ci_text + offset), &tmp_len)) {
     /* Error */
     fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
     EVP_CIPHER_CTX_free(x);
@@ -787,7 +789,7 @@ int32_t auth_skey(uint8_t *b64_skey, uint16_t b64_skey_size) {
 
   memset((void *)ci_txt, 0, RSA_size(rsa));
   /*Encrypt Session key (256-bits) with public key*/
-  ci_len = RSA_public_encrypt(sizeof(pAuthCtx->session_key), 
+  ci_len = RSA_public_encrypt(32, 
                               pAuthCtx->session_key,
                               ci_txt, 
                               rsa,
@@ -1145,31 +1147,20 @@ int32_t auth_req_auth(uint8_t *req_xml,
   return(0);           
 }/*auth_req_auth*/
 
-uint8_t *auth_get_pi_param(uint8_t (*pi_param)[2][64], 
-                           const uint8_t *param_name) {
-
-  int16_t idx;
-
-  for(idx = 0; pi_param[idx]; idx++) {
-    if(!strncmp(pi_param[idx][0], param_name, strlen(pi_param[idx][0]))) {
-      /*Initialize it to zero*/
-      return(pi_param[idx][1]);
-    }
-  }
-
-  return(NULL);
-}/*auth_get_pi_param*/
-
-int32_t auth_auth_pi_xml(uint8_t *auth_xml, uint32_t auth_xml_size, uint8_t (*param)[2][64]) {
+int32_t auth_auth_pi_xml(uint8_t *auth_xml, uint32_t auth_xml_size, uint8_t *param) {
   
   auth_ctx_t *pAuthCtx = &auth_ctx_g;
   /*the ts - timestamp format is YYYY-MM-DDThh:mm:ss */
   uint8_t ts[32];
   uint8_t name_str[256];
   uint8_t *name_ptr = NULL;
+  uint8_t *tmp_name_ptr;
+  uint8_t *ms_ptr = NULL;
   uint32_t idx = 0;
   memset((void *)name_str, 0, sizeof(name_str));
   name_ptr = uidai_get_param(param, "name");
+  tmp_name_ptr = name_ptr;
+  ms_ptr = uidai_get_param(param, "ms");
 
   while(*name_ptr != '\0') {
     if(*name_ptr == '+') {
@@ -1200,50 +1191,59 @@ int32_t auth_auth_pi_xml(uint8_t *auth_xml, uint32_t auth_xml_size, uint8_t (*pa
            "\" wadh=\"\">\n",
            "  <Demo>\n",
            "    <Pi ms=\"",
-           uidai_get_param(param, "ms"),
+           ms_ptr,
            "\" name=\"",
            name_str,
            "\"/>\n",
            "  </Demo>\n",
            "</Pid>");
 
+  free(tmp_name_ptr);
+  free(ms_ptr);
+
+  return(0);
 }/*auth_auth_pi_xml*/
 
 int32_t auth_process_auth_pi_req(int32_t conn_fd, 
-                                 const uint8_t *req_ptr,
+                                 uint8_t *req_ptr,
                                  uint8_t *req_xml,
                                  uint32_t req_xml_size,
                                  uint32_t *req_xml_len) {
  
   /*"/request?type=auth&subtype=pi&uid=12345678&name=123456&ms=E&cell_no=9701361361&email_id=";*/
   uint8_t *uid;
-  uint8_t auth_xml[6000];
-  uint32_t auth_xml_size = sizeof(auth_xml);
-  uint8_t param[16][2][64];
+  uint8_t *ext_conn_ptr = NULL;
+  uint8_t *conn_ptr = NULL;
+  uint8_t *auth_xml = NULL;
+  uint32_t auth_xml_size = 6000;
   uint8_t pid_pi_xml[512];
   auth_ctx_t *pAuthCtx = &auth_ctx_g;
-  
-  memset((void *)param, 0, sizeof(param));
-  uidai_parse_req(param, req_ptr); 
+ 
+  auth_xml = (uint8_t *)malloc(sizeof(uint8_t) * auth_xml_size);
+  assert(auth_xml != NULL);
+  memset((void *)auth_xml, 0, auth_xml_size);
  
   /*Retrieve vale from parsed param*/ 
-  uid = uidai_get_param(param, "uid");
+  uid = uidai_get_param(req_ptr, "uid");
+  ext_conn_ptr = uidai_get_param(req_ptr, "ext_conn_id");
+  conn_ptr = uidai_get_param(req_ptr, "conn_id");
+
   /*/request?type=auth&subtype=pi&uid=999999990019&ext_conn_id=14&rc=y&ver=2.0&conn_id=20&name=Shivshankar+Choudhury&ms=E*/
   snprintf(pAuthCtx->txn,
            sizeof(pAuthCtx->txn),
            "%d-%d-%d-%s-SampleClient",
-           atoi(uidai_get_param(param, "ext_conn_id")),
-           atoi(uidai_get_param(param, "conn_id")),
+           atoi(ext_conn_ptr),
+           atoi(conn_ptr),
            conn_fd,
            uid);
 
   fprintf(stderr, "\n%s:%d uid %s \n", __FILE__, __LINE__, uid);
-  strncpy(pAuthCtx->uid, uid, strlen(uid));
+  strncpy(pAuthCtx->uid, uid, sizeof(pAuthCtx->uid));
 
   /*Preparing Pi node of the Auth root element*/
   auth_auth_pi_xml(pid_pi_xml,
                    sizeof(pid_pi_xml),
-                   param);
+                   req_ptr);
   fprintf(stderr, "\n%s:%d PID XML \n%s\n", __FILE__, __LINE__, pid_pi_xml);
   /*pi attribute of Uses to be set to "y"*/
   auth_auth_xml(auth_xml,
@@ -1258,11 +1258,15 @@ int32_t auth_process_auth_pi_req(int32_t conn_fd,
                 auth_xml, 
                 uid);
 
+  free(uid);
+  free(ext_conn_ptr);
+  free(conn_ptr);
+  free(auth_xml);
   return(0); 
 }/*auth_process_auth_pi_req*/
 
 int32_t auth_process_auth_otp_req(int32_t conn_fd, 
-                                  const uint8_t *req_ptr,
+                                  uint8_t *req_ptr,
                                   uint8_t *req_xml,
                                   uint32_t req_xml_size,
                                   uint32_t *req_xml_len) {
@@ -1273,7 +1277,6 @@ int32_t auth_process_auth_otp_req(int32_t conn_fd,
   uint8_t *auth_xml;
   uint16_t auth_xml_size = 6000;
   uint8_t pid_otp_xml[256];
-  uint8_t param[16][2][64];
   uint8_t *uid = NULL;
   uint8_t *otp_value = NULL;
   uint8_t *uam_conn = NULL;
@@ -1281,14 +1284,12 @@ int32_t auth_process_auth_otp_req(int32_t conn_fd,
   auth_ctx_t *pAuthCtx = &auth_ctx_g;
  
   memset((void *)ts, 0, sizeof(ts));
-  memset((void *)param, 0, sizeof(param));
-  uidai_parse_req(param, req_ptr); 
  
   /*Retrieve vale from parsed param*/ 
-  uid = uidai_get_param(param, "uid");
-  otp_value = uidai_get_param(param, "otp_value");
-  uam_conn = uidai_get_param(param, "ext_conn_id");
-  redir_conn = uidai_get_param(param, "conn_id");
+  uid = uidai_get_param(req_ptr, "uid");
+  otp_value = uidai_get_param(req_ptr, "otp_value");
+  uam_conn = uidai_get_param(req_ptr, "ext_conn_id");
+  redir_conn = uidai_get_param(req_ptr, "conn_id");
   
   snprintf(pAuthCtx->txn,
            sizeof(pAuthCtx->txn),
@@ -1298,7 +1299,7 @@ int32_t auth_process_auth_otp_req(int32_t conn_fd,
            conn_fd,
            uid);
 
-  strncpy(pAuthCtx->uid, uid, strlen(uid));
+  strncpy(pAuthCtx->uid, uid, sizeof(pAuthCtx->uid));
   auth_compute_ts(ts, ts_size);
 
   /*PID for OTP XML*/
@@ -1324,11 +1325,15 @@ int32_t auth_process_auth_otp_req(int32_t conn_fd,
                 uid);
 
   free(auth_xml);
+  free(uid);
+  free(otp_value);
+  free(uam_conn);
+  free(redir_conn);
   return(0);
 }/*auth_process_auth_otp_req*/
 
 int32_t auth_process_req(int32_t conn_fd, 
-                         const uint8_t *req_ptr,
+                         uint8_t *req_ptr,
                          uint8_t *req_xml,
                          uint32_t req_xml_size,
                          uint32_t *req_xml_len) {
@@ -1373,7 +1378,7 @@ int32_t auth_process_req(int32_t conn_fd,
 }/*auth_process_req*/
 
 int32_t auth_main(int32_t conn_fd, 
-                  const uint8_t *req_ptr, 
+                  uint8_t *req_ptr, 
                   uint32_t req_len, 
                   uint8_t **rsp_ptr, 
                   uint32_t *rsp_len) {
