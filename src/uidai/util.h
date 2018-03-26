@@ -46,4 +46,13 @@ int32_t util_init(uint8_t *public_key, uint8_t *private_key);
 
 int32_t util_decrypt_skey(uint8_t *in, uint32_t inl, uint8_t *out, uint32_t *outl);
 
+int32_t util_base64_decode(uint8_t *data,
+                           uint32_t data_len,
+                           uint8_t *out,
+                           uint32_t *out_len);
+
+int32_t util_base64_decode_ex(uint8_t *input, 
+                    uint16_t length, 
+                    uint8_t *out_b64, 
+                    uint32_t *b64_len);
 #endif /* __UTIL_H__ */

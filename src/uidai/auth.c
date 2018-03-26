@@ -5,7 +5,6 @@
 #include "uidai.h"
 #include "util.h"
 #include "auth.h"
-//#include "verify.h"
 
 auth_ctx_t auth_ctx_g;
 
@@ -129,16 +128,16 @@ int32_t auth_symmetric_keys(uint8_t *out_ptr, uint32_t out_len) {
     return(-1);
   }
 
-  rc = fread(out_ptr, 1, out_len, fp);
+  rc = fread(out_ptr, 1, 32, fp);
   fclose(fp);
 
-  if(rc < out_len) {
+  if(rc < 32) {
     fprintf(stderr, "\n%s:%d shorter length than expected\n", __FILE__, __LINE__);
     return(-2);
   }
 
   fprintf(stderr, "\n%s:%d session key\n", __FILE__, __LINE__);
-  for(rc = 0; rc < out_len; rc++) {
+  for(rc = 0; rc < 32; rc++) {
     fprintf(stderr, "%.2x ", out_ptr[rc]);
   }
 
@@ -184,7 +183,7 @@ int32_t auth_compute_ts(uint8_t *ts, uint16_t ts_size) {
   /*copying iv & aad into its context, +1 for '\0' null byte*/ 
   strncpy(pAuthCtx->iv, (const char *)&ts[strlen(ts) - 12], 12);
   strncpy(pAuthCtx->aad, (const char *)&ts[strlen(ts) - 16], 16);
-  strncpy(pAuthCtx->ts, (const char *)ts, strlen(ts));
+  strncpy(pAuthCtx->ts, (const char *)ts, sizeof(pAuthCtx->ts));
 
 #if 0
   uint32_t tmp_len = 0;
@@ -311,25 +310,27 @@ int32_t auth_data(uint8_t *data, uint16_t data_size, uint8_t *pid_xml) {
   
   memset((void *)ciphered_data, 0, sizeof(ciphered_data)); 
   memset((void *)tag, 0, sizeof(tag));
-  auth_cipher(pid_xml, 
-              strlen(pid_xml), 
-              ciphered_data, 
-              &ciphered_data_len,
-              tag);
+
+  auth_cipher_gcm(pid_xml, 
+                  strlen(pid_xml), 
+                  ciphered_data, 
+                  &ciphered_data_len,
+                  tag);
 #if 0
-  auth_cipher_ex(pid_xml, 
-                 (strlen(pid_xml) + 1), 
+  auth_cipher_ecb(pid_xml, 
+                 strlen(pid_xml), 
                  ciphered_data, 
                  &ciphered_data_len);
+
 #endif
 
-  fprintf(stderr, "\n%s:%d ciphered data len %d\n", __FILE__, __LINE__, ciphered_data_len);
-  auth_decipher(ciphered_data, ciphered_data_len, plain_txt, &plain_txt_len, tag);
-
-  fprintf(stderr, "\n%s:%d Plain txt \n%s len %d\n", __FILE__, __LINE__, plain_txt, plain_txt_len);
 
   memset((void *)b64, 0, sizeof(b64));
   util_base64(ciphered_data, ciphered_data_len, b64, &b64_len);
+
+  fprintf(stderr, "\n%s:%d ciphered data len %d b64_len %d\n", __FILE__, __LINE__, ciphered_data_len, b64_len);
+  auth_decipher(b64, b64_len, plain_txt, &plain_txt_len, tag);
+  fprintf(stderr, "\n%s:%d Plain txt \n%s len %d\n", __FILE__, __LINE__, plain_txt, plain_txt_len);
 
   memset((void *)data, 0, data_size);
 
@@ -381,15 +382,32 @@ int32_t auth_uses(uint8_t *uses_otp,
   return(0);
 }/*auth_uses*/
 
-int32_t auth_decipher(uint8_t *ciphered_txt, 
-                      int32_t ciphered_txt_len, 
+int32_t auth_decipher(uint8_t *b64, 
+                      int32_t b64_len, 
                       uint8_t *plain_txt, 
                       int32_t *plain_txt_len,
                       uint8_t *tag) {
  
   int32_t tmp_len = 0;
+  uint8_t ci_txt[1024];
+  uint32_t ci_len = 0;
   auth_ctx_t *pAuthCtx = &auth_ctx_g;
   EVP_CIPHER_CTX *x;
+  uint8_t iv[20];
+  uint8_t aad[20];
+  uint8_t tmp_tag[20];
+
+  memset((void *)tmp_tag, 0, sizeof(tmp_tag));
+  memset((void *)iv, 0, sizeof(iv));
+  memset((void *)aad, 0, sizeof(aad));
+  memset((void *)ci_txt, 0, sizeof(ci_txt));
+
+  util_base64_decode_ex(b64, b64_len, ci_txt, &ci_len);
+
+  strncpy(iv, &ci_txt[ci_len - 12], 12);
+  strncpy(aad, &ci_txt[ci_len - 16], 16);
+  memcpy(tmp_tag, &ci_txt[ci_len - (16 + strlen(pAuthCtx->ts))], 16);
+  fprintf(stderr, "\n%s:%d iv %s aad %s\n", __FILE__, __LINE__, iv, aad);
 
   x = EVP_CIPHER_CTX_new();
 
@@ -406,26 +424,26 @@ int32_t auth_decipher(uint8_t *ciphered_txt,
   }
 
   /* Now we can set key and IV */
-  if(!EVP_DecryptInit_ex(x, NULL, NULL, pAuthCtx->session_key, pAuthCtx->iv)) {
+  if(!EVP_DecryptInit_ex(x, NULL, NULL, pAuthCtx->session_key, iv)) {
     fprintf(stderr, "\n%s:%d Setting of keys and iv failed \n", __FILE__, __LINE__);
     EVP_CIPHER_CTX_free(x);
     return(-2);
   }
 
-  if(!EVP_DecryptUpdate(x, NULL, &tmp_len, pAuthCtx->aad, 16)) {
+  if(!EVP_DecryptUpdate(x, NULL, &tmp_len, aad, 16)) {
     fprintf(stderr, "\n%s:%d Setting of aad failed \n", __FILE__, __LINE__);
     EVP_CIPHER_CTX_free(x);
     return(-2);
   }
 
-  if(!EVP_DecryptUpdate(x, plain_txt, plain_txt_len, ciphered_txt, (ciphered_txt_len - (16 + 19)))) {
+  if(!EVP_DecryptUpdate(x, plain_txt, plain_txt_len, ci_txt, (ci_len - (16 + 19)))) {
     /* Error */
     fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
     EVP_CIPHER_CTX_free(x);
     return 0;
   }
 
-  if(!EVP_CIPHER_CTX_ctrl(x, EVP_CTRL_GCM_SET_TAG, 16, tag)) {
+  if(!EVP_CIPHER_CTX_ctrl(x, EVP_CTRL_GCM_SET_TAG, 16, tmp_tag)) {
     fprintf(stderr, "\n%s:%d SET TAG Failed \n", __FILE__, __LINE__);
     EVP_CIPHER_CTX_free(x);
     return 0;
@@ -444,10 +462,10 @@ int32_t auth_decipher(uint8_t *ciphered_txt,
   return(0); 
 }/*auth_decipher*/
 
-int auth_cipher_ex(uint8_t *data, 
-                   uint16_t data_len, 
-                   uint8_t *ciphered_data, 
-                   int32_t *ciphered_data_len) {
+int auth_cipher_ecb(uint8_t *data, 
+                    uint16_t data_len, 
+                    uint8_t *ciphered_data, 
+                    int32_t *ciphered_data_len) {
   int32_t tmp_len = 0;
   auth_ctx_t *pAuthCtx = &auth_ctx_g;
   EVP_CIPHER_CTX *x;
@@ -515,11 +533,13 @@ int auth_cipher_ex(uint8_t *data,
   if(1 != EVP_EncryptUpdate(x, ciphered_data, ciphered_data_len, data, data_len)) {
     /* Error */
     EVP_CIPHER_CTX_free(x);
+    fprintf(stderr, "\n%s:%d Error", __FILE__, __LINE__);
     return 0;
   }
 
   if(1 != EVP_EncryptFinal_ex(x, (ciphered_data + *ciphered_data_len), &tmp_len)) {
     /* Error */
+    fprintf(stderr, "\n%s:%d Error", __FILE__, __LINE__);
     EVP_CIPHER_CTX_free(x);
     return 0;
   }
@@ -529,7 +549,7 @@ int auth_cipher_ex(uint8_t *data,
   EVP_CIPHER_CTX_free(x);
   return(0); 
 
-}/*auth_cipher_ex*/
+}/*auth_cipher_ecb*/
 
 /**
  * @brief This function is to cipher the plain text by using
@@ -544,11 +564,11 @@ int auth_cipher_ex(uint8_t *data,
  *
  * @return upon success it returns 0 else less than zero.
  */
-int32_t auth_cipher(uint8_t *data, 
-                    uint16_t data_len, 
-                    uint8_t *ciphered_data, 
-                    int32_t *ciphered_data_len, 
-                    uint8_t *tag) {
+int32_t auth_cipher_gcm(uint8_t *data, 
+                        uint16_t data_len, 
+                        uint8_t *ciphered_data, 
+                        int32_t *ciphered_data_len, 
+                        uint8_t *tag) {
  
   int32_t tmp_len = 0;
   auth_ctx_t *pAuthCtx = &auth_ctx_g;
@@ -641,7 +661,7 @@ int32_t auth_cipher(uint8_t *data,
 
   /*Data is encrypted successfully*/
   return(0); 
-}/*auth_cipher*/
+}/*auth_cipher_gcm*/
 
 int32_t auth_hmac(uint8_t *hmac,
                   uint16_t hmac_size,
@@ -666,9 +686,9 @@ int32_t auth_hmac(uint8_t *hmac,
 
   memset((void *)tag, 0, sizeof(tag));
   memset((void *)ciphered_data, 0, sizeof(ciphered_data));
-  auth_cipher(digest256, 32, ciphered_data, &ciphered_data_len, tag);
+  auth_cipher_gcm(digest256, 32, ciphered_data, &ciphered_data_len, tag);
 
-  //auth_cipher_ex(digest256, 32, ciphered_data, &ciphered_data_len);
+  //auth_cipher_ecb(digest256, 32, ciphered_data, &ciphered_data_len);
   fprintf(stderr, "\n%s:%d ciphered data len HMAC %d\n", __FILE__, __LINE__, ciphered_data_len);
   memset((void *)b64_hmac, 0, sizeof(b64_hmac));
   util_base64(ciphered_data, ciphered_data_len, b64_hmac, &b64_hmac_len);
@@ -721,12 +741,29 @@ int32_t auth_skey(uint8_t *b64_skey, uint16_t b64_skey_size) {
 
   fp = fopen(pAuthCtx->public_key, "r");
   assert(fp != NULL);
-  x509 = X509_new();
-  PEM_read_X509(fp, &x509, NULL, NULL);
+  //x509 = X509_new();
+  //PEM_read_X509(fp, &x509, NULL, NULL);
+  x509 = PEM_read_X509(fp, NULL, 0, NULL);
   assert(x509 != NULL);
   pkey = X509_get_pubkey(x509);
   fclose(fp);
 
+  rsa = EVP_PKEY_get1_RSA(pkey);
+  assert(rsa != NULL);
+
+#if 0
+  FILE *ffp = NULL;
+  ffp = fopen("nnnn.pem", "w");
+  PEM_write_PUBKEY(ffp, pkey);
+  fclose(ffp);
+
+  rsa = EVP_PKEY_get1_RSA(pkey);
+  assert(rsa != NULL);
+  FILE *ffp = NULL;
+  ffp = fopen("RSA", "w");
+  PEM_write_RSA_PUBKEY(ffp, rsa);
+  fclose(ffp);
+#endif
   /*Retrieve Certificate Expiry date*/
   expiry_date = X509_get_notAfter(x509);
 
@@ -776,18 +813,22 @@ int32_t auth_skey(uint8_t *b64_skey, uint16_t b64_skey_size) {
            yyyy,
            idx,
            dd);
-
+#if 0
   rsa = EVP_PKEY_get1_RSA(pkey);
   assert(rsa != NULL);
-
+#endif
   fprintf(stderr, "\n%s:%d RSA_bits %d RSA_size %d RSA_flags %d\n", 
                   __FILE__, __LINE__,
                   RSA_bits(rsa), RSA_size(rsa), RSA_flags(rsa));
 
+#if 0
   ci_txt = (uint8_t *)malloc(RSA_size(rsa));
+#endif
+  ci_txt = (uint8_t *)malloc(sizeof(uint8_t) * 1024);
   assert(ci_txt != NULL);
 
-  memset((void *)ci_txt, 0, RSA_size(rsa));
+  //memset((void *)ci_txt, 0, RSA_size(rsa));
+  memset((void *)ci_txt, 0, sizeof(uint8_t) * 1024);
   /*Encrypt Session key (256-bits) with public key*/
   ci_len = RSA_public_encrypt(32, 
                               pAuthCtx->session_key,

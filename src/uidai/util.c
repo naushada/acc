@@ -156,7 +156,7 @@ int32_t util_base64_decode(uint8_t *data,
   return(0);
 }/*util_base64_decode*/
 
-int32_t util_base64(uint8_t *data,
+int32_t util_base64_ex(uint8_t *data,
                     uint16_t data_len,
                     uint8_t *b64,
                     uint16_t *b64_len) {
@@ -203,9 +203,31 @@ int32_t util_base64(uint8_t *data,
   util_insert_newline(tmp_b64, idx, b64, b64_len);
 
   return(0);
-}/*util_base64*/
+}/*util_base64_ex*/
 
-int32_t util_base64_ex(uint8_t *input, 
+int32_t util_base64_decode_ex(uint8_t *input, 
+                    uint16_t length, 
+                    uint8_t *out_b64, 
+                    uint32_t *b64_len) {
+
+  BIO *bmem, *b64;
+  BUF_MEM *bptr;
+
+  b64 = BIO_new(BIO_f_base64());
+  bmem = BIO_new_mem_buf((void *)input, length);
+  b64 = BIO_push(b64, bmem);
+  BIO_set_flags(bmem, BIO_FLAGS_BASE64_NO_NL);
+  BIO_set_close(bmem, BIO_CLOSE);
+
+  *b64_len = BIO_read(b64, out_b64, strlen(input) /4 *3 + 1);
+  out_b64[*b64_len] = '\0';
+  BIO_free_all(b64);
+
+  return (0);
+}/*util_base64_decode_ex*/
+
+
+int32_t util_base64(uint8_t *input, 
                     uint16_t length, 
                     uint8_t *out_b64, 
                     uint16_t *b64_len) {
@@ -216,16 +238,16 @@ int32_t util_base64_ex(uint8_t *input,
   b64 = BIO_new(BIO_f_base64());
   bmem = BIO_new(BIO_s_mem());
   b64 = BIO_push(b64, bmem);
+  BIO_set_flags(bmem, BIO_FLAGS_BASE64_NO_NL);
+  BIO_set_close(bmem, BIO_CLOSE);
   BIO_write(b64, input, length);
   BIO_flush(b64);
   BIO_get_mem_ptr(b64, &bptr);
 
-  memcpy(out_b64, bptr->data, bptr->length-1);
-  //out_b64[bptr->length-1] = 0;
-  out_b64[bptr->length] = 0;
-
-  BIO_free_all(b64);
+  memcpy(out_b64, bptr->data, bptr->length);
   *b64_len = bptr->length;
+  out_b64[*b64_len] = '\0';
+  BIO_free_all(b64);
 
   return (0);
 }/*util_base64*/

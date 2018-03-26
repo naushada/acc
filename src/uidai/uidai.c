@@ -165,21 +165,7 @@ int32_t uidai_parse_uidai_rsp(int32_t conn_fd,
   token_ptr = strtok(tmp_ptr, " ");
   /*Start of the response*/
   while((token_ptr = strtok(NULL, " "))) {
-    //memset((void *)attr_name, 0, sizeof(attr_name));
-    //memset((void *)attr_value, 0, sizeof(attr_value));
-    //sscanf(token_ptr, "%[^=]=", attr_name);
-#if 0
-    if(!strncmp(attr_name, "info", 4)) {
-      /*bypass the execution of following statement*/
-      continue;
-    }
-#endif
-    //memset((void *)attr_name, 0, sizeof(attr_name));
-    //sscanf((const char *)token_ptr, "%[^=]=%s", attr_name, attr_value);
-
-    //strncpy((char *)param[idx][0], attr_name, strlen((const char *)attr_name));
-    //strncpy((char *)param[idx][1], attr_value, strlen((const char *)attr_value));
-    strncpy(param[idx], token_ptr, sizeof(param[idx])); 
+   strncpy(param[idx], token_ptr, sizeof(param[idx])); 
     idx++; 
   }
 

@@ -75,11 +75,11 @@ int32_t auth_uses(uint8_t *uses_otp,
                   uint16_t c14n_size,
                   uint8_t *pid_uses_opt);
 
-int32_t auth_cipher(uint8_t *data, 
-                    uint16_t data_len, 
-                    uint8_t *ciphered_data, 
-                    int32_t *ciphered_data_len,
-                    uint8_t *tag);
+int32_t auth_cipher_gcm(uint8_t *data, 
+                        uint16_t data_len, 
+                        uint8_t *ciphered_data, 
+                        int32_t *ciphered_data_len,
+                        uint8_t *tag);
 
 int32_t auth_hmac(uint8_t *hmac, 
                   uint16_t hmac_size, 
@@ -132,10 +132,10 @@ int32_t auth_decipher(uint8_t *ciphered_txt,
                       int32_t *plain_txt_len,
                       uint8_t *tag);
 
-int32_t auth_cipher_ex(uint8_t *data, 
-                       uint16_t data_len, 
-                       uint8_t *ciphered_data, 
-                       int32_t *ciphered_data_len);
+int32_t auth_cipher_ecb(uint8_t *data, 
+                        uint16_t data_len, 
+                        uint8_t *ciphered_data, 
+                        int32_t *ciphered_data_len);
 
 int32_t auth_process_auth_pi_req(int32_t conn_fd, 
                                  uint8_t *req_ptr,
