@@ -156,7 +156,7 @@ int32_t util_base64_decode(uint8_t *data,
   return(0);
 }/*util_base64_decode*/
 
-int32_t util_base64_ex(uint8_t *data,
+int32_t util_base64(uint8_t *data,
                     uint16_t data_len,
                     uint8_t *b64,
                     uint16_t *b64_len) {
@@ -203,7 +203,7 @@ int32_t util_base64_ex(uint8_t *data,
   util_insert_newline(tmp_b64, idx, b64, b64_len);
 
   return(0);
-}/*util_base64_ex*/
+}/*util_base64*/
 
 int32_t util_base64_decode_ex(uint8_t *input, 
                     uint16_t length, 
@@ -227,7 +227,7 @@ int32_t util_base64_decode_ex(uint8_t *input,
 }/*util_base64_decode_ex*/
 
 
-int32_t util_base64(uint8_t *input, 
+int32_t util_base64_ex(uint8_t *input, 
                     uint16_t length, 
                     uint8_t *out_b64, 
                     uint16_t *b64_len) {
@@ -250,7 +250,7 @@ int32_t util_base64(uint8_t *input,
   BIO_free_all(b64);
 
   return (0);
-}/*util_base64*/
+}/*util_base64_ex*/
 
 
 int32_t util_compute_digest(uint8_t *xml, 

@@ -94,7 +94,7 @@ int32_t http_process_google_access_token_req(uint32_t conn_id,
                      "&ip=",
                      ip_str,
                      " HTTP/1.1\r\n",
-                     "Connection: Keep-Alive\r\n",
+                     "Connection: Keep-alive\r\n",
                      "Content-Length: 0\r\n");
 
   fprintf(stderr, "\n%s:%d Access Token Request %s\n", __FILE__, __LINE__, req);
@@ -169,7 +169,7 @@ int32_t http_process_google_ui_req(uint32_t conn_id,
                      "&ip=",
                      ip_str,
                      " HTTP/1.1\r\n",
-                     "Connection: Keep-Alive\r\n",
+                     "Connection: Keep-alive\r\n",
                      "Content-Length: 0\r\n");
 
   fprintf(stderr, "\n%s:%d Auth gmail %s\n", __FILE__, __LINE__, req);
@@ -236,7 +236,7 @@ int32_t http_build_aadhaar_auth_pi_req(uint32_t conn_id, uint8_t *req, uint32_t 
           "&ip=",
           ip_str,
           " HTTP/1.1\r\n",
-          "Connection: Keep-Alive\r\n",
+          "Connection: Keep-alive\r\n",
           "Content-Length: 0\r\n");
 
   *req_len = strlen(req);
@@ -499,7 +499,7 @@ int32_t http_process_login_rsp(uint8_t *packet_ptr, uint32_t packet_length) {
              "Location: http://adam.balaagh.com:3990\r\n",
              "Host: adam.balaagh.com\r\n",
              "Content-Type: text/html\r\n",
-             "Connection: Keep-Alive\r\n",
+             "Connection: Keep-alive\r\n",
              "Content-Length: ",
              rsp_len,
              "\r\n",
@@ -1146,7 +1146,7 @@ int32_t http_parse_req(uint32_t conn_id,
     }
   }
 
-  session->mime_header_count = idx - 1;
+  session->mime_header_count = idx;
 
   free(tmp_ptr);
   tmp_ptr = NULL;
@@ -1188,7 +1188,7 @@ int32_t http_process_image_req(uint32_t conn_id,
                        "Content-Length: ",
                        (int32_t)statbuff.st_size,
                        "\r\n",
-                       "Connection: Keep-Alive\r\n",
+                       "Connection: Keep-alive\r\n",
                        "\r\n");
 
     (*response_ptr) = (uint8_t *)malloc(statbuff.st_size + tmp_len);
@@ -1240,7 +1240,7 @@ int32_t http_process_favicon_req(uint32_t conn_id,
                        "Content-Length: ",
                        (int32_t)statbuff.st_size,
                        "\r\n",
-                       "Connection: Keep-Alive\r\n",
+                       "Connection: Keep-alive\r\n",
                        "\r\n");
 
     (*response_ptr) = (uint8_t *)malloc(statbuff.st_size + tmp_len);
@@ -1302,7 +1302,7 @@ int32_t http_process_wait_req(uint32_t conn_id,
                  "%s",
                  "HTTP/1.1 200 OK\r\n",
                  "Content-Type: text/html\r\n",
-                 "Connection: Keep-Alive\r\n",
+                 "Connection: Keep-alive\r\n",
                  "Content-Length: ",
                  html_body_len,
                  "\r\n\r\n");
@@ -1352,7 +1352,7 @@ int32_t http_process_auth_failed_req(uint32_t conn_id,
                  "%s",
                  "HTTP/1.1 200 OK\r\n",
                  "Content-Type: text/html\r\n",
-                 "Connection: Keep-Alive\r\n",
+                 "Connection: Keep-alive\r\n",
                  "Content-Length: ",
                  html_body_len,
                  "\r\n\r\n");
@@ -1406,7 +1406,7 @@ int32_t http_build_aadhaar_auth_otp_req(uint32_t conn_id, uint8_t *req, uint32_t
           "&ip=",
           ip_str,
           " HTTP/1.1\r\n",
-          "Connection: Keep-Alive\r\n",
+          "Connection: Keep-alive\r\n",
           "Content-Length: 0\r\n");
 
   *req_len = strlen(req);
@@ -1582,7 +1582,7 @@ int32_t http_build_otp_in_form(uint8_t **response_ptr,
                  "%s",
                  "HTTP/1.1 200 OK\r\n",
                  "Content-Type: text/html\r\n",
-                 "Connection: Keep-Alive\r\n",
+                 "Connection: Keep-alive\r\n",
                  "Content-Length: ",
                  html_body_len,
                  "\r\n\r\n");
@@ -1652,7 +1652,7 @@ int32_t http_process_aadhaar_ui_req(uint32_t conn_id,
                  "%s",
                  "HTTP/1.1 200 OK\r\n",
                  "Content-Type: text/html\r\n",
-                 "Connection: Keep-Alive\r\n",
+                 "Connection: Keep-alive\r\n",
                  "Content-Length: ",
                  html_body_len,
                  "\r\n\r\n");
@@ -1716,7 +1716,7 @@ int32_t http_process_ui_req(uint32_t conn_id,
                  "%s",
                  "HTTP/1.1 200 OK\r\n",
                  "Content-Type: text/html\r\n",
-                 "Connection: Keep-Alive\r\n",
+                 "Connection: Keep-alive\r\n",
                  "Content-Length: ",
                  html_body_len,
                  "\r\n\r\n");
@@ -1814,7 +1814,7 @@ int32_t http_process_sign_in_req(uint32_t conn_id,
            "&conn_id=",
            conn_id,
            " HTTP/1.1\r\n",
-           "Connection: Keep-Alive\r\n",
+           "Connection: Keep-alive\r\n",
            "Content-Length: 0\r\n");
 
   free(pwd_ptr);
@@ -1858,7 +1858,7 @@ int32_t http_process_redirect_req(uint32_t conn_id,
                             "%s%s%s%s%s"
                             "%s",
                             "HTTP/1.1 302 Moved Temporarily\r\n",
-                            "Connection: Keep-Alive\r\n",
+                            "Connection: Keep-alive\r\n",
                             /*"Connection: close\r\n",*/
                             "Location: ",
                             location_uri,

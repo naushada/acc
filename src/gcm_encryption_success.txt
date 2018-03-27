@@ -1,0 +1,20 @@
+602
+<?xml version="1.0" encoding="UTF-8"?><AuthRes code="3db82daf10b041d9919617c8bce1d1b1" err="520" info="03{0100068KLL4zXaw+XaQBwbzwY+FHn66NtIDu90vS3UottSL9aDa9KbYszRWfpoG0YeyIrSI,afcf0154c7b08ae95cbf82dc6c4a23f3c9cc281bf9ff6408d9af9a3f38a367e6,0180000000000010,2.0,20180327184024,0,0,0,0,2.0,20ef0f0c8d0eea98772412cea9b3b92612e3e53cb5e59152b5703165f56e8a53,efa1f375d76194fa51a3556a97e641e61685f914d446979da50a551a4333ffd7,efa1f375d76194fa51a3556a97e641e61685f914d446979da50a551a4333ffd7,23,E,100,NA,NA,NA,NA,NA,NA,NA,public,NA,NA,NA,NA,NA,NA}" ret="n" ts="2018-03-27T18:40:24.528+05:30" txn="18-23-25-999999990019-SampleClient"><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/></Transforms><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><DigestValue>DiycL3sdCGFtNnwCLwxj5bqNmJjMkqsC8Kz/uagx5+0=</DigestValue></Reference></SignedInfo><SignatureValue>Ne0hRCBudwRVUSYIflZdauQV/Lu8E/I+g6fMaM3acF0lXP/tJaGadOLI/IsGMLZxG1CC+ToEccyP
+unxh6Gq7zWOlqzhhYsyUZtQThrLNVDJxal+bC8Cn49F7SxKVDUG+yCAQGJ3Epasobt1mHUNmLHFT
+ETuPGp7udNNjhN2oPkXti/MEwChPDW2NIPU2S2JnHigVzMQTgGd7SlpwsZXOLillORTQLCA6hs2t
+sYtFaR6YK5mAidrWZiY9rEf7Lgc6TqKADycp3NZC/dbahJfOxwJJoJncP6Q5uwL6STEt7zI22+pz
+kjDiFvnxAWn9Xctr86rZQZ8weJ6EVRCE0scrSA==</SignatureValue></Signature></AuthRes>
+0
+
+
+##############################################################################################
+
+608
+<?xml version="1.0" encoding="UTF-8"?><AuthRes actn="A202" code="b24c2379470641b7a357b2fa6f5538ca" err="998" info="03{0100068KLL4zXaw+XaQBwbzwY+FHn66NtIDu90vS3UottSL9aDa9KbYszRWfpoG0YeyIrSI,afcf0154c7b08ae95cbf82dc6c4a23f3c9cc281bf9ff6408d9af9a3f38a367e6,0180000000000010,2.0,20180327190120,0,0,0,0,2.0,20ef0f0c8d0eea98772412cea9b3b92612e3e53cb5e59152b5703165f56e8a53,efa1f375d76194fa51a3556a97e641e61685f914d446979da50a551a4333ffd7,efa1f375d76194fa51a3556a97e641e61685f914d446979da50a551a4333ffd7,23,E,100,NA,NA,NA,NA,NA,NA,NA,,NA,NA,NA,NA,NA,NA}" ret="n" ts="2018-03-27T19:01:20.708+05:30" txn="17-22-24-999999990019-SampleClient"><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/></Transforms><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><DigestValue>ylzXJBL20WEtOxycgPsvHKBauyyen8uT60Njnjrz9i0=</DigestValue></Reference></SignedInfo><SignatureValue>anI/C7SizMW6FjPpyMQCr5PfMBvPVNtPhqzhszF7SMortaktyTuBj3OSE1+bVWNr2MFyibhU7qa3
+0Shkiek+O0SVBmtbMXuMTpGMPG9KSgqtdvf/CGXUs86kfBLHGksIvmaRnjZtYhKqAok8/eXBce3Q
+wBKG38KqSIVv2YFLZOwi8bJ4yzI1oW68x0g94MFl5STxG0+DU63Q9wL8ZC6WLpC5FPgPYPqz7SpP
+XiZU38ZLb05iBOMT/CtW+3O82HZyjwRnXMarNqWR2cQ9jIESWm5RLOEqjsn7+aIkjPh20WU0kpoB
+h8KeSEQrRQUmjnoOd207XJnENqmBLHAqqDyWcg==</SignatureValue></Signature></AuthRes>
+0
+
+

@@ -543,9 +543,8 @@ int32_t redir_process_uidai_response(uint32_t conn_id,
     max_idx = 5;
     pArr[5] = redir_get_param(packet_ptr, "actn"); 
     if(pArr[5]) {
-      strcat(rsp_ptr, "&actn=");
-      strcat(rsp_ptr, pArr[5]);
       max_idx += 1;
+      rsp_len += sprintf(&rsp_ptr[rsp_len], "&actn=%s", pArr[5]);
     }
   }
 
@@ -1283,7 +1282,7 @@ int32_t redir_parse_req(uint32_t conn_id,
     }
   }
 
-  session->mime_header_count = mime_idx - 1;
+  session->mime_header_count = mime_idx;
   free(tmp_ptr);
  
   return(0);  
@@ -1347,6 +1346,8 @@ int32_t redir_process_redirect_req(uint32_t conn_id,
     fprintf(stderr, "\n%s:%d Host Header not found in mime header\n", 
                      __FILE__, 
                      __LINE__);
+    free(referer_ptr);
+    referer_ptr = NULL;
     return(-3);
   }
 

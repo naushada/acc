@@ -24,6 +24,7 @@ INSERT INTO acc_dns (host_name, host_ip) values ('accounts.google.com', '');
 INSERT INTO acc_dns (host_name, host_ip) values ('googleapis.com', '');
 
 CREATE TABLE IF NOT EXISTS acc_stats (ip TEXT, mac TEXT, in_time TEXT, out_time TEXT, status TEXT, id TEXT, name TEXT);
+CREATE TABLE IF NOT EXISTS acc_oauth2_stats (id_token TEXT, in_time TEXT);
 
 
 INSERT INTO dhcp_conf_table (interface_name, ip_address, CIDR, host_name, network_id, host_id_start, host_id_end) VALUES ('eth0', '10.100.16.1', '20', '', '10.100.16', '2', '');

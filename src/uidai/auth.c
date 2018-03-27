@@ -18,7 +18,7 @@ int32_t auth_process_rsp(uint8_t *req_ptr,
   uint8_t uam_conn[8];
   uint8_t redir_conn[8];
   uint8_t uid[14];
-  uint8_t status[64];
+  uint8_t status[256];
   uint32_t rsp_size = 512;
 
   /*Initialize the auto variables*/
@@ -45,6 +45,9 @@ int32_t auth_process_rsp(uint8_t *req_ptr,
     strncpy(status, "&status=success", sizeof(status));
   } else {
     uint8_t err_str[16];
+    uint8_t *actn_ptr = NULL;
+    uint8_t status_str[16];
+
     err_ptr = uidai_get_rparam(req_ptr, "err");
     assert(err_ptr != NULL);
    
@@ -58,6 +61,16 @@ int32_t auth_process_rsp(uint8_t *req_ptr,
              "%s%s",
              "&status=failed&reason=", 
              err_str);
+
+    actn_ptr = uidai_get_rparam(req_ptr, "actn");
+
+    if(actn_ptr) {
+      memset((void *)status_str, 0, sizeof(status_str));
+      /*lop off the double quotes*/
+      sscanf(actn_ptr, "\"%[^\"]\"", status_str);
+      sprintf(&status[strlen(status)], "&actn=%s", status_str); 
+      free(actn_ptr);
+    }
   }
 
   /*Build final response*/
@@ -235,7 +248,8 @@ int32_t auth_init(const uint8_t *ac,
   strncpy(pAuthCtx->version, "2.0", 3);
   strncpy(pAuthCtx->rc, "Y", 1);
   strncpy(pAuthCtx->uidai_host_name, host_name, strlen(host_name));
-  strncpy(pAuthCtx->tid, "public", 6);
+  //strncpy(pAuthCtx->tid, "public", 6);
+  memset(pAuthCtx->tid, 0, sizeof(pAuthCtx->tid));
   strncpy(pAuthCtx->txn, "DemoClient", 10);
   memset((void *)pAuthCtx->iv, 0, sizeof(pAuthCtx->iv));
   memset((void *)pAuthCtx->aad, 0, sizeof(pAuthCtx->aad));
@@ -315,7 +329,8 @@ int32_t auth_data(uint8_t *data, uint16_t data_size, uint8_t *pid_xml) {
                   strlen(pid_xml), 
                   ciphered_data, 
                   &ciphered_data_len,
-                  tag);
+                  tag,
+                  0/*is_hmac*/);
 #if 0
   auth_cipher_ecb(pid_xml, 
                  strlen(pid_xml), 
@@ -327,11 +342,11 @@ int32_t auth_data(uint8_t *data, uint16_t data_size, uint8_t *pid_xml) {
 
   memset((void *)b64, 0, sizeof(b64));
   util_base64(ciphered_data, ciphered_data_len, b64, &b64_len);
-
+#if 0
   fprintf(stderr, "\n%s:%d ciphered data len %d b64_len %d\n", __FILE__, __LINE__, ciphered_data_len, b64_len);
   auth_decipher(b64, b64_len, plain_txt, &plain_txt_len, tag);
   fprintf(stderr, "\n%s:%d Plain txt \n%s len %d\n", __FILE__, __LINE__, plain_txt, plain_txt_len);
-
+#endif
   memset((void *)data, 0, data_size);
 
   snprintf(data,
@@ -568,7 +583,8 @@ int32_t auth_cipher_gcm(uint8_t *data,
                         uint16_t data_len, 
                         uint8_t *ciphered_data, 
                         int32_t *ciphered_data_len, 
-                        uint8_t *tag) {
+                        uint8_t *tag,
+                        uint8_t is_hmac) {
  
   int32_t tmp_len = 0;
   auth_ctx_t *pAuthCtx = &auth_ctx_g;
@@ -649,10 +665,18 @@ int32_t auth_cipher_gcm(uint8_t *data,
 
   memcpy((void *)&ci_text[offset], tag, 16); 
   offset += 16;
-  
-  memcpy((void *)&ci_text[offset], pAuthCtx->ts, strlen(pAuthCtx->ts));
-  offset += strlen(pAuthCtx->ts);
-  memcpy((void *)ciphered_data, ci_text, offset);
+ 
+  if(!is_hmac) { 
+    /*pre-pend ts to the encrypted text*/
+    memcpy((void *)ciphered_data, pAuthCtx->ts, strlen(pAuthCtx->ts));
+    memcpy((void *)&ciphered_data[strlen(pAuthCtx->ts)], ci_text, offset);
+    offset += strlen(pAuthCtx->ts);
+
+  } else {
+    /*Do not prepend the ts*/
+    memcpy((void *)ciphered_data, ci_text, offset);
+  }
+
   *ciphered_data_len = offset;
 
   EVP_CIPHER_CTX_reset(x);
@@ -675,7 +699,6 @@ int32_t auth_hmac(uint8_t *hmac,
   uint8_t tag[16];
   
   auth_ctx_t *pAuthCtx = &auth_ctx_g;
-  EVP_CIPHER_CTX *x;
   SHA256_CTX ctx;
 
   memset((void *)digest256, 0, sizeof(digest256));
@@ -686,7 +709,7 @@ int32_t auth_hmac(uint8_t *hmac,
 
   memset((void *)tag, 0, sizeof(tag));
   memset((void *)ciphered_data, 0, sizeof(ciphered_data));
-  auth_cipher_gcm(digest256, 32, ciphered_data, &ciphered_data_len, tag);
+  auth_cipher_gcm(digest256, 32, ciphered_data, &ciphered_data_len, tag, 1/*is_hmac*/);
 
   //auth_cipher_ecb(digest256, 32, ciphered_data, &ciphered_data_len);
   fprintf(stderr, "\n%s:%d ciphered data len HMAC %d\n", __FILE__, __LINE__, ciphered_data_len);

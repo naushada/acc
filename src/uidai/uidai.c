@@ -18,7 +18,7 @@ uint8_t *uidai_get_rparam(uint8_t *req_ptr,
   uint8_t *param_value = NULL;
   uint8_t idx = 0;
   uint8_t flag = 0;
-  uint8_t (*param_ptr)[255] = (uint8_t (*)[255])req_ptr;
+  uint8_t (*param_ptr)[1024] = (uint8_t (*)[1024])req_ptr;
 
   memset((void *)param_name, 0, sizeof(param_name));
   param_value = (uint8_t *)malloc(sizeof(uint8_t) * 1024);
@@ -148,7 +148,7 @@ int32_t uidai_parse_uidai_rsp(int32_t conn_fd,
   uint8_t attr_value[512];
   uint32_t idx = 0;
   /*number of columns can be modified internally if need be*/
-  uint8_t (*param)[255] = (uint8_t (*)[255])param_ptr;
+  uint8_t (*param)[1024] = (uint8_t (*)[1024])param_ptr;
 
   memset((void *)first_line, 0, sizeof(first_line));
 
@@ -254,9 +254,9 @@ int32_t uidai_process_uidai_rsp(int32_t conn_fd,
       sscanf((const char *)hex_str, "%x", &chunked_len);
 
       /*Allocate memory for param_ptr*/
-      param_ptr = (uint8_t *)malloc(sizeof(uint8_t) * 16/*rows*/ * 255/*columns*/);
+      param_ptr = (uint8_t *)malloc(sizeof(uint8_t) * 16/*rows*/ * 1024/*columns*/);
       assert(param_ptr != NULL);
-      memset((void *)param_ptr, 0, (sizeof(uint8_t) * 16 * 255));
+      memset((void *)param_ptr, 0, (sizeof(uint8_t) * 16 * 1024));
 
       /*Parse the first chunked and store them in param*/
       uidai_parse_uidai_rsp(conn_fd, 
@@ -266,7 +266,7 @@ int32_t uidai_process_uidai_rsp(int32_t conn_fd,
                             param_ptr);
 
       for(offset = 0; param_ptr[offset]; offset++) {
-        fprintf(stderr, "\n%s:%d Array %s\n",__FILE__, __LINE__, (param_ptr + (offset * 255)));
+        fprintf(stderr, "\n%s:%d Array %s\n",__FILE__, __LINE__, (param_ptr + (offset * 1024)));
       }
 
       /*Prepare Response*/

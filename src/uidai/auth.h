@@ -79,7 +79,8 @@ int32_t auth_cipher_gcm(uint8_t *data,
                         uint16_t data_len, 
                         uint8_t *ciphered_data, 
                         int32_t *ciphered_data_len,
-                        uint8_t *tag);
+                        uint8_t *tag,
+                        uint8_t is_hmac);
 
 int32_t auth_hmac(uint8_t *hmac, 
                   uint16_t hmac_size, 
