@@ -25,7 +25,7 @@ uint8_t *uidai_get_rparam(uint8_t *req_ptr,
   assert(param_value != NULL);
   memset((void *)param_value, 0, (sizeof(uint8_t) * 1024));
   
-  while(param_ptr[idx]) {
+  while('\0' != param_ptr[idx][0]) {
     sscanf(param_ptr[idx], "%[^=]=%s", param_name, param_value);
     if(!strncmp(param_name, p_name, sizeof(param_name))) {
       flag = 1;

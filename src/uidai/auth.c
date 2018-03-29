@@ -130,11 +130,7 @@ int32_t auth_symmetric_keys(uint8_t *out_ptr, uint32_t out_len) {
   int32_t rc;
   FILE *oFp = NULL;
 
-  fp = fopen("/dev/random", "rb");
-
-  #if 0
-  fp = fopen("skey_file", "rb");
-  #endif
+  fp = fopen("/dev/urandom", "rb");
 
   if(!fp) {
     fprintf(stderr, "\n%s:%d opening of device file failed\n", __FILE__, __LINE__);
@@ -154,11 +150,6 @@ int32_t auth_symmetric_keys(uint8_t *out_ptr, uint32_t out_len) {
     fprintf(stderr, "%.2x ", out_ptr[rc]);
   }
 
-#if 0
-  oFp = fopen("skey_file", "wb");
-  rc = fwrite(out_ptr, 1, out_len, oFp);
-  fclose(oFp);
-#endif
   return(0);
 }/*auth_symmetric_keys*/
 
@@ -183,13 +174,7 @@ int32_t auth_compute_ts(uint8_t *ts, uint16_t ts_size) {
            local_time->tm_hour, 
            local_time->tm_min, 
            local_time->tm_sec);
-#if 0
-  fp = fopen("ts_file", "r");
 
-  fread(ts, 1, ts_size, fp);
-  fclose(fp);
-
-#endif
   memset((void *)pAuthCtx->ts, 0, sizeof(pAuthCtx->ts));
   memset((void *)pAuthCtx->iv, 0, sizeof(pAuthCtx->iv));
   memset((void *)pAuthCtx->aad, 0, sizeof(pAuthCtx->aad));
@@ -198,36 +183,6 @@ int32_t auth_compute_ts(uint8_t *ts, uint16_t ts_size) {
   strncpy(pAuthCtx->aad, (const char *)&ts[strlen(ts) - 16], 16);
   strncpy(pAuthCtx->ts, (const char *)ts, sizeof(pAuthCtx->ts));
 
-#if 0
-  uint32_t tmp_len = 0;
-  fprintf(stderr, "\nts %s\n", ts);
-
-  for(tmp_len = 0; tmp_len < strlen(ts); tmp_len++) {
-    fprintf(stderr, "(%.2X %d)", ts[tmp_len], ts[tmp_len]);
-  }
-  fprintf(stderr, "\n");
-  tmp_len = 0;
-  auth_to_char(&ts[strlen(ts) - 12], 12, pAuthCtx->iv, &tmp_len); 
-  fprintf(stderr, "\niv_len %d\n", tmp_len);
-  tmp_len = 0;
-  auth_to_char(&ts[strlen(ts) - 16], 16, pAuthCtx->aad, &tmp_len); 
-  fprintf(stderr, "\naad_len %d\n", tmp_len);
-  tmp_len = 0;
-  auth_to_char(ts, strlen(ts), pAuthCtx->ts, &tmp_len); 
-  fprintf(stderr, "\nts_len %d ts %s aad %s\n", tmp_len, pAuthCtx->ts, pAuthCtx->aad);
-#endif
-  //fprintf(stderr, "\n%s:%d iv %s aad %s ts %s len(ts) %d\n", __FILE__, __LINE__, pAuthCtx->iv, pAuthCtx->aad, ts, strlen(ts)); 
-
-#if 0
-  uint8_t b64[64];
-  uint8_t text[64];
-  uint16_t b64_len;
-  uint32_t text_len;
-  memset((void *)b64, 0, sizeof(b64));
-  util_base64(ts, strlen(ts), b64, &b64_len);
-  memset((void*)text, 0, sizeof(text));
-  util_base64_decode(b64, b64_len, text, &text_len);
-#endif
   return(0);
 }/*auth_compute_ts*/
 
@@ -331,14 +286,6 @@ int32_t auth_data(uint8_t *data, uint16_t data_size, uint8_t *pid_xml) {
                   &ciphered_data_len,
                   tag,
                   0/*is_hmac*/);
-#if 0
-  auth_cipher_ecb(pid_xml, 
-                 strlen(pid_xml), 
-                 ciphered_data, 
-                 &ciphered_data_len);
-
-#endif
-
 
   memset((void *)b64, 0, sizeof(b64));
   util_base64(ciphered_data, ciphered_data_len, b64, &b64_len);
@@ -419,9 +366,12 @@ int32_t auth_decipher(uint8_t *b64,
 
   util_base64_decode_ex(b64, b64_len, ci_txt, &ci_len);
 
-  strncpy(iv, &ci_txt[ci_len - 12], 12);
-  strncpy(aad, &ci_txt[ci_len - 16], 16);
-  memcpy(tmp_tag, &ci_txt[ci_len - (16 + strlen(pAuthCtx->ts))], 16);
+  /*First 19 bytes shall be ts*/
+  strncpy(iv, &ci_txt[strlen(pAuthCtx->ts) - 12], 12);
+  strncpy(aad, &ci_txt[strlen(pAuthCtx->ts) - 16], 16);
+  /*last 16 bytes shall be authentication tag*/
+  memcpy(tmp_tag, &ci_txt[ci_len - 16], 16);
+
   fprintf(stderr, "\n%s:%d iv %s aad %s\n", __FILE__, __LINE__, iv, aad);
 
   x = EVP_CIPHER_CTX_new();
@@ -451,7 +401,7 @@ int32_t auth_decipher(uint8_t *b64,
     return(-2);
   }
 
-  if(!EVP_DecryptUpdate(x, plain_txt, plain_txt_len, ci_txt, (ci_len - (16 + 19)))) {
+  if(!EVP_DecryptUpdate(x, plain_txt, plain_txt_len, &ci_txt[strlen(pAuthCtx->ts)], (ci_len - (16 + strlen(pAuthCtx->ts))))) {
     /* Error */
     fprintf(stderr, "\n%s:%d ERROR!! \n", __FILE__, __LINE__);
     EVP_CIPHER_CTX_free(x);
@@ -1200,7 +1150,7 @@ int32_t auth_req_auth(uint8_t *req_xml,
            pAuthCtx->uidai_host_name,
            "\r\n",
            "Content-Type: text/xml\r\n",
-           "Connection: Keep-Alive\r\n",
+           "Connection: Keep-alive\r\n",
            "Content-Length: ",
            (int32_t)strlen(auth_xml),
            "\r\n",
@@ -1322,6 +1272,7 @@ int32_t auth_process_auth_pi_req(int32_t conn_fd,
                 auth_xml, 
                 uid);
 
+  fprintf(stderr, "\n%s:%d REQ XML is\n%s\n", __FILE__, __LINE__,req_xml);
   free(uid);
   free(ext_conn_ptr);
   free(conn_ptr);

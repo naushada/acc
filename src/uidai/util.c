@@ -521,6 +521,7 @@ int32_t util_compute_rsa_signature(uint8_t *signed_info,
                 *signature_value, 
                 (uint32_t *)signature_len, 
                 pkey);
+
   EVP_MD_CTX_free(ctx);
   EVP_PKEY_free(pkey);
   X509_free(x509);

@@ -1,6 +1,8 @@
 #ifndef __REDIR_H__
 #define __REDIR_H__
 
+#define REDIR_DNS_TABLE "acc_dns"
+
 typedef struct {
   uint8_t *uri;
   uint16_t uri_len;
@@ -160,4 +162,9 @@ int32_t redir_process_login_req(uint32_t conn_id, uint8_t *uri);
 
 int32_t redir_update_stats(uint32_t conn_id, uint8_t *packet_ptr, uint32_t packet_length);
 
+int32_t redir_populate_dns(uint8_t *table_name);
+
+int32_t redir_resolve_dns(uint8_t *host_name);
+
+int32_t redir_update_dns(uint8_t *host_name, uint8_t *ip_str);
 #endif /* __REDIR_H__ */

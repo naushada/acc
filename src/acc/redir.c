@@ -2,6 +2,7 @@
 #define __REDIR_C__
 
 #include <sys/stat.h>
+#include <netdb.h>
 #include <type.h>
 #include <common.h>
 #include <db.h>
@@ -29,11 +30,98 @@ redir_req_handler_t g_handler_redir[] = {
   {NULL,                   0, NULL}
 };
 
+int32_t redir_update_dns(uint8_t *host_name, uint8_t *ip_str) {
+
+  uint8_t sql_query[128];
+  
+  memset((void *)sql_query, 0, sizeof(sql_query));
+  snprintf(sql_query,
+            sizeof(sql_query),
+            "%s%s%s%s%s"
+            "%s%s",
+            "UPDATE ",
+            REDIR_DNS_TABLE,
+            " SET host_ip=\'",
+            ip_str,
+            "\' WHERE host_name=\'",
+            host_name,
+            "\'");
+  
+  if(db_exec_query(sql_query)) {
+    fprintf(stderr, "\n%s:%d Execution of DB query failed\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  return(0);
+}/*redir_update_dns*/
+
+int32_t redir_resolve_dns(uint8_t *host_name) {
+
+  uint8_t ip_str[32];
+  struct hostent *he;
+  struct in_addr **addr_list;
+  uint32_t i;
+  /**/
+  memset((void *)ip_str, 0, sizeof(ip_str));
+  if((he = gethostbyname(host_name))) {
+    addr_list = (struct in_addr **) he->h_addr_list;
+
+    for(i = 0; addr_list[i] != NULL; i++) {
+      strcpy(ip_str ,inet_ntoa(*addr_list[i]));
+      fprintf(stderr, "\n%s:%d ip address %s\n", __FILE__, __LINE__, ip_str);
+      redir_update_dns(host_name, ip_str);
+      break;
+    }
+
+  } else {
+    return(1);
+  }
+
+  return(0); 
+}/*redir_resolve_dns*/
+
+int32_t redir_populate_dns(uint8_t *table_name) {
+  uint8_t sql_query[32];
+  int32_t ret = -1;
+  int32_t row;
+  int32_t col;
+  uint8_t idx = 0;
+  uint8_t record[8][16][32];
+
+  memset((void *)sql_query, 0, sizeof(sql_query));
+  snprintf(sql_query,
+           sizeof(sql_query),
+           "%s%s",
+           "SELECT * FROM ",
+           table_name);
+
+  if(!db_exec_query(sql_query)) {
+    memset((void *)record, 0, sizeof(record));
+    row = 0, col = 0;
+    if(!db_process_query_result(&row, &col, (uint8_t (*)[16][32])record)) {
+      if(row) {
+        for(idx = 0; idx < row; idx++) {
+          if(redir_resolve_dns(record[idx][0])) {
+            return(1);
+          }
+        }
+      } else {
+        fprintf(stderr, "\n%s:%d No record found %s\n", __FILE__, __LINE__, sql_query);
+        return(2);
+      }
+    }
+  } 
+
+  return(0); 
+}/*redir_populate_dns*/
+
 int32_t redir_send_to_oauth2(uint32_t conn_id, uint8_t *oauth2_req, uint32_t oauth2_len) {
  
  redir_ctx_t *pRedirCtx = &redir_ctx_g;
 
   if(pRedirCtx->oauth2_fd < 0) {
+    /*Populate DNS table for oauth20*/
+    redir_populate_dns(REDIR_DNS_TABLE);
     redir_oauth2_connect(); 
   } 
 
@@ -1201,7 +1289,6 @@ uint32_t redir_get_max_fd(redir_session_t *session) {
 int32_t redir_parse_req(uint32_t conn_id,
                         uint8_t *packet_ptr,
                         uint16_t packet_length) {
-
   uint8_t *line_ptr;
   uint8_t *tmp_ptr = NULL;
   uint16_t idx = 0;
@@ -1332,7 +1419,8 @@ int32_t redir_process_redirect_req(uint32_t conn_id,
                "%s%s%s%d%s"
                "%s%s",
                "http://",
-               ip_str,
+               /*ip_str*/
+               "adam.balaagh.com",
                ":",
                pRedirCtx->uam_port, 
                "/login.html?url=http://",

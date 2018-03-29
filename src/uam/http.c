@@ -1617,7 +1617,7 @@ int32_t http_process_aadhaar_uid_req(uint32_t conn_id,
 int32_t http_process_aadhaar_ui_req(uint32_t conn_id,
                                     uint8_t **response_ptr,
                                     uint32_t *response_len_ptr) {
-  uint8_t html[512];
+  uint8_t html[1024];
   uint32_t html_body_len;
   int32_t ret = -1;
 
@@ -1626,16 +1626,28 @@ int32_t http_process_aadhaar_ui_req(uint32_t conn_id,
   html_body_len = snprintf((char *)html, 
                            sizeof(html),
                            "%s%s%s%s%s"
+                           "%s%s%s%s%s"
+                           "%s%s%s%s%s"
                            "%s%s%s",
                            "<html><head><title></title>",
                            /*For Responsive Web Page*/
-                           "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
-                           "</head>",
-                           "<body><form method=GET action=/aadhaar_uid.html>",
-                           "<center><table><tr><td><input type=text name=aadhaar_no placeholder=\"Enter 12 digits aadhaar\"></td>",
-                           "</tr><tr><td><input type=checkbox name=\"rc\" checked>I agree.</td></tr>",
-                           "<tr><td><input type=submit value=\"Generate OTP\">",
-                           "</td></tr></table></center></form></body></html>");
+                           "<style> .box1 {",
+                           "position:absolute;",
+                           "top: 60%;left: 60%;height:14em;margin-top: -9em;",
+                           "margin-left: -15em;border: none;background-color: #ffffff;}",
+                           "</style></head>",
+                           "<body><div id=aadhaar_pi class=\"box1\">",
+                           "<form method=GET action=/aadhaar_uid.html>",
+                           "<table><tr>",
+                           "<td><input type=text name=id placeholder=\"Provide 12 digits the aadhaar number\"></td>",
+                           "</tr>",
+                           "<tr><td><input type=text name=name placeholder=\"Provide the Name\"></td>",
+                           "</tr><tr>",
+                           "<td><input type=checkbox name=otp value=otp style=\"vertical-align:middle;width:30px\">OTP",
+                           "<input type=checkbox name=rc value=rc style=\"vertical-align:middle;width:30px\">I Agree</td>",
+                           "</tr><tr>",
+                           "<td><input type=button name=sign_in value=\"Generate OTP to sign in\" style=\"height:30px\"></td>",
+                           "</tr></table></form></div></body></html>");
 
   (*response_ptr) = (uint8_t *)malloc(html_body_len + 255/*For Http Header*/);
 
@@ -1673,33 +1685,48 @@ int32_t http_process_ui_req(uint32_t conn_id,
 
   memset((void *)html_body, 0, sizeof(html_body));
 
-  html_body_len = snprintf((char *)html_body, 
+  html_body_len = snprintf((char *)html_body,
                            sizeof(html_body),
                            "%s%s%s%s%s"
                            "%s%s%s%s%s"
                            "%s%s%s%s%s"
-                           "%s%s%s",
-                           "<html><head><title></title>",
-                           /*For Responsive Web Page*/
-                           "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
-                           "</head>",
-                           "<body><center><table cellspacing=0 cellpadding=5>",
-                           "<tr><form method=GET action=/sign_in.html>",
-                           "<td><input type=email name=email_id placeholder=\"E-mail id\"></td>",
-                           "</tr><tr><td><input type=password name=password placeholder=\"Password\"></td>",
-                           "</tr><tr><td><input type=submit value=\"Sign in\">",
-                           "<input type=submit value=\"Register\"></td></tr></form>",
-                           "<tr><td><input type=button name=or value=\"OR\" disabled></td>",
-                           "</tr><tr><form method GET action=/login_with_mobile_no.html>",
-                           "<td><input type=text name=mobile_no placeholder=\"10 digits Mobile Number\"></td>",
-                           "</tr><tr><td><input type=submit value=\"Sign in\"></td></tr></form>",
-                           /*Image Logo starts*/
-                           "<tr><td><a href=/google_ui.html><img src=../img/1x/btn_google_signin_dark_normal_web.png></a></td></tr>",
-                           "<tr><td><a href=/twitter_ui.html><img src=../img/sign-in-with-twitter-gray.png></a></td></tr>",
-                           /*Logo Dimension is gouverned by face book*/
-                           "<tr><td><a href=/fb_ui.html><img src=../img/fb_logo.png height=28px width=200px></a></td></tr>",
-                           "<tr><td><a href=/aadhaar_ui.html><img src=../img/aadhaar-logo_en-GB.png></a></tr></td>",
-                           "</table></center></body></html>"); 
+                           "%s%s%s%s%s"
+                           "%s%s%s%s%s"
+                           "%s%s%s%s%s",
+                           "<html>"
+                           "<head>"
+                           "<title>"
+                           "</title>"
+                           "<style>",
+                           ".box2 { position:absolute; top: 50%; left: 64%; height:14em; margin-top: -9em;", 
+                           "margin-left: -15em;", 
+                           "border: none;",
+                           "background-color: white;",
+                           "border-left-style: solid;}",
+                           ".box1 {",
+                           "position:absolute;top: 50%;left: 50%;height:14em;margin-top: -9em;",
+                           "margin-left: -15em;border: none;background-color: #ffffff;}",
+                           "</style></head><body>",
+                           "<div class=\"box2\">",
+                           "<table><tr>",
+                           "<td cellpadding=\"2px\"><a href=/aadhaar_ui.html><img src=../img/aadhaar-logo_en-GB.jpg></a></td>",
+                           "</tr><tr>",
+                           "<td cellpadding=\"2px\"><a href=/twitter_ui.html><img src=../img/sign-in-with-twitter-gray.png></a></td>",
+                           "</tr><tr>",
+                           "<td cellpadding=2px><a href=/fb_ui.html><img src=../img/fb_logo.png height=28px width=200px></a></td>",
+                           "</tr><tr>",
+                           "<td cellpadding=2px><a href=/google_ui.html><img src=../img/1x/btn_google_signin_light_focus_web.png></a></td>",
+                           "</tr></table>",
+                           "</div><div id=form_in class=\"box1\">",
+                           "<form method=GET action=/sign_in.html>",
+                           "<table height=100px><tr>",
+                           "<td style=\"width:120px\"><input type=text name=id placeholder=\"Provide the user ID\"></td>",
+                           "</tr><tr>",
+                           "<td style=\"width:120px\"><input type=password name=password placeholder=\"Provide the password\"></td>",
+                           "</tr><tr>",
+                           "<td><input type=submit name=sign_in value=SignIn style=\"height:30px; width:60px\">",
+                           "<input type=button name=register value=Register style=\"height:30px; width:60px\"></td>",
+                           "</tr></table></form></div></body></html>");
 
   (*response_ptr) = (uint8_t *)malloc(html_body_len + 255/*For Http Header*/);
 
@@ -1746,40 +1773,6 @@ int32_t http_process_sign_in_req(uint32_t conn_id,
   http_session_t *session = NULL;
 
   session = http_get_session(conn_id);
-#if 0
-  ret = sscanf((const char *)session->uri,
-               "%*[^?]?%s",
-               qs);
- 
-  line_ptr = strtok(qs, "&");
-
-  do {
-    memset((void *)param_name, 0, sizeof(param_name));
-    memset((void *)param_value, 0, sizeof(param_value));
-
-    ret = sscanf((const char *)line_ptr,
-                "%[^=]=%s",
-                 param_name,
-                 param_value);
-
-    if(!strncmp((const char *)param_name, "email_id", 8)) {
-
-      /** 
-       * Replace %XX with equivalent character, 
-       * where XX is the ASCII value in hex.
-       */
-      http_decode_perct_digit(user_id, param_value);
-
-    } else if(!strncmp((const char *)param_name, "password", 8)) {
-
-      /*Copy the Password Value*/
-      memcpy((void *)password, 
-             (const void *)param_value, 
-             strlen((const char *)param_value));
-
-    }
-  }while(NULL != (line_ptr = strtok(NULL, "&"))); 
-#endif
   uint8_t *email_ptr = NULL;
   uint8_t *pwd_ptr = NULL;
   /** 
@@ -1821,19 +1814,7 @@ int32_t http_process_sign_in_req(uint32_t conn_id,
   http_send_to_nas(conn_id, response_qs, strlen(response_qs));
   /*Make web-browser to wait*/
   *response_len_ptr = 0;
-#if 0
-  http_process_redirect_req(conn_id,
-                            response_ptr,
-                            response_len_ptr,
-                            response_qs);
-#endif
 
-  #if 0
-  http_process_wait_req(conn_id, 
-                        response_ptr, 
-                        response_len_ptr,
-                        response_qs);
-  #endif
   free(response_qs);
   return(0);
 }/*http_process_sign_in_req*/

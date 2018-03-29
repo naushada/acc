@@ -349,6 +349,7 @@ int32_t acc_main(char *argv[]) {
              "public",
              "MEaMX8fkRa6PqsqK6wGMrEXcXFl_oXHA-YuknI2uf0gKgZ80HaZgG3A",
              "../keys/uidai_auth_stage.cer"
+             /*"../keys/uidai_auth_sign_preprod.cer"*/
              /*"../keys/uidai_auth_encrypt_preprod.cer"*/
              /*"../keys/uidai_auth_prod.cer"*/,
              "../keys/Staging_Signature_PrivateKey.p12");
@@ -471,7 +472,7 @@ int main(int32_t argc, char *argv[]) {
   void *tret_id;
   acc_main((char **)&argv[1]);  
 
-  acc_get_hostname(ACC_DNS_TABLE);
+  //acc_get_hostname(ACC_DNS_TABLE);
 
   for(idx = 0; idx < 7; idx++ ) {
     pthread_join(pAccCtx->tid[idx], &tret_id);
